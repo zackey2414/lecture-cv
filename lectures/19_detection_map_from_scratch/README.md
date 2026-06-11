@@ -1,36 +1,199 @@
-# 17_detection_map_from_scratch: ★物体検出mAPの自力実装 — IoU→マッチング→PR曲線→AP補間→mAP
+# 第19回 ★物体検出 mAP の自力実装 — IoU → マッチング → PR 曲線 → AP 補間 → mAP
 
-> トラック: **評価指標** ／ レベル: **中級** ／ 必要な依存グループ: `dl` `metrics`
+> トラック: **評価指標** ／ レベル: **中級** ／ 依存グループ: `dl`（torch / torchvision）・`metrics`（pycocotools）。画像モデルもネット接続も不要で、合成した「GT ボックスと予測ボックス（スコア付き）」だけで完結します。
 
 ## 🎯 この章のゴール
-IoUを定義し、予測をconfidence降順に並べてIoU≥閾値の未マッチGTへ貪欲に対応付けTP/FP/FNを決め、累積からprecision/recall列→AP(11点/全点/COCO101点補間)→クラス平均mAP@0.5・IoU 0.50:0.05:0.95平均mAP@[.5:.95]をnumpyで一から実装し、pycocotoolsのCOCOevalと突き合わせて検証する。
 
-## 扱うトピック
-- IoU=交差/和とtorchvision.ops.box_iouでの検算
-- confidence降順ソート・クラス別評価・1GptへのTP二重カウント防止
-- cumsum(tp)/cumsum(fp)→precision/recall列の構築
-- AP補間方式の違い(PASCAL11点/全点monotone/COCO101点)
-- IoU閾値ループでmAP@0.5とmAP@[.5:.95]、AP_S/M/L・AR
-- pycocotools COCOeval(iouType='bbox')での検算、bbox形式(xywh vs xyxy)とmaxDets/areaRng
+この章を終えたとき、あなたは「物体検出の mAP は、ブラックボックスのライブラリ関数ではなく、IoU と並べ替えと累積和の組み合わせにすぎない」という確信を持てるようになります。第14回で身につけた「混同行列 → PR 曲線 → 面積」という分類評価の骨格は、実は検出にもそのまま効きます。違うのはたった一点、「予測が "場所"（ボックス）を持つので、まず IoU でどの正解（GT）を当てたのかを決める対応付けが要る」ことだけです。その対応付けの手続き —— confidence 降順で GT へ貪欲にマッチングし、1つの GT を二度数えない —— を自分の手で書けるようになるのが、この章の第一の到達点です。
 
-## 主要API
-`np.argsort` / `np.cumsum` / `np.maximum.accumulate` / `torchvision.ops.box_iou` / `pycocotools.coco.COCO` / `pycocotools.cocoeval.COCOeval` / `coco.loadRes` / `COCOeval.summarize`
+そのうえで、TP/FP の列を confidence 降順に累積して precision/recall の軌跡（PR 曲線）を作り、その "面積" を AP に要約します。ここで重要なのは「AP の値は補間方式に依存する」こと。PASCAL VOC 2007 の 11 点、VOC2010+ の全点、COCO の 101 点で、同じ PR 曲線でも少しずつ違う数字が出ます。さらに IoU 閾値を 0.50:0.05:0.95 で動かして平均すれば COCO の主指標 mAP@[.5:.95] になり、IoU=0.5 だけなら mAP@0.5（旧 PASCAL 風）になります。これらを **numpy だけで一から組み上げ、pycocotools の COCOeval と小数点以下まで一致することを `assert` で確かめる** —— ここまでが本章の合格ラインです。
 
-## 評価方法
-本モジュール自体が評価指標の自作実装回。自作mAP(PR曲線面積・101点補間)とpycocotoolsのAP/AP50/AP75が小数点数桁まで一致することを検証データで確認し、補間方式やソート抜けによる差分を意図的に作って原因を説明できるようにする。
-
-## 完成物
-GT/予測(COCO形式)からIoUマッチング・PR・AP・mAPをnumpyで計算する自作評価器と、pycocotools COCOevalとの一致レポート。
-
-## CPU / GPU メモ
-完全CPU。pycocotools 2.0.11はcp310-cp314のwheel配布で無ビルド導入可。numpy 2.x ABI不一致に注意。
-
-## 予定スクリプト
-- `01_iou_matching.py`
-- `02_pr_ap_interpolation.py`
-- `03_map_vs_pycocotools.py`
+到達点を一言でいえば、**GT と予測（スコア付き）さえあれば、IoU・マッチング・PR・AP・mAP を AI 補助なしで書け、その値が COCO 公式実装と一致することを自分で検証できる**こと。mAP を「ライブラリの戻り値」ではなく「式と手順」で語れるようになると、検出モデルを比較するときに数字のズレ（補間方式違い・ソート漏れ・bbox 形式違い）を一目で見抜けるようになります。
 
 ---
-> ⚠️ この回はロードマップ上の**プレースホルダ**です。教材本体（解説＋実行コード＋演習）は順次作成します。
 
-> 依存追加の例: `uv add --group dl <packages>`（必要グループ: `dl` `metrics`）
+## 1. IoU — 「どの予測がどの GT を当てたか」を測る物差し
+
+分類の評価は「正解ラベル」と「予測ラベル」を突き合わせれば済みました。しかし検出では、予測は画像上の **ボックス**（位置と大きさ）を持ちます。「この予測ボックスは、本当にあの GT を当てているのか？」を判定する物差しが必要で、それが **IoU（Intersection over Union）** です。IoU は `交差面積 / 和集合面積` で、2 つのボックスがどれだけ重なっているかを 0〜1 で表します。完全一致なら 1、まったく重ならなければ 0。検出評価では「IoU が閾値（例えば 0.5）以上なら同じ物体を指している」とみなします。
+
+実装は驚くほど単純です。交差矩形の左上は「2 つの左上の大きい方」、右下は「2 つの右下の小さい方」を取り、幅・高さが負（重なりなし）なら 0 にクリップして交差面積を出します。和集合は `面積A + 面積B − 交差` です。`det_helpers.py` の `box_iou_numpy()` はこれをブロードキャストで全ペア一括計算し、`01_iou_matching.py` は `torchvision.ops.box_iou` と完全一致（最大差 0.0）することを確認します。下のスニペットがその核心です。
+
+```python
+lt = np.maximum(a[:, None, :2], b[None, :, :2])  # 交差の左上 = それぞれの左上の大きい方
+rb = np.minimum(a[:, None, 2:], b[None, :, 2:])  # 交差の右下 = それぞれの右下の小さい方
+wh = (rb - lt).clip(0)                            # 負（重なりなし）は 0 に
+inter = wh[..., 0] * wh[..., 1]
+union = area_a[:, None] + area_b[None, :] - inter
+iou = inter / union
+```
+
+ここで必ず押さえてほしいのが **bbox の座標形式** です。本講座が内部で使うのは `xyxy`（左上 x, 左上 y, 右下 x, 右下 y）ですが、COCO の JSON では `xywh`（左上 x, 左上 y, 幅, 高さ）が使われます。さらに DETR など一部のモデルは `cxcywh`（中心 x, 中心 y, 幅, 高さ）を内部で持ちます。この 3 つを取り違えると IoU が壊れ、評価が丸ごと無意味になります。本章では「IoU・マッチングは xyxy で行い、pycocotools へ渡すときだけ xywh へ変換する」という流儀を徹底し、`to_coco_gt()` / `to_coco_dt()` がその変換を担います。
+
+## 2. confidence 降順の貪欲マッチング — TP / FP / FN と二重カウント防止
+
+IoU で「重なり度」が測れたら、次は予測と GT を 1 対 1 に **対応付け** ます。手順はこうです。まず予測を **confidence（スコア）の高い順** に並べます。上から 1 件ずつ見て、「まだ使われていない GT のうち、IoU が閾値以上で最大のもの」へ割り当てます。割り当てられれば **TP（真陽性）**、見つからなければ **FP（偽陽性）**。最後まで誰にも当てられなかった GT が **FN（偽陰性＝検出漏れ）** です。スコアの高い予測ほど優先的に GT を取れる、という点が「confidence 依存」の核心で、ここを外すと後段の PR 曲線が別物になります。
+
+このアルゴリズムで一番大事なのが **二重カウントの防止** です。1 つの GT に複数の予測が重なったとき、TP として数えてよいのは **1 つだけ**（最もスコアの高い予測）で、残りは FP になります。もしこれを許すと、同じ物体に箱を何個も重ねるだけで TP が水増しされ、precision が不正に上がってしまいます。`01_iou_matching.py` の `demo_double_counting()` は、同じ GT に重なる 2 つの予測（スコア 0.9 と 0.8）を入れて、高スコアの方だけが TP・もう一方は FP になることを最小例で示します。実行ログは次のように出ます。
+
+```text
+[二重カウント防止] 同じ GT に2予測 → pred0(score0.9)=TP, pred1(score0.8)=FP  （TP は1つだけが正しい）
+```
+
+`01_iou_matching.py` は、12 枚の合成画像のうち 1 枚を取り、カテゴリごとにこのマッチングを実行して GT（緑）・TP（青）・FP（赤）を 1 枚の図 `01_matching.png` に描きます。カテゴリを跨いだマッチングは決して起きない（円の予測が四角の GT を当てることはない）点にも注意してください。実行すると「GT=8 TP=7 FP=5 FN=1 → precision=0.583 recall=0.875」のように、**1 つのスコア閾値・1 枚の画像** での precision/recall が出ます。これはまだ「点」にすぎません。スコア閾値を上下に動かせば precision と recall は連動して動く —— その軌跡を曲線にするのが次の節です。
+
+## 3. PR 曲線の構築 — 累積和で precision/recall の列を作る
+
+第14回で見たとおり、precision/recall は「あるスコア閾値で予測を採用/棄却に固めた後」の値です。検出でも同じで、スコア閾値を高い方から下げていくと、採用される予測が増え、TP も FP も積み上がっていきます。この「積み上がり」を表現するのが **累積和（cumsum）** です。予測をスコア降順に並べ、`tp_cum = cumsum(tp)`、`fp_cum = cumsum(1-tp)` を取れば、各時点での `recall = tp_cum / (全GT数)`、`precision = tp_cum / (tp_cum + fp_cum)` が一気に求まります。これが PR 曲線の生データです。
+
+検出ならではの注意が 2 つあります。1 つ目は、**マッチング（TP/FP 判定）は画像ごとに行うが、PR 曲線は画像をまたいで積む** という二段構えです。GT の「使用済み」状態は 1 枚の画像内で閉じますが、precision/recall を積むときは全画像の予測をまとめて改めてスコア降順に並べ替えます。2 つ目は、**recall の分母はカテゴリ全体の GT 数** であること。検出漏れ（FN）の GT には対応する予測が存在しないので TP 列には現れませんが、分母に入ることで recall を正しく下げます。`02_pr_ap_interpolation.py` の `build_pr()` がこの流れを実装しています。
+
+```python
+order = np.argsort(-scores_all, kind="stable")  # 画像横断で改めてスコア降順に（安定ソート）
+tp_cum = np.cumsum(tp_all[order])
+fp_cum = np.cumsum(1.0 - tp_all[order])
+recall = tp_cum / n_gt_total                     # 分母はカテゴリ全体の GT 数（FN も含む）
+precision = tp_cum / (tp_cum + fp_cum)
+```
+
+ソートに `kind="stable"`（安定ソート）を指定している点に注目してください。スコアが同点の予測があると、並べ替えの順序次第で TP/FP の積まれ方が変わり、pycocotools と値がズレます。COCO 公式も `mergesort`（安定ソート）を使っているので、合わせておくのが鉄則です。本章の合成データはスコアが連続値で同点がほぼ無いため影響は小さいですが、実データでは同点が頻発するので、安定ソートは "おまじない" ではなく必須です。
+
+## 4. AP 補間の 3 方式 — 11 点 / 全点 / COCO 101 点
+
+PR 曲線を 1 つの数に要約したものが **AP（Average Precision）** です。ところが「曲線の下の面積」と一口に言っても、求め方が歴史的に複数あり、**同じ PR 曲線でも方式によって少し違う値** になります。これを知らないと、論文や他チームの mAP と突き合わせたときに「なぜか 0.01 ずれる」と悩むことになります。本章では代表的な 3 方式を `02_pr_ap_interpolation.py` で実装し、実測して比べます。共通の前処理は **単調包絡**（`np.maximum.accumulate(precision[::-1])[::-1]`）で、recall を上げても precision は上がらないように曲線のギザギザを右から均す操作です。
+
+| 補間方式 | 標本化 | 計算 | 使われる場面 |
+| --- | --- | --- | --- |
+| PASCAL VOC 2007（11 点） | recall = 0, 0.1, …, 1.0 の 11 点 | 各点で「recall≥r の最大 precision」を取り平均 | 古い検出論文 |
+| VOC2010+（全点） | PR の全変化点 | 単調化した PR 曲線の真下の面積（Σ Δrecall × precision） | PASCAL 後期・一部の比較 |
+| COCO（101 点） | recall = 0, 0.01, …, 1.0 の 101 点 | 各点の単調 precision を平均 | **現在の標準（COCO/mAP）** |
+
+実行すると、同じカテゴリ・同じ IoU=0.5 でも `PASCAL 11点=0.7273 / 全点=0.7605 / COCO 101点=0.7581` のように数字が割れます。どれが「正しい」というより、**方式が違えば物差しが違う** というだけです。だから実務では「mAP いくつ」と単独で言わず、必ず「どの補間方式・どの IoU 閾値か」を添えます。`02_pr_curve.png` には raw PR（ギザギザ）・単調包絡・11 点標本が重ねて描かれ、3 方式が同じ曲線の異なる要約であることが目で確認できます。
+
+この節にはもう 1 つ、実務で最も多い事故の再現があります。**confidence 降順ソートを忘れる** と AP が壊れる、というものです。AP は「スコアの高い予測から順に採用する」ことが大前提で、並べ替えずに cumsum すると PR 列が無意味な軌跡になります。`02` はわざとソートを抜いた場合の値も出します。
+
+```text
+=== よくある事故: confidence 降順ソートを忘れる ===
+  正しい(ソートあり) COCO-AP = 0.7581
+  間違い(ソート無し) COCO-AP = 0.4087  ← 別物の数字になる
+```
+
+正しい 0.7581 に対しソート無しは 0.4087。半分近くまで落ちています。自作評価器を書いてデバッグするとき、値が妙に低かったら真っ先に「スコア降順に並べたか」を疑ってください。
+
+## 5. mAP@0.5 と mAP@[.5:.95] — IoU 閾値ループとカテゴリ平均
+
+AP はあくまで「1 カテゴリ・1 つの IoU 閾値」の値です。ここから 2 段階で平均すると、検出の代表指標 **mAP** になります。まず **カテゴリで平均** すれば、その IoU 閾値での mAP（mean AP）になります。さらに **IoU 閾値でも平均** すれば、COCO の主指標 **mAP@[.5:.95]** —— IoU を 0.50, 0.55, …, 0.95 の 10 段階で動かして平均したもの —— になります。IoU=0.5 だけなら **mAP@0.5**（旧 PASCAL 風で、位置がそこそこ合っていれば OK の緩い指標）、IoU=0.75 だけなら **mAP@0.75**（位置精度に厳しい指標）です。`03_map_vs_pycocotools.py` の `evaluate_scratch()` が、カテゴリ × IoU 閾値の二重ループで AP 表を埋めます。
+
+```python
+for ci, c in enumerate(cat_ids):              # カテゴリごと
+    for ti, thr in enumerate(IOU_THRS):       # IoU 0.50,0.55,...,0.95 ごと
+        # 画像ごとにマッチング → 画像横断でスコア降順に累積 → COCO 101点 AP
+        ap[ci, ti] = coco101_ap(tp_all[order], n_gt_total)
+map_5095 = np.nanmean(ap)        # 全カテゴリ・全閾値の平均 = COCO 主指標
+map_50   = np.nanmean(ap[:, 0])  # IoU=0.50 のみ
+map_75   = np.nanmean(ap[:, 5])  # IoU=0.75 のみ
+```
+
+実行すると `mAP@0.5=0.8215 / mAP@0.75=0.6962 / mAP@[.5:.95]=0.5275` のように出ます。**IoU を厳しくするほど mAP が下がる** のがポイントで、`03_map_compare.png` の左パネルは横軸 IoU 閾値・縦軸 mAP の右肩下がりの曲線としてこれを描きます。mAP@0.5 が高くても mAP@[.5:.95] が低いモデルは「物体の存在は当てるが位置がやや甘い」と読めます。逆に両者が近ければ「ボックスがタイトに合っている」。この読み分けができると、検出モデルの強み・弱みを数字から具体的に語れるようになります。
+
+なお、AP 表を `np.nan` で初期化し `np.nanmean` で平均しているのは、**GT が存在しないカテゴリを平均から除外** するためです。COCO 公式は同じ状況を「AP = −1」で表して無視します。本章の合成データは全カテゴリに GT があるので影響はありませんが、実データの評価では「そのカテゴリが画像に 1 つも無い」ことが普通に起きるので、この除外処理は必須です。
+
+## 6. pycocotools COCOeval との検算 — bbox 形式・maxDets・areaRng
+
+自作評価器が正しいかどうかは、**COCO 公式実装 pycocotools と突き合わせる** ことで確かめます。`03_map_vs_pycocotools.py` は同じ合成データを `COCO`（GT）と `loadRes`（予測）に読ませ、`COCOeval(iouType='bbox')` で `evaluate → accumulate → summarize` を回し、12 個の標準統計 `stats` を得ます。その `stats[0]=AP@[.5:.95]`、`stats[1]=AP50`、`stats[2]=AP75` が自作値と一致するかを `assert np.isclose(..., atol=1e-6)` で検証します。実行結果は次の通りで、差は浮動小数の丸め誤差レベル（1e-16）に収まります。
+
+```text
+[検証OK] 自作 mAP@[.5:.95]/mAP@0.5/mAP@0.75 が pycocotools と一致 (最大差 < 1e-6)。
+         差: 1.11e-16 / 1.11e-16 / 1.11e-16
+```
+
+完全一致を出すために、自作の `coco101_ap()` は pycocotools の `accumulate` と同じ手順を厳密に踏んでいます。すなわち、precision に極小の `np.spacing(1)` を足して 0 除算を避け、`np.maximum.accumulate` で右から単調化し、recall 閾値の位置を `np.searchsorted(recall, rec_thrs, side="left")` で探し、届かない recall 閾値の precision は 0 とする、という流れです。マッチングも COCO と同じ「未使用 GT の中で IoU 最大へ割り当て」「安定ソート」を採用しています。これらが 1 つでもズレると小数が合わなくなるので、**一致は "中身を正しく理解した証拠"** になります。
+
+ここで COCO 形式の落とし穴を 3 つ押さえておきます。下表のとおり、bbox 形式・maxDets・areaRng を既定から変えると数字が比較不能になります。実行ログに出る `AP_S/M/L = -1.0000 / 0.5295 / 0.5190` のうち `AP_S` が −1 なのは、合成データに「小物体（面積 < 32² px）」が存在しないため pycocotools が −1（=該当なし）を返しているからです。実写を `data/` に置けば小物体も現れ、`AP_S` が意味を持つようになります。
+
+| 項目 | 既定値 | 取り違えると | 対処 |
+| --- | --- | --- | --- |
+| bbox 形式 | COCO JSON は `xywh` | xyxy のまま渡すと箱が歪み AP が崩壊 | `to_coco_*` で xyxy→xywh 変換 |
+| maxDets | AP は画像あたり上位 100 検出 | 多すぎる予測を切ると recall 上限が下がる | 既定 100 を変えない（本章は <100/画像） |
+| areaRng | 'all' は [0, 1e10] | 面積帯を変えると AP_S/M/L が比較不能 | 小<32², 中 32²〜96², 大>96² の既定を踏襲 |
+
+`AR`（Average Recall）も `summarize` から読めます。AR@1 / AR@10 / AR@100 は「各画像で上位 1 / 10 / 100 個の検出だけ使ったときの再現率」で、検出器が "拾える上限" を測る指標です。本章は概念紹介に留め、自作実装は mAP@0.5・mAP@[.5:.95] に集中します（AP_S/M/L・AR は pycocotools の値をそのまま表示）。
+
+## 7. なぜ自作と公式が一致するのか・どこでズレるのか
+
+この章の核心は「自作 numpy が COCO 公式と一致する」体験です。一致するのは偶然ではなく、両者が **同じアルゴリズム** を実行しているからです。具体的には、(1) IoU の定義、(2) confidence 降順・安定ソート、(3) 未使用 GT の中で IoU 最大へ貪欲割り当て（二重カウント防止）、(4) 画像横断の cumsum による PR 列、(5) 単調包絡＋101 点標本での AP、という 5 ステップが完全に一致しています。逆に言えば、この 5 つのどこか 1 つでも実装を間違えると小数が合わなくなるので、**一致しないときの差分の出方からバグの場所が逆算できる** のが、自作して照合することの最大の効用です。
+
+意図的にズレを作って原因を説明できるようにしておくと、デバッグ力が一段上がります。代表的なズレ要因を下にまとめます。これらは本章のスクリプトで（一部は意図的に）再現しており、「症状 → 原因」の対応を体で覚えておくと、現場で他人の評価コードを読むときにも効きます。
+
+| ズレの症状 | 原因 | 直し方 |
+| --- | --- | --- |
+| AP が妙に低い | confidence 降順ソートを忘れた | スコア降順（安定ソート）に並べてから cumsum |
+| 数字が微妙に違う | 補間方式が違う（11 点 / 全点 / 101 点） | COCO に合わせるなら 101 点 |
+| precision が不当に高い | 1 GT への二重 TP を許した | マッチした GT を「使用済み」にして再利用禁止 |
+| box が歪んで AP 崩壊 | xyxy のまま COCO へ渡した | xywh へ変換してから loadRes |
+| 同点で結果が揺れる | 不安定ソートを使った | `kind="stable"`（mergesort）を指定 |
+
+## 8. このモジュールの構成（スクリプト一覧）
+
+各スクリプトは単一責務で、上から順に読めば「IoU とマッチング → PR と AP 補間 → mAP と公式照合」と理解が積み上がります。すべて `outputs/19_detection_map_from_scratch/` に図と JSON を保存し、画面表示には依存しません。合成データの生成・COCO 形式変換・IoU・正準マッチングエンジンは `det_helpers.py` にまとめ、各スクリプトはそれを import します。
+
+| ファイル | 役割（単一責務） |
+| --- | --- |
+| `det_helpers.py` | 合成検出データ生成・COCO(xywh) 変換・`box_iou_numpy` ・正準マッチング `match_image` ・`output_dir()` |
+| `01_iou_matching.py` | IoU の自作（torchvision と一致確認）、confidence 降順の貪欲マッチング、二重カウント防止、TP/FP/FN の可視化 |
+| `02_pr_ap_interpolation.py` | 累積和で PR 列を構築、AP の 3 補間方式（11 点 / 全点 / COCO 101 点）、ソート漏れバグの再現 |
+| `03_map_vs_pycocotools.py` | カテゴリ × IoU 閾値で mAP@0.5 / mAP@0.75 / mAP@[.5:.95] を算出、pycocotools COCOeval と一致を `assert` 検証 |
+| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
+
+`det_helpers.py` だけは「読み物」ではなく「再利用する道具」です。中身も厚くコメントしてあるので、最初に一読してから 01 へ進むと、各スクリプトが何のデータで実験しているかが腑に落ちます。実画像で試したい人は、自分の GT/予測を `gt_boxes / pred_boxes / pred_scores / pred_labels` の形に整えて `make_detection_dataset` の戻り値と同じ dict にすれば、評価器にそのまま流せます。
+
+## 9. 動かし方
+
+このモジュールは `numpy` / `torch` / `torchvision` / `pycocotools` / `matplotlib` に依存します。画像モデルもネット接続も不要で、データは合成で自動生成されるため、依存さえ入っていればすぐ実行できます。プロジェクトルートで以下を順に実行してください（初回は依存の解決に少し時間がかかります）。
+
+```bash
+# 依存グループを用意（初回のみ）。dl=torch/torchvision, metrics=pycocotools
+uv sync --group dl --group metrics
+
+# 各スクリプトを実行（結果は outputs/19_detection_map_from_scratch/ に保存される）
+uv run python lectures/19_detection_map_from_scratch/01_iou_matching.py
+uv run python lectures/19_detection_map_from_scratch/02_pr_ap_interpolation.py
+uv run python lectures/19_detection_map_from_scratch/03_map_vs_pycocotools.py
+
+# 演習: まずは TODO を自分で埋める（最初は全部 FAIL。それでも exit 0 で落ちない）
+uv run python lectures/19_detection_map_from_scratch/exercises.py
+# どうしても分からない時だけ、模範解答の挙動を見る
+SHOW_SOLUTION=1 uv run python lectures/19_detection_map_from_scratch/exercises.py
+```
+
+実行後は `outputs/19_detection_map_from_scratch/` に生成された画像と JSON を確認してください。`01_matching.png`（GT=緑 / TP=青 / FP=赤）、`02_pr_curve.png`（raw PR・単調包絡・11 点標本）、`03_map_compare.png`（左: IoU 閾値ごとの mAP 低下曲線、右: 自作と pycocotools の棒が重なる＝一致）を、本文の解説と照らし合わせると理解が定着します。各 JSON には自作と公式双方の数値が記録されているので、一致を自分の目でも確かめられます。なお `03` は初回に pycocotools のインデックス作成ログを標準出力へ出しますが、これはネットアクセスではなくローカル処理のログです（モデル DL も発生しません）。
+
+> **合成データの限界と実写への拡張**: 本章の合成データは「GT を少しずらした予測 + 検出漏れ + 無関係な誤検出」で PR 曲線に起伏を作っていますが、小物体（面積 < 32² px）を含まないため `AP_S` は −1（該当なし）になります。`data/` に COCO 形式（`xywh`）の GT/予測を置けば、`make_detection_dataset` の代わりにそれを読み込むことで、面積別 AP や AR を含めた実用的な評価ができます。評価ロジック自体は合成でも実写でも完全に同じです。
+
+## 10. よくある落とし穴（チェックリスト）
+
+最後に、この章でつまずきやすい点を「症状 → 原因 → 対処」でまとめます。実装中に詰まったら、まずここを見てください。
+
+| 症状 | ほぼ確実な原因 | 対処 |
+| --- | --- | --- |
+| IoU の値が torchvision と合わない | bbox 形式の取り違え（xyxy / xywh / cxcywh） | IoU は xyxy で計算。COCO 受け渡し時だけ xywh へ |
+| precision が不当に高い | 1 つの GT に複数の TP を許した | マッチした GT を使用済みにして再利用禁止 |
+| 自作 AP が妙に低い | confidence 降順ソートを忘れた | スコア降順（`kind="stable"`）に並べてから cumsum |
+| 他者の mAP と 0.0x ずれる | 補間方式が違う（11 点 / 全点 / 101 点） | COCO に合わせるなら 101 点・101 recall 閾値 |
+| 「mAP」だけ言われて噛み合わない | mAP@0.5 と mAP@[.5:.95] の取り違え | IoU 閾値（と補間方式）を必ず明記 |
+| pycocotools に渡すと box が歪む | xyxy のまま loadRes へ渡した | `to_coco_dt` で xyxy→xywh 変換 |
+| AP_S が −1 になる | その面積帯に GT が無い（合成は小物体なし） | 実写を入れる／その帯を評価対象から外す |
+| GT 0 件のカテゴリで NaN/エラー | 平均に空カテゴリを含めた | `np.nan` 初期化 + `np.nanmean` で除外（COCO は −1） |
+
+この 8 項目が、検出評価でつまずく原因のほぼ全てです。逆に、この 8 つを自分の言葉で説明でき・回避コードを書けるようになれば、この章のゴールに到達しています。
+
+## 11. まとめ
+
+この章では、物体検出の mAP を「IoU → confidence 降順マッチング（二重カウント防止）→ cumsum による PR 列 → AP 補間 → IoU 閾値・カテゴリ平均」という一本道として、すべて numpy で一から組み上げました。そして自作値が pycocotools COCOeval と小数点以下まで一致することを `assert` で検証し、補間方式違い・ソート漏れ・bbox 形式違いという「数字がズレる典型原因」を意図的に再現して、差分から原因を逆算できる状態を作りました。第14回の「混同行列 → PR 曲線 → 面積」の骨格が、検出では「IoU マッチング」を一枚かませるだけで成立する —— この連続性こそ、評価指標トラックの背骨です。
+
+次の第20回以降は、ここで作った mAP の目を持って、オープン語彙検出やセグメンテーションの評価（mask AP / mIoU / Dice / PQ）へ進みます。それらも本章と同じく「対応付け → 累積 → 面積/比」の応用にすぎません。まずは演習を自力で全問 PASS させ、`assert` で自作と公式の一致を体感してから次へ進んでください。
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点・CPU で動作確認）:
+> Python 3.12 ／ numpy 2.4.6 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ pycocotools 2.0.11 ／ matplotlib 3.10.9。
+> 本講座の評価トラックの想定スタック（2026-06 時点）は torch 2.12+cpu / torchvision 0.27+cpu / pycocotools 2.0.11 / scikit-learn 1.9 / torchmetrics 1.9 で、後続回では transformers 5.11・faiss-cpu も併用します（本回では未使用）。pycocotools は C 拡張のため numpy 2.x との ABI 不一致に注意（2.0.11 は cp310–cp314 の wheel 配布で無ビルド導入可）。

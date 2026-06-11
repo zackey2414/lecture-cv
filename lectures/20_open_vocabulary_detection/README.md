@@ -1,36 +1,238 @@
-# 18_open_vocabulary_detection: オープン語彙物体検出 — OWL-ViT/OWLv2・Grounding DINO
+# 第20回 オープン語彙物体検出 — OWL-ViT / OWLv2・Grounding DINO
 
-> トラック: **検出** ／ レベル: **中級** ／ 必要な依存グループ: `dl` `hf`
+> トラック: **検出** ／ レベル: **中級** ／ 依存グループ: `dl`（torch/torchvision）・`hf`（transformers/timm ほか）。CPU だけで完走します（初回のみモデル重みを HuggingFace からダウンロード）。
 
 ## 🎯 この章のゴール
-任意のテキストラベルで物体を検出する手法を理解し、OWL-ViT/OWLv2(candidate_labels)とGrounding DINO(小文字+ピリオド区切りキャプション)を使い分け、post_process_grounded_object_detection/post_process_object_detection(target_sizes=(H,W))でbox/score/labelを取り出し、box_threshold/text_threshold調整で過検出/未検出を制御できる。
 
-## 扱うトピック
-- pipeline('zero-shot-object-detection')とAutoModelForZeroShotObjectDetection
-- OWL-ViT/OWLv2のcandidate_labelsによる検出
-- Grounding DINOのキャプション形式('a cat. a remote.')とbox/text閾値
-- post_process_*のtarget_sizes=(H,W)と座標変換
-- 閉語彙(16回)/開語彙の位置づけとCLIP系検索との関係
-- Cluster-CLIP baselinesのOWLv2実装との対応
+第18回では物体検出を「学習時に決めた固定クラス（COCO の 80 種など）の枠で、どこに何があるかを当てる」タスクとして学びました。けれど現実の要望は「**棚にある"赤い消火器"を探したい**」「**この画像から"信号機"だけ抜きたい**」のように、その場で決めた任意の語で物を見つけたい、というものです。固定クラスの検出器は学習し直さない限りこれに答えられません。本章のテーマである**オープン語彙物体検出（open-vocabulary detection, OVD）**は、第16回の CLIP ゼロショット「分類」を「**検出**（=位置＋任意ラベル）」へ拡張し、推論時に渡したテキストだけで未学習カテゴリを検出できるようにします。
 
-## 主要API
-`pipeline('zero-shot-object-detection')` / `Owlv2ForObjectDetection` / `AutoModelForZeroShotObjectDetection` / `IDEA-Research/grounding-dino-tiny` / `processor.post_process_grounded_object_detection` / `google/owlvit-base-patch32`
+この章を終えると、3つのことが自分の手でできるようになります。第一に、**OWL-ViT / OWLv2** に「候補ラベルのリスト」を渡して検出し、`post_process_grounded_object_detection` で box/score/label を取り出せること（`target_sizes=(H,W)` の座標変換も自分で扱う）。第二に、**Grounding DINO** に「小文字＋ピリオド区切りのキャプション」を渡し、`box_threshold` と `text_threshold` の2つの閾値で過検出/未検出を制御できること。第三に、GT 付きの画像で **precision/recall/F1 を閾値スイープ**して PR 曲線と F1 最大点を求め、「どの閾値で切るべきか」を定量的に選べることです。
 
-## 評価方法
-任意ラベル検出を、GTがある画像でprecision/recall(IoU≥0.5マッチ)とmAP(17回の自作mAPまたはtorchmetrics)で評価し、box_threshold/text_thresholdをスイープしてP-R曲線とF1最大点を求めて閾値選択の妥当性を定量化する。
-
-## 完成物
-テキストラベルを与えて未学習カテゴリを検出し、閾値スイープでP/R/F1を出すOWLv2/Grounding DINO比較スクリプト。
-
-## CPU / GPU メモ
-CPUはowlvit-base-patch32/owlv2-base/grounding-dino-tinyを既定に。Grounding DINOのキャプションは小文字+ピリオド区切り必須、timm依存。
-
-## 予定スクリプト
-- `01_owlvit_owlv2.py`
-- `02_grounding_dino.py`
-- `03_threshold_sweep_eval.py`
+本章のスクリプトは、ネット接続もデータセットDLも無しで完走するよう、入力画像を**その場で合成**します（明るい背景に「赤い円」「青い四角」「緑の三角」「黄色い円」を描いた、GT ボックス付きのシーン）。OVD モデルは「色」「形」という概念を強く捉えるので、合成画像でも `"a red circle"` がちゃんと当たり、教材として意味のある検出・評価が出ます。検出/評価は合成画像だと検出が乏しくてもスクリプトは必ず `exit 0` になります。**実写で実用的に試したい人は `data/20_open_vocabulary_detection/` に画像を置けば自動で使われます**（GT が無いので 03 の評価だけは合成シーンに切り替わります）。ダウンロードが走るのは初回のモデル重み取得（OWL-ViT / OWLv2 / Grounding DINO）だけです。
 
 ---
-> ⚠️ この回はロードマップ上の**プレースホルダ**です。教材本体（解説＋実行コード＋演習）は順次作成します。
 
-> 依存追加の例: `uv add --group dl <packages>`（必要グループ: `dl` `hf`）
+## 1. 閉語彙 vs 開語彙 — なぜテキストで検出できるのか
+
+ふつうの検出器（第18回の Faster R-CNN や DETR）は、出力ヘッドが「COCO の 80 クラス」のように固定された分類層を持ちます。だから推論時に「これは消火器」と問うことはできません。学習時に消火器クラスが無ければ、そのノードが存在しないからです。これを**閉語彙（closed-vocabulary）**検出と呼びます。一方、オープン語彙検出は、検出した各領域を**固定ノードで分類する代わりに、テキスト埋め込みとの類似度で名付ける**という発想に切り替えます。領域の画像埋め込みと「a fire extinguisher」という文の埋め込みが近ければ、その領域を消火器と呼ぶ――第16回の CLIP の原理を、画像全体ではなく**各候補領域**に適用したものです。
+
+この「領域 × テキスト」の照合をどう実装するかで2系統に分かれます。**OWL-ViT / OWLv2** は、ViT で画像をパッチに分け、各パッチ（=候補領域）の埋め込みと、候補ラベルをエンコードしたテキスト埋め込みのコサイン類似度を取って分類します。検出ヘッドは「box の回帰」だけを担い、クラス分類はテキスト埋め込みとの内積に置き換わっている、と捉えると分かりやすい。だから候補ラベルを推論時に差し替えれば、何クラスでも自由に検出できます。**Grounding DINO** はもう一歩進めて、テキストと画像特徴を検出器の途中で**クロスアテンションで早期融合（early fusion）**します。これにより「the man on the left（左の男）」のような**参照表現**にも反応しやすくなりますが、入力テキストの書式が厳密になります（第6節）。
+
+OVD のうれしさは、**幻覚しにくさ**にも表れます。閉語彙の分類器は「与えられた候補のどれかに必ず割り当てる」傾向（第16回の softmax の副作用）がありますが、OVD は各領域とテキストの類似度が閾値を超えたものだけを検出として残すので、「シーンに無いラベル」はスコアが上がらず、ほとんど検出されません。本章では候補ラベルにわざと「a dog」「a traffic light」という**シーンに無い語**を混ぜ、それらが検出されない（=幻覚しない）ことを実測で確認します。まずは原理を頭に入れて、次節で動かしてみましょう。
+
+## 2. 最短で動かす — `pipeline('zero-shot-object-detection')`
+
+理屈を一度脇に置いて、まず成功体験を得るのが近道です。transformers の高レベル API `pipeline("zero-shot-object-detection")` は、前処理（画像のリサイズ・正規化、テキストのトークン化）から推論、後処理（box の座標変換・閾値フィルタ）までを一手に引き受けます。`01_owlvit_owlv2.py` はまずこれを使い、合成シーンを `candidate_labels`（その場で渡す任意のラベル候補）に対して検出します。`candidate_labels` を自由に決められることこそが「オープン語彙」の体感ポイントです。
+
+下が pipeline 呼び出しの核です。`task` と `model` を指定し、画像と候補ラベル・閾値を渡すだけ。`device` は CPU なら `-1`、CUDA があれば `0` を渡します。返り値は検出ごとに `{'score':…, 'label':…, 'box':{'xmin':…,'ymin':…,'xmax':…,'ymax':…}}` のリストです。
+
+```python
+from transformers import pipeline
+
+detector = pipeline("zero-shot-object-detection",
+                    model="google/owlvit-base-patch32", device=-1)  # CPU は -1
+labels = ["a red circle", "a blue square", "a green triangle",
+          "a yellow circle", "a dog", "a traffic light"]   # 任意に決められる
+outs = detector(image, candidate_labels=labels, threshold=0.1)  # score でフィルタ
+# outs: [{'score':0.41,'label':'a green triangle','box':{'xmin':110,...}}, ...]
+```
+
+合成シーンでの実行結果は、`a green triangle (0.412)` `a red circle (0.385)` `a yellow circle (0.303)` `a blue square (0.294)` の4件で、**4物体すべてが正しく当たり**、`a dog` と `a traffic light` は1件も出ません。スコアが 0.3 前後と控えめなのは OWL-ViT-base の素の特性で、`threshold` をどこに置くかで検出数が変わります。pipeline は手軽ですが、内部の前処理・後処理がブラックボックスのままです。学習目的では `target_sizes=(H,W)` の座標変換を自分で扱える必要があるので、次節で同じことを手書きに分解します。
+
+## 3. 手書きに分解する — `post_process_grounded_object_detection` と `target_sizes=(H,W)`
+
+`01_owlvit_owlv2.py` は続いて、pipeline を `processor` と `model` の2部品に開きます。OVD モデルはどれも **`AutoProcessor` + `AutoModelForZeroShotObjectDetection`** でロードでき、後処理は **`processor.post_process_grounded_object_detection(...)`** に統一されています（transformers v5 の重要な作法。第10節）。OWL の `processor` は「画像」と「候補ラベルの集合」を同時に前処理します。候補ラベルは「**画像ごとのラベル集合**」を期待するので、`text=[labels]` のように**一段ネスト**して渡すのが鉄則です。
+
+```python
+import torch
+from transformers import AutoModelForZeroShotObjectDetection, AutoProcessor
+
+proc = AutoProcessor.from_pretrained("google/owlvit-base-patch32")
+model = AutoModelForZeroShotObjectDetection.from_pretrained(
+    "google/owlvit-base-patch32").to(device).eval()       # eval() を忘れない
+
+inputs = proc(text=[labels], images=image, return_tensors="pt").to(device)  # [labels] と一段ネスト
+with torch.inference_mode():                                # 推論は勾配を切る
+    outputs = model(**inputs)
+
+target_sizes = torch.tensor([image.size[::-1]])             # ★ (H, W) 順！ image.size は (W,H)
+result = proc.post_process_grounded_object_detection(
+    outputs=outputs, threshold=0.1,
+    target_sizes=target_sizes, text_labels=[labels])[0]
+boxes  = result["boxes"]        # (N,4) xyxy 絶対座標
+scores = result["scores"]       # (N,)
+texts  = result["text_labels"]  # 候補ラベルの文字列リスト
+```
+
+ここで本章最大の落とし穴が **`target_sizes` の順序**です。モデルの生出力 `pred_boxes` は **cxcywh の正規化座標（0〜1）**で、これを `post_process_*` が「`target_sizes` で指定した画像サイズ」に合わせて **xyxy の絶対座標**へ変換してくれます。このとき `target_sizes` は必ず **`(height, width)` 順**で渡します。ところが PIL の `image.size` は **`(width, height)`** を返すので、`image.size[::-1]` のように**反転**して渡さねばなりません。ここを取り違えると box が横長/縦長に歪む典型バグになります（演習 ex2 でこの座標変換を手で実装します）。可視化の前に必ずこの後処理を通すこと――生の `pred_boxes` をそのまま描くと真っ当な box になりません。
+
+## 4. OWL-ViT vs OWLv2 — スコアの出方と幻覚のしにくさ
+
+`01` は同じ候補ラベルで **OWL-ViT**（`owlvit-base-patch32`）と **OWLv2**（`owlv2-base-patch16-ensemble`）を比較します。OWLv2 は OWL-ViT の後継で、**自己学習（self-training）**――OWL-ViT 自身に大量の画像へ擬似ラベルを付けさせ、それで再学習する――によって精度と確信度を底上げしたモデルです。実測すると、同じ4物体に対するスコアは下表のように大きく違います。OWL-ViT は 0.3 前後、OWLv2 は 0.7〜0.8 と、**OWLv2 の方が一段高い確信度**で当てます。
+
+| モデル | red circle | blue square | green triangle | yellow circle | 無いラベルの検出 |
+| --- | --- | --- | --- | --- | --- |
+| OWL-ViT (base-patch32) | 0.385 | 0.294 | 0.412 | 0.303 | **0 件** |
+| OWLv2 (base-patch16-ensemble) | **0.804** | **0.723** | **0.755** | **0.761** | **0 件** |
+
+この差は実務の閾値設定に直結します。OWL-ViT はスコアが低めなので `threshold` を 0.1 程度に下げないと取りこぼし、OWLv2 は 0.2〜0.3 でも十分拾えます（スコアのスケールがモデルごとに違うので、**閾値はモデルとセットで決める**のが鉄則。第9節で定量化します）。一方、両モデルとも**「a dog」「a traffic light」を1件も検出しません**。これが OVD の「幻覚しにくさ」で、固定クラス分類器が「候補のどれかに必ず分類してしまう」のと対照的です。`01_owlvit_detections.png` / `01_owlv2_detections.png` は、検出 box（色つき実線）と GT box（灰色点線）を重ねた図で、両者がほぼ一致していることを目視できます。精度の高さだけ見れば OWLv2 が有利ですが、`base-patch16-ensemble` は OWL-ViT-base-patch32 より**重く・ロードも遅い**ので、CPU で素早く試すなら OWL-ViT、精度が要るなら OWLv2、という使い分けになります。
+
+## 5. Grounding DINO — キャプション形式と box/text 閾値（過検出の体感）
+
+`02_grounding_dino.py` は、OWL とは入力の渡し方が違うもう1系統――**Grounding DINO**（`grounding-dino-tiny`）を扱います。OWL が「候補ラベルの**リスト**」を取るのに対し、Grounding DINO は1本の「**キャプション**」を取り、そのキャプション中の語句に対応する物体を検出します。ここで書式が厳密で、**小文字に統一し、各物体をピリオド `.` で区切る**必要があります（例: `"a cat. a remote control."`）。本章では候補ラベルを `labels_to_caption()` でこの形式に整形してから渡します。書式を崩すと検出が安定しないので、これが最頻の落とし穴です。
+
+```python
+# 候補ラベル → Grounding DINO 用キャプション（小文字＋ピリオド区切り）
+caption = "a red circle. a blue square. a green triangle. a yellow circle. a dog. a traffic light."
+inputs = proc(images=image, text=caption, return_tensors="pt").to(device)
+with torch.inference_mode():
+    outputs = model(**inputs)
+result = proc.post_process_grounded_object_detection(
+    outputs, input_ids=inputs["input_ids"],   # ★ どの語に紐づくか判定するため input_ids が要る
+    threshold=0.35,            # box_threshold: 検出ボックスの確信度
+    text_threshold=0.25,       # text_threshold: ボックスを語に対応づける確信度
+    target_sizes=torch.tensor([image.size[::-1]]))[0]   # ここも (H, W)
+```
+
+Grounding DINO には**閾値が2つ**あります。`box_threshold`（後処理引数では `threshold`）は「検出ボックスそのものの確信度」、`text_threshold` は「そのボックスをキャプション中のどの語に結びつけるかの確信度」です。`02` はこれを**緩い設定**（box≥0.15, text≥0.15）と**厳しい設定**（box≥0.35, text≥0.25）で比較します。結果は劇的で、緩い設定では **19 件**も検出され、その大半が `a traffic light`（シーンに無い）への過検出や、`a` `a light` のような**語の断片への誤対応**です。一方、厳しい設定では**ちょうど4件**――4物体に正しく1つずつ――に収まります。
+
+| 設定 | box_threshold | text_threshold | 検出数 | 内訳 |
+| --- | --- | --- | --- | --- |
+| loose | 0.15 | 0.15 | **19** | 正解4 ＋ "a traffic light" 多数 ＋ "a" / "a light" など断片 |
+| strict | 0.35 | 0.25 | **4** | 4物体に1つずつ（過検出なし） |
+
+この実験の教訓は「**Grounding DINO はデフォルト閾値のままだと過検出/未検出になりやすく、2つの閾値の調整が必須**」ということです。`02_gdino_loose.png` と `02_gdino_strict.png` を見比べると、緩い設定で box が乱立し、厳しい設定でスッキリ4つに収まる様子が一目で分かります。なお Grounding DINO は OWL より重く（`timm` 依存・初回 DL も大きめ）、環境次第で失敗しうるので、`02` はロード/推論を `try/except` で包み、ダメなら**概念紹介だけ出して必ず `exit 0`** にしてあります。
+
+## 6. OWL と Grounding DINO の使い分け
+
+ここまでで2系統を触りました。実務での使い分けの指針を整理します。**OWL-ViT / OWLv2** は「検出したいカテゴリのリストが決まっている」場面に向きます。候補ラベルを配列で渡すだけで、各ラベルが独立に評価され、結果も「どのラベルか（`labels` のインデックス）」がきれいに付きます。在庫検品・特定物体の有無チェックのように「**語彙が列挙できる**」用途に素直です。OWLv2 は精度重視、OWL-ViT-base-patch32 は CPU で軽く試す用、と覚えてください。
+
+**Grounding DINO** は「**自然言語のフレーズ・参照表現で指したい**」場面に向きます。早期融合のおかげで `"a person wearing a red hat"` のような修飾付き表現や関係表現に強く、後段で **SAM** にボックスを渡せば任意領域のセグメンテーション（**Grounded-SAM**、第23回で扱う）に発展できます。反面、キャプション書式（小文字＋ピリオド）と2つの閾値という「お作法」が増え、断片語への過検出ケアが要ります。**列挙できる固定ラベルなら OWL、自由な言語表現や下流の SAM 連携なら Grounding DINO**、というのが第一感の使い分けです。
+
+実装面の共通点も押さえておきましょう。どちらも `AutoModelForZeroShotObjectDetection` でロードでき、後処理は `post_process_grounded_object_detection`、`target_sizes` は `(H,W)`、出力は xyxy 絶対座標の box です。違いは「クエリの渡し方（リスト or キャプション）」と「閾値の数（OWL は1つ、GDINO は box/text の2つ）」だけ。この共通骨格を `ovd_helpers.detect_owl` / `detect_gdino` に薄くまとめてあるので、両者の差分が読み取れます。
+
+## 7. 検出をどう評価するか — IoU・貪欲マッチング・P/R/F1
+
+「それっぽく検出できた」を「どれだけ正しいか」に変えるのが評価です。本章は第19回（mAP 自作）と同じ筋で、**IoU → 貪欲マッチング → TP/FP/FN → precision/recall/F1** を numpy で組みます。まず **IoU（Intersection over Union）** は2つの box の「重なり面積 ÷ 和集合面積」で、1.0 が完全一致・0.0 が無重なり。検出が GT に「当たった」とみなす基準（本章は **IoU≥0.5**）に使います。
+
+次に**貪欲マッチング**です。予測を**スコア降順**に並べ、各予測について「**同じラベルかつ未マッチ**で IoU≥0.5 の GT」のうち IoU 最大のものに対応づけます。対応すれば **TP（真陽性）**、対応する GT が無ければ **FP（偽陽性）**。最後まで誰にも対応されなかった GT が **FN（偽陰性）**。1つの GT に複数予測が当たっても **TP は最初の1つだけ**（残りは FP）――この「1 GT につき 1 検出」の規則が、過検出を正しくペナルティする鍵です。OVD ではラベルも一致を要求する（**クラス込み**マッチング）ので、`a green triangle` の box が `a red circle` の GT に重なっても TP にはなりません。
+
+```python
+# precision/recall/F1 の定義（TP/FP/FN から）
+precision = TP / (TP + FP)        # 検出のうち正しかった割合
+recall    = TP / (TP + FN)        # GT のうち拾えた割合
+F1        = 2 * P * R / (P + R)   # 両者の調和平均（バランス指標）
+```
+
+`precision` は「検出した中で正しい割合（過検出すると下がる）」、`recall` は「あるべき物体を拾えた割合（取りこぼすと下がる）」、`F1` はその調和平均です。検出を厳しく絞れば precision は上がるが recall は下がり、緩めれば逆になる――この**トレードオフ**を1本の閾値が決めます。だからこそ「どの閾値が良いか」を測る必要があり、それが次節の閾値スイープです。これらの計算は `ovd_helpers.iou_xyxy` / `greedy_match` / `prf` にまとめ、演習 ex1/ex3/ex4 で手を動かして再現します。
+
+## 8. 閾値スイープで P/R/F1 — 閾値選択を定量化する
+
+`03_threshold_sweep_eval.py` は、GT 付き合成シーンを使って「**どの閾値で切るのが妥当か**」を数字で求めます。やり方はシンプルです。(1) モデルを**十分低い閾値**で1回だけ走らせ「全候補（スコア付き）」を集める。(2) スコア閾値 `t` を 0.05〜0.95 で掃引し、`t` 以上の検出だけ残して第7節のマッチングで TP/FP/FN を数え、P/R/F1 を出す。(3) **F1 が最大になる `t`** を「推奨閾値」とする。1回の推論結果を後処理で何度も閾値フィルタするだけなので、モデルを何度も走らせる必要はありません。
+
+OWLv2 のスイープ結果が下表です。閾値が低い 0.05 では低スコアの誤検出（FP=7）が混じって precision が 0.36 まで落ち、0.10 で 0.80、0.20〜0.70 では **P=R=F1=1.0** の plateau（4物体を過不足なく検出）。0.75 を超えると本物の検出まで切り捨ててしまい recall が 0.75→0.25 と崩れます。**F1 最大は t=0.70 で P=R=F1=1.0**。「低すぎると過検出で precision が落ち、高すぎると取りこぼしで recall が落ちる」という山なりの構造がはっきり読めます。
+
+| しきい値 t | TP | FP | FN | precision | recall | F1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0.05 | 4 | 7 | 0 | 0.36 | 1.00 | 0.53 |
+| 0.10 | 4 | 1 | 0 | 0.80 | 1.00 | 0.89 |
+| 0.20〜0.70 | 4 | 0 | 0 | **1.00** | **1.00** | **1.00** |
+| 0.75 | 3 | 0 | 1 | 1.00 | 0.75 | 0.86 |
+| 0.80 | 1 | 0 | 3 | 1.00 | 0.25 | 0.40 |
+
+Grounding DINO でも同じスイープをかけると、**過検出の激しさ**がさらにくっきり出ます。t=0.05 では FP が **60 件**にも達して precision はわずか 0.06、t=0.20 で 0.50、0.30〜0.75 で plateau 1.0、F1 最大は t=0.75。第5節で見た「緩いと断片語まで拾う」性質が、低閾値域の大量 FP として定量化されています。`03_sweep_owlv2.png` / `03_sweep_gdino.png` は P/R/F1 の3曲線と F1 最大点の縦線、`03_pr_curve.png` は両モデルの **PR 曲線**（recall を横軸・precision を縦軸）を重ねた図です。合成シーンは検出が容易なので曲線がきれいに角張りますが、**実写を `data/` に置くと precision と recall がなだらかにトレードオフする現実的な曲線**になります。この「F1 最大点を推奨閾値とする」手続きが、本章の完成物そのものです。
+
+## 9. Cluster-CLIP baselines との対応（最終章への布石）
+
+本講座の最終章（第40・41回）で扱う Cluster-CLIP パイプラインでは、**OWLv2 を「テキスト指定で領域を切り出すベースライン検出器」**として使います。本章の `detect_owl`（候補ラベル→box/score/label）が、まさにそのベースライン実装の最小形です。OVD は「CLIP の共有埋め込み空間（第16回）を、画像全体ではなく**領域単位**で使う」技術なので、第16回の「埋め込み→正規化→コサイン」という骨格がそのまま「領域埋め込み→テキスト埋め込みとの照合」へ地続きに繋がっています。
+
+実務でも OVD は「**ラベル付きデータが無い／少ないカテゴリを、まずテキストだけで検出してみる**」起点として強力です。OWLv2 や Grounding DINO で粗く検出 → 良さそうな検出を擬似ラベルとして集める → 軽量な閉語彙検出器（第18回）を蒸留する、という流れは現場でよく使われます。本章で「候補ラベルを変えるだけで検出対象を差し替えられる」「閾値スイープで品質を定量化できる」を身につけておくと、この応用にそのまま入っていけます。
+
+## 10. transformers v5 の注意点（古いコードが動かない理由）
+
+ネット上の OWL-ViT / Grounding DINO チュートリアルは 4.x 時代のものが多く、そのまま写すと動かないことがあります。本章で踏んだ **transformers 5.x の作法**を3つまとめます。第一に、後処理メソッドが **`post_process_grounded_object_detection` に統一**されました。OWL 系の古い記事にある `post_process_object_detection` は v5 の OWL では使いません（OWL-ViT/OWLv2 のプロセッサが公開するのは `post_process_grounded_object_detection`）。引数も `threshold` / `target_sizes` / `text_labels`（OWL）、`input_ids` / `threshold` / `text_threshold`（GDINO）と整理されています。
+
+```python
+# 4.x（古い記事に多い・v5 では動かない/非推奨）
+# results = processor.post_process_object_detection(outputs, target_sizes=...)
+
+# 5.x（本章の正準）
+results = processor.post_process_grounded_object_detection(
+    outputs=outputs, threshold=0.1,
+    target_sizes=torch.tensor([image.size[::-1]]),  # (H, W)！
+    text_labels=[labels])                            # OWL は候補ラベルを渡せる
+```
+
+第二に、画像の前処理は **`AutoImageProcessor`（fast 実装のみ）** に一本化され、torchvision が事実上必須です（`dl` グループで入っているので問題なし）。Grounding DINO のバックボーンは **`timm`** に依存するので、`hf` グループに `timm` を含めています（未導入だと `from_pretrained` でバックボーン読み込みに失敗）。第三に、**モデルキャッシュ**は初回の `from_pretrained` で `~/.cache/huggingface`（環境変数 `HF_HOME`）に保存され、次回以降は即起動します。Docker ではこのディレクトリをボリュームマウントしないと、コンテナを作り直すたびに再 DL が走ります。完全オフラインで回すなら `HF_HUB_OFFLINE=1` を設定します。
+
+## 11. このモジュールの構成（スクリプト一覧）
+
+各スクリプトは単一責務で、上から読むと「動かす → 比較する → 評価する」と理解が積み上がります。すべて `outputs/20_open_vocabulary_detection/` に図と json を保存し、画面表示には依存しません（matplotlib は Agg）。device 判定・合成シーン生成・モデルロード・検出ラッパ・IoU/マッチング/PRF・描画といった共通処理は `ovd_helpers.py` にまとめ、各スクリプトはそれを import します。
+
+| ファイル | 役割（単一責務） |
+| --- | --- |
+| `ovd_helpers.py` | device 判定・GT 付き合成シーン生成・OWL/GDINO ロードと検出ラッパ・IoU/貪欲マッチング/PRF・図保存。道具箱 |
+| `01_owlvit_owlv2.py` | `pipeline` で最短検出 → `AutoModel` 手書き（`post_process_grounded_object_detection`・`target_sizes=(H,W)`）→ OWL-ViT vs OWLv2 比較・幻覚しにくさの確認 |
+| `02_grounding_dino.py` | Grounding DINO のキャプション形式・`box_threshold`/`text_threshold` の効き方・過検出/厳しめの比較（重い場合は概念紹介にフォールバック） |
+| `03_threshold_sweep_eval.py` | GT 付きシーンで閾値スイープ → P/R/F1 → F1 最大点と PR 曲線（OWLv2 vs Grounding DINO） |
+| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+
+`ovd_helpers.py` だけは「読み物」ではなく「再利用する道具」です。とくに `detect_owl` / `detect_gdino`（検出して xyxy 絶対座標を返す）と `build_scene`（GT 付き4物体シーン）、`greedy_match`（クラス込み TP/FP/FN）が、3スクリプト全部の土台です。`ovd_helpers.py` を単体実行すると道具箱のスモークテスト（合成シーン描画＋IoU/PRF の動作確認、**モデル DL 不要**）になるので、まずそれを動かしてから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。
+
+## 12. 動かし方
+
+このモジュールは `dl`（torch/torchvision）・`hf`（transformers/timm ほか）グループに依存します。CPU だけで完走し、初回のみ OWL-ViT・OWLv2・Grounding DINO の重みを HuggingFace からダウンロードします（以降はキャッシュから起動）。プロジェクトルートで以下を順に実行してください。
+
+```bash
+# 依存グループをインストール（初回のみ）
+uv sync --group dl --group hf
+
+# まず道具箱のスモークテスト（モデル DL 不要・合成シーン描画＋IoU/PRF 確認）
+uv run python lectures/20_open_vocabulary_detection/ovd_helpers.py
+
+# 各スクリプトを実行（結果は outputs/20_open_vocabulary_detection/ に保存される）
+uv run python lectures/20_open_vocabulary_detection/01_owlvit_owlv2.py
+uv run python lectures/20_open_vocabulary_detection/02_grounding_dino.py
+uv run python lectures/20_open_vocabulary_detection/03_threshold_sweep_eval.py
+
+# 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
+uv run python lectures/20_open_vocabulary_detection/exercises.py
+# どうしても分からない時だけ、模範解答の挙動を見る
+SHOW_SOLUTION=1 uv run python lectures/20_open_vocabulary_detection/exercises.py
+
+# （任意）実写で試す: data/20_open_vocabulary_detection/ に .png/.jpg を置くと自動で使われる
+#  → 01/02 は実写を検出。03 の評価は GT が無いため合成シーンに自動で切り替わる。
+```
+
+実行後は `outputs/20_open_vocabulary_detection/` の図を解説と照らし合わせてください。とくに `02_gdino_loose.png`（過検出だらけ）と `02_gdino_strict.png`（4つに収束）、`03_sweep_owlv2.png`（P/R/F1 の山）と `03_pr_curve.png`（PR 曲線）を見ると、本章の2大テーマ（**閾値で過検出/取りこぼしが決まる・F1 最大点で閾値を選ぶ**）が視覚的に腑に落ちます。図中の文字は CJK フォントの豆腐（□）を避けるため ASCII にしてあります。合成画像なのに色がおかしい場合は、cv2 の BGR を RGB に変換し忘れていないかを確認してください（本章は `build_scene` で変換済み）。
+
+## 13. よくあるエラーと対処（チェックリスト）
+
+最後に、本章でつまずきやすい点を「症状 → 原因 → 対処」でまとめます。OVD・transformers v5 特有の罠が多いので、詰まったらまずここを見てください。
+
+| 症状 | ほぼ確実な原因 | 対処 |
+| --- | --- | --- |
+| box が横長/縦長に歪む | `target_sizes` を `(W,H)` で渡した | `image.size[::-1]` で **`(H,W)`** にして渡す |
+| 可視化で box がバラバラ/画面外 | 生の `pred_boxes`(cxcywh 正規化)を直接描いた | `post_process_grounded_object_detection` を必ず通す |
+| `post_process_object_detection` が無い | v5 の OWL は `grounded` 版に統一 | `post_process_grounded_object_detection` を使う |
+| OWL で候補ラベルが通らない/形がおかしい | `text=labels`（ネスト忘れ） | `text=[labels]` と一段ネストして渡す |
+| Grounding DINO が何も検出しない/断片を拾う | キャプション書式が不正（大文字・区切り無し） | 小文字＋ピリオド区切り `"a cat. a dog."` にする |
+| Grounding DINO の後処理でエラー | `input_ids` を渡していない | `post_process_...(outputs, input_ids=inputs["input_ids"], ...)` |
+| Grounding DINO が過検出/未検出 | `box_threshold`/`text_threshold` が不適切 | 2つの閾値を上げて過検出を抑える（第5節） |
+| `timm` 関連でロード失敗 | Grounding DINO は timm 依存 | `hf` グループ（timm を含む）を入れる |
+| CPU で推論が極端に遅い | `float16`/`half` を CPU で使っている | CPU は `float32`。`inference_mode()` を付ける |
+| 毎回モデルを再DLする（Docker） | キャッシュをマウントしていない | `~/.cache/huggingface`（`HF_HOME`）をボリューム化 |
+
+この表の上3つ（`(H,W)` 順・`post_process` を通す・`grounded` 版）が OWL+v5 の「あるある」、真ん中3つが Grounding DINO の書式まわりです。症状を見たら原因を即座に言い当てられるようにしておきましょう。
+
+## 14. まとめ
+
+本章では、**オープン語彙物体検出**が「検出領域を固定ノードで分類する代わりに、テキスト埋め込みとの類似度で名付ける」技術であること（第16回 CLIP の領域版）から出発し、`pipeline` での最短検出、`AutoModel` 手書きでの `post_process_grounded_object_detection` と **`target_sizes=(H,W)`** の座標変換、**OWL-ViT vs OWLv2**（スコアの出方と幻覚しにくさ）、**Grounding DINO** のキャプション形式と `box_threshold`/`text_threshold` による過検出制御、そして **IoU→貪欲マッチング→P/R/F1 の閾値スイープ**で F1 最大点を推奨閾値とする定量評価までを、すべて GT 付きの合成シーンで「自分で再現し、数字で確認できる」レベルで扱いました。通底する勘所は「**候補ラベル/キャプションは推論時に自由に決められる**」「**閾値が過検出と取りこぼしのトレードオフを決め、F1 最大点で選ぶ**」の2つです。
+
+ここで身につけた「テキストで検出 → 閾値で品質を制御 → P/R/F1 で評価」という骨格は、次の第23回（テキストプロンプトセグメンテーション・Grounded-SAM）で「Grounding DINO の box を SAM に渡す」流れへ、また最終章（第40・41回）の Cluster-CLIP パイプラインで「OWLv2 ベースライン検出器」としてそのまま繋がります。まずは演習を全問 PASS させ、`02` の「緩い閾値で 19 件・厳しい閾値で 4 件」と `03` の「F1 最大が OWLv2 で t=0.70・GDINO で t=0.75」を自分の言葉で説明できるようにしてから、次へ進んでください。
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
+> Python 3.12 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ transformers 5.11.0 ／ huggingface-hub 1.18.0 ／ timm 1.0.27 ／ safetensors 0.8.0 ／ numpy 2.4.6 ／ Pillow 12.2.0 ／ matplotlib 3.10.9 ／ opencv-python-headless 4.13.0（合成シーンの描画）／ pycocotools 2.0.11（第19回の自作 mAP・COCOeval 突き合わせで使用）
+> 使用モデル: `google/owlvit-base-patch32`（OWL-ViT）／ `google/owlv2-base-patch16-ensemble`（OWLv2）／ `IDEA-Research/grounding-dino-tiny`（Grounding DINO）。いずれも初回のみ HuggingFace から重みを取得しキャッシュします。
