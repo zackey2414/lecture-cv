@@ -51,6 +51,15 @@ diffusion = [
     "diffusers>=0.31",
     "accelerate>=1.0",
 ]
+# モデル最適化・デプロイ: ONNX エクスポート / onnxruntime 実行・量子化
+onnx = [
+    "onnx>=1.17",
+    "onnxruntime>=1.20",
+]
+# open_clip（MobileCLIP/TinyCLIP の蒸留・Cluster-CLIP の dense CLIP 特徴）
+embed = [
+    "open-clip-torch>=2.30",
+]
 # 開発ツール（uv sync で既定インストールされる）
 dev = [
     "ruff>=0.6",
