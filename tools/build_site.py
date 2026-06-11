@@ -233,10 +233,14 @@ for idx, m in enumerate(modules):
     readme = m["_dir"] / "README.md"
     readme_html = md_to_html(strip_h1(readme.read_text())) if readme.exists() else "<p>（準備中）</p>"
 
-    # 各スクリプトの全文（折りたたみ）
+    # 各スクリプトの全文（折りたたみ）。演習/解答は別セクションに分ける。
+    EXNAMES = {"exercises.py", "exercises_solutions.py"}
     scripts_html = ""
-    code_scripts = [p for p in m["_scripts"] if p.name != "exercises.py"]
-    ex = [p for p in m["_scripts"] if p.name == "exercises.py"]
+    code_scripts = [p for p in m["_scripts"] if p.name not in EXNAMES]
+    ex_files = sorted(
+        (p for p in m["_scripts"] if p.name in EXNAMES),
+        key=lambda p: p.name != "exercises.py",  # exercises.py を先に
+    )
     if code_scripts:
         blocks = []
         for p in code_scripts:
@@ -246,11 +250,15 @@ for idx, m in enumerate(modules):
             )
         scripts_html = f'<h2>スクリプト全文</h2>{"".join(blocks)}'
     ex_html = ""
-    if ex:
-        ex_html = (
-            f'<h2>演習</h2><details class="srcblock"><summary><code>exercises.py</code>'
-            f'（TODO を埋めて自己採点）</summary>{highlight_py(ex[0].read_text())}</details>'
-        )
+    if ex_files:
+        blocks = []
+        for p in ex_files:
+            label = "TODO を埋めて自己採点" if p.name == "exercises.py" else "模範解答（先に自分で解く）"
+            blocks.append(
+                f'<details class="srcblock"><summary><code>{html.escape(p.name)}</code> — {label}</summary>'
+                f'{highlight_py(p.read_text())}</details>'
+            )
+        ex_html = f'<h2>演習</h2>{"".join(blocks)}'
 
     groups = "".join(f'<code class="chip">{html.escape(g)}</code>' for g in (m.get("needs_groups") or [])) or '<span class="muted">追加依存なし</span>'
     status = '公開' if m["_authored"] else '準備中（プレースホルダ）'
