@@ -1,6 +1,6 @@
 # lecture-cv
 
-Computer Vision（CV）を「**AI の補助なしでも自分一人でゴリゴリ書け、内容を熟知している**」状態まで叩き込むための、ハンズオン講座リポジトリです。OpenCV / Pillow の画像基礎から、古典 CV、深層 CV（分類・検出・セグメンテーション・深度/姿勢/追跡）、CLIP/SigLIP とベクトル検索（FAISS）、キャプション/VQA/OCR、生成・編集、各タスクの**精度評価**（物体検出 mAP は自力実装）、そして量子化・枝刈り・ONNX・知識蒸留などの**モデル圧縮/高速化**まで、全 40 モジュールを段階的に実装します。
+Computer Vision（CV）を「**AI の補助なしでも自分一人でゴリゴリ書け、内容を熟知している**」状態まで叩き込むための、ハンズオン講座リポジトリです。OpenCV / Pillow の画像基礎から、古典 CV、深層 CV（分類・検出・セグメンテーション・深度/姿勢/追跡）、CLIP/SigLIP とベクトル検索（FAISS）、キャプション/VQA/OCR、生成・編集、各タスクの**精度評価**（物体検出 mAP は自力実装）、そして量子化・枝刈り・ONNX・知識蒸留などの**モデル圧縮/高速化**まで、全 42 モジュールを段階的に実装します。
 
 最終的には、参照リポジトリ [`cluster-clip`](../../cluster-clip) の Cluster-CLIP（dense CLIP 特徴 + 空間連結クラスタリング + FAISS + ストリーム処理）を、CPU で動く小型版として自力再構築できる到達度を目指します。
 
@@ -9,14 +9,14 @@ Computer Vision（CV）を「**AI の補助なしでも自分一人でゴリゴ�
 - **GPU 不要**: 全モジュールが CPU のみ（MacBook 等）で完走できるよう設計。GPU は任意の高速化です。
 - **docker + uv**: 環境は `uv` で管理。Docker でも同一構成を再現できます。
 - **ハンズオン**: 各回は「解説（地の文）＋ 実行できる `.py` ＋ 演習」。読むだけでなく**動かして・書き換えて**学びます。
-- **評価を重視**: 各タスクで評価指標を必ず実測。`17` では mAP を numpy で一から実装し pycocotools と突き合わせます。
+- **評価を重視**: 各タスクで評価指標を必ず実測。`19` では mAP を numpy で一から実装し pycocotools と突き合わせます。
 - **ネット非依存**: 第1回はサンプル画像が無くても合成画像で完走します。
 
 ## クイックスタート
 
 ```bash
 # --- ローカル（uv） ---
-uv sync                                   # 画像基礎(00〜09): numpy/opencv/pillow/matplotlib
+uv sync                                   # 画像基礎〜古典CV〜古典動画(00〜11): numpy/opencv/pillow/matplotlib
 uv run python lectures/00_setup/check_env.py          # 環境スモークテスト
 uv run python lectures/01_image_basics/01_imread_imwrite.py
 
@@ -39,8 +39,8 @@ lecture-cv/
 ├── lectures/                 # 教材本体（番号_スネークケースのモジュール）
 │   ├── 00_setup/             # 環境構築・スモークテスト（check_env.py）
 │   ├── 01_image_basics/      # ★第1回（解説 + 実行コード + 演習）作成済み
-│   └── 02_… 〜 39_…/         # ロードマップ上のプレースホルダ（順次作成）
-├── docs/roadmap.md           # 全 40 モジュールのロードマップ（必読）
+│   └── 02_… 〜 41_…/         # ロードマップ上のプレースホルダ（順次作成）
+├── docs/roadmap.md           # 全 42 モジュールのロードマップ（必読）
 ├── data/                     # 入力データ（各自で配置。.gitkeep のみ追跡）
 ├── outputs/                  # 実行結果の出力先
 ├── pyproject.toml            # uv 依存定義（main + dependency-groups）
