@@ -29,7 +29,8 @@
     "HF_HOME",
     "uv add --group",
     "[[tool.uv.index]]"
-   ]
+   ],
+   "prereqs": []
   },
   {
    "id": "01_image_basics",
@@ -58,6 +59,9 @@
     "PIL.Image.open",
     "Image.fromarray",
     "plt.imshow"
+   ],
+   "prereqs": [
+    "00_setup"
    ]
   },
   {
@@ -80,6 +84,9 @@
     "PIL.Image",
     "albumentations.Compose",
     "torchvision.transforms.v2"
+   ],
+   "prereqs": [
+    "01_image_basics"
    ]
   },
   {
@@ -109,6 +116,9 @@
     "cv2.flip",
     "PIL.Image.resize",
     "ImageOps.exif_transpose"
+   ],
+   "prereqs": [
+    "01_image_basics"
    ]
   },
   {
@@ -138,6 +148,9 @@
     "cv2.createCLAHE",
     "cv2.getPerspectiveTransform",
     "cv2.warpPerspective"
+   ],
+   "prereqs": [
+    "03_image_transforms"
    ]
   },
   {
@@ -167,6 +180,9 @@
     "cv2.minMaxLoc",
     "cv2.HoughLinesP",
     "cv2.HoughCircles"
+   ],
+   "prereqs": [
+    "04_filtering_edges_morphology"
    ]
   },
   {
@@ -192,6 +208,9 @@
     "cv2.warpPerspective",
     "cv2.perspectiveTransform",
     "cv2.Stitcher_create"
+   ],
+   "prereqs": [
+    "05_classical_features_matching"
    ]
   },
   {
@@ -220,6 +239,9 @@
     "cv2.stereoRectify",
     "cv2.StereoSGBM_create",
     "cv2.reprojectImageTo3D"
+   ],
+   "prereqs": [
+    "06_homography_panorama"
    ]
   },
   {
@@ -247,6 +269,9 @@
     "cv2.GC_INIT_WITH_RECT",
     "cv2.inpaint",
     "cv2.INPAINT_TELEA"
+   ],
+   "prereqs": [
+    "04_filtering_edges_morphology"
    ]
   },
   {
@@ -275,6 +300,9 @@
     "cv2.VideoWriter",
     "cv2.VideoWriter_fourcc",
     "time.perf_counter"
+   ],
+   "prereqs": [
+    "01_image_basics"
    ]
   },
   {
@@ -297,6 +325,10 @@
     "cv2.calcOpticalFlowFarneback",
     "cv2.createBackgroundSubtractorMOG2",
     "cv2.CamShift"
+   ],
+   "prereqs": [
+    "09_video_io_basics",
+    "05_classical_features_matching"
    ]
   },
   {
@@ -328,6 +360,10 @@
     "multiprocessing.Process",
     "cv2.CAP_FFMPEG",
     "cv2.CAP_PROP_BUFFERSIZE"
+   ],
+   "prereqs": [
+    "09_video_io_basics",
+    "10_classical_video_motion"
    ]
   },
   {
@@ -358,6 +394,9 @@
     "torch.utils.data.Dataset",
     "DataLoader",
     "albumentations.Compose"
+   ],
+   "prereqs": [
+    "03_image_transforms"
    ]
   },
   {
@@ -389,6 +428,9 @@
     "param.requires_grad_(False)",
     "nn.Linear",
     "torch.inference_mode"
+   ],
+   "prereqs": [
+    "12_data_pipeline_augmentation"
    ]
   },
   {
@@ -419,6 +461,9 @@
     "torchmetrics.classification.Accuracy",
     "torchmetrics.classification.AUROC",
     "torchmetrics.classification.AveragePrecision"
+   ],
+   "prereqs": [
+    "13_classification_transfer_learning"
    ]
   },
   {
@@ -450,6 +495,9 @@
     "torch.nn.TripletMarginLoss",
     "torch.nn.CosineSimilarity",
     "timm.create_model"
+   ],
+   "prereqs": [
+    "13_classification_transfer_learning"
    ]
   },
   {
@@ -483,6 +531,9 @@
     "torch.softmax",
     "torch.sigmoid",
     "torch.topk"
+   ],
+   "prereqs": [
+    "15_image_embeddings_metric_learning"
    ]
   },
   {
@@ -517,6 +568,10 @@
     "faiss.IndexIVFFlat",
     "faiss.index_factory",
     "np.ascontiguousarray"
+   ],
+   "prereqs": [
+    "15_image_embeddings_metric_learning",
+    "16_clip_zeroshot_retrieval"
    ]
   },
   {
@@ -549,6 +604,10 @@
     "image_processor.post_process_object_detection",
     "torchvision.ops.nms",
     "torchvision.utils.draw_bounding_boxes"
+   ],
+   "prereqs": [
+    "13_classification_transfer_learning",
+    "14_eval_classification"
    ]
   },
   {
@@ -580,6 +639,9 @@
     "pycocotools.cocoeval.COCOeval",
     "coco.loadRes",
     "COCOeval.summarize"
+   ],
+   "prereqs": [
+    "18_object_detection_intro"
    ]
   },
   {
@@ -609,6 +671,10 @@
     "IDEA-Research/grounding-dino-tiny",
     "processor.post_process_grounded_object_detection",
     "google/owlvit-base-patch32"
+   ],
+   "prereqs": [
+    "18_object_detection_intro",
+    "16_clip_zeroshot_retrieval"
    ]
   },
   {
@@ -640,6 +706,10 @@
     "nvidia/segformer-b0-finetuned-ade-512-512",
     "torchmetrics.segmentation.MeanIoU",
     "torchmetrics.classification.Dice"
+   ],
+   "prereqs": [
+    "13_classification_transfer_learning",
+    "14_eval_classification"
    ]
   },
   {
@@ -672,6 +742,10 @@
     "processor.post_process_masks",
     "pycocotools.cocoeval.COCOeval",
     "torchmetrics.detection.PanopticQuality"
+   ],
+   "prereqs": [
+    "21_segmentation_intro",
+    "18_object_detection_intro"
    ]
   },
   {
@@ -703,6 +777,10 @@
     "SamModel",
     "SamProcessor",
     "grounding-dino + SAM input_boxes"
+   ],
+   "prereqs": [
+    "21_segmentation_intro",
+    "16_clip_zeroshot_retrieval"
    ]
   },
   {
@@ -734,6 +812,9 @@
     "model.generate",
     "processor.batch_decode",
     "torchmetrics.multimodal.CLIPScore"
+   ],
+   "prereqs": [
+    "16_clip_zeroshot_retrieval"
    ]
   },
   {
@@ -763,6 +844,9 @@
     "processor.batch_decode",
     "vikhyatk/moondream2",
     "HuggingFaceTB/SmolVLM2-256M-Instruct"
+   ],
+   "prereqs": [
+    "24_image_captioning"
    ]
   },
   {
@@ -796,6 +880,9 @@
     "processor.token2json",
     "pipeline('document-question-answering')",
     "jiwer.cer"
+   ],
+   "prereqs": [
+    "13_classification_transfer_learning"
    ]
   },
   {
@@ -828,6 +915,10 @@
     "torchvision.utils.flow_to_image",
     "cv2.calcOpticalFlowPyrLK",
     "cv2.calcOpticalFlowFarneback"
+   ],
+   "prereqs": [
+    "13_classification_transfer_learning",
+    "10_classical_video_motion"
    ]
   },
   {
@@ -860,6 +951,10 @@
     "deep_sort_realtime.DeepSort",
     "motmetrics.MOTAccumulator",
     "scipy.optimize.linear_sum_assignment"
+   ],
+   "prereqs": [
+    "18_object_detection_intro",
+    "10_classical_video_motion"
    ]
   },
   {
@@ -890,37 +985,50 @@
     "R3D_18_Weights.DEFAULT",
     "pipeline('video-classification')",
     "cv2.VideoCapture"
+   ],
+   "prereqs": [
+    "13_classification_transfer_learning",
+    "11_realtime_stream"
    ]
   },
   {
    "id": "30_face_detection_recognition",
-   "title": "顔検出と顔認識 — Haar→DNN/MediaPipe・insightface ArcFace",
+   "title": "顔検出・顔認識・人物クラスタリング",
    "track": "深度・姿勢・動き",
    "level": "中級",
-   "goal": "古典Haar/LBPカスケードで顔検出の原理を学び、OpenCV DNN(res10 SSD)やMediaPipe Face Detectorで頑健化、検出済み顔からinsightface ArcFaceの512次元埋め込みを得てコサイン類似度で1:1照合・1:N検索を実装でき、TAR@FARで認証性能を評価できる。",
-   "evaluation": "顔認識(認証)を、同一/別人ペアのコサイン類似度分布からROC曲線を描き、誤受入率FARを固定したときの正受入率TAR@FAR(例FAR=1e-3)で評価する。閾値はFAR固定で決定。顔検出はGTとのIoUマッチでprecision/recallを算出する。",
-   "deliverable": "画像中の顔を検出してArcFace埋め込みを抽出し、本人判定(1:1)と顔検索(1:N)を行うスクリプトと、TAR@FAR/ROCを出す評価コード。",
+   "goal": "顔の 検出→整列→埋め込み(認識) を理解し、1:1 照合(verification)・1:N 識別、さらに顔埋め込みの**クラスタリングによる人物の自動グルーピング（人物一致）**を実装できる。評価は TAR@FAR/ROC/EER（認識）と purity/NMI/homogeneity（クラスタリング）。",
+   "evaluation": "認識: TAR@FAR / ROC / EER。クラスタリング: purity / NMI / homogeneity。",
+   "deliverable": "顔写真群を 検出→埋め込み→クラスタリング して『同一人物ごとのアルバム』へ自動仕分けし、認識精度とクラスタ品質を測るパイプライン",
    "needs_groups": [
-    "face",
-    "pose",
+    "dl",
+    "hf",
     "metrics"
    ],
    "topics": [
-    "Haar Cascade(detectMultiScale)→OpenCV DNN(res10 SSD)→MediaPipe Face Detectorの段階移行",
-    "insightface FaceAnalysis(buffalo_l、ctx_id=-1でCPU、onnxruntime)",
-    "face.normed_embeddingとコサイン類似度による1:1照合/1:N検索",
-    "閾値設計と初回モデル自動DL",
-    "評価: 検出のprecision/recall、認識のROC/TAR@FAR",
-    "顔の位置合わせ(landmark)の役割"
+    "顔検出（OpenCV Haar / DNN）",
+    "顔の整列(alignment)と埋め込み（ArcFace系の考え方）",
+    "1:1 照合(verification)と閾値・1:N 識別",
+    "顔埋め込みのクラスタリング（DBSCAN/agglomerative）で人物ごとに自動グルーピング",
+    "評価: TAR@FAR・ROC・EER（認識）/ purity・NMI・homogeneity（クラスタリング）",
+    "プライバシ・バイアスの注意"
    ],
    "key_apis": [
     "cv2.CascadeClassifier",
-    "detectMultiScale",
-    "cv2.dnn.readNetFromCaffe",
-    "mediapipe FaceDetector",
-    "insightface.app.FaceAnalysis",
-    "prepare(ctx_id=-1)",
-    "face.normed_embedding"
+    "cv2.dnn.readNet",
+    "sklearn.cluster.DBSCAN",
+    "sklearn.cluster.AgglomerativeClustering",
+    "sklearn.metrics.normalized_mutual_info_score"
+   ],
+   "gpu_note": "全てCPU。顔検出はOpenCV、埋め込みは軽量モデル。insightface/mediapipe は任意・ガード。",
+   "scripts": [
+    "01_face_detection.py",
+    "02_face_embeddings_verification.py",
+    "03_face_clustering.py",
+    "04_recognition_cluster_eval.py",
+    "mini_project.py"
+   ],
+   "prereqs": [
+    "15_image_embeddings_metric_learning"
    ]
   },
   {
@@ -955,6 +1063,9 @@
     "Swin2SRForImageSuperResolution",
     "torchmetrics.image.FrechetInceptionDistance",
     "torchmetrics.image.StructuralSimilarityIndexMeasure"
+   ],
+   "prereqs": [
+    "13_classification_transfer_learning"
    ]
   },
   {
@@ -986,6 +1097,9 @@
     "metric.lower_better",
     "sklearn.metrics.roc_auc_score",
     "sklearn.metrics.average_precision_score"
+   ],
+   "prereqs": [
+    "15_image_embeddings_metric_learning"
    ]
   },
   {
@@ -1019,6 +1133,9 @@
     "data.load_and_transform_audio_data",
     "ModalityType.AUDIO",
     "faiss.IndexFlatIP"
+   ],
+   "prereqs": [
+    "16_clip_zeroshot_retrieval"
    ]
   },
   {
@@ -1049,6 +1166,9 @@
     "key_averages().table",
     "torch.autocast",
     "torch.compile"
+   ],
+   "prereqs": [
+    "13_classification_transfer_learning"
    ]
   },
   {
@@ -1080,6 +1200,9 @@
     "torchao.quantization.quantize_",
     "torch.nn.utils.prune.l1_unstructured",
     "prune.remove"
+   ],
+   "prereqs": [
+    "34_inference_profiling"
    ]
   },
   {
@@ -1111,6 +1234,9 @@
     "onnxruntime.quantization.quantize_dynamic",
     "QuantType.QUInt8",
     "optimum.onnxruntime.ORTModel"
+   ],
+   "prereqs": [
+    "34_inference_profiling"
    ]
   },
   {
@@ -1141,6 +1267,10 @@
     "litert_torch",
     "netron.start",
     "torch_tensorrt.compile"
+   ],
+   "prereqs": [
+    "36_onnx_runtime",
+    "35_quantization_pruning"
    ]
   },
   {
@@ -1172,6 +1302,10 @@
     "module.register_forward_hook",
     "nn.MSELoss",
     "torch.optim.AdamW"
+   ],
+   "prereqs": [
+    "13_classification_transfer_learning",
+    "34_inference_profiling"
    ]
   },
   {
@@ -1204,6 +1338,10 @@
     "torch.nn.functional.normalize",
     "model.logit_scale",
     "open_clip.list_pretrained"
+   ],
+   "prereqs": [
+    "38_knowledge_distillation",
+    "16_clip_zeroshot_retrieval"
    ]
   },
   {
@@ -1236,6 +1374,10 @@
     "sklearn.feature_extraction.image.grid_to_graph",
     "torch.nn.functional.normalize",
     "np.save"
+   ],
+   "prereqs": [
+    "16_clip_zeroshot_retrieval",
+    "33_multimodal_embeddings"
    ]
   },
   {
@@ -1270,6 +1412,54 @@
     "multiprocessing.Queue",
     "put_nowait",
     "cv2.addWeighted"
+   ],
+   "prereqs": [
+    "40_cluster_clip_dense_cluster",
+    "17_faiss_image_search",
+    "42_multimodal_vector_search",
+    "11_realtime_stream"
+   ]
+  },
+  {
+   "id": "42_multimodal_vector_search",
+   "title": "マルチモーダル・ベクトル検索（FAISS）— 画像・テキスト・クロスモーダル",
+   "track": "埋め込み・検索",
+   "level": "中級",
+   "goal": "CLIP/SigLIP で画像とテキストを同じ埋め込み空間へ写し、FAISS で 画像→画像 / テキスト→画像 / テキスト→テキスト / クロスモーダル の検索を1つの統一インターフェースで構築できる。L2正規化と内積（コサイン）、index 選択（Flat/IVF/HNSW）、id↔メタデータ付き永続化、Recall@k 評価まで。音声(CLAP)等の新モダリティ追加の設計も理解する。",
+   "topics": [
+    "共有埋め込み空間（CLIP/SigLIP）でのモダリティ横断検索",
+    "画像→画像 / テキスト→画像 / テキスト→テキスト / クロスモーダル",
+    "L2正規化と IndexFlatIP(コサイン)・IVF・HNSW の使い分け",
+    "id↔元データのメタデータ付き永続化",
+    "Recall@k / mAP 評価",
+    "新モダリティ（音声 CLAP 等）を足す統一設計"
+   ],
+   "key_apis": [
+    "faiss.IndexFlatIP",
+    "faiss.IndexIDMap",
+    "faiss.normalize_L2",
+    "CLIPModel.get_image_features",
+    "CLIPModel.get_text_features"
+   ],
+   "evaluation": "Recall@k / mAP（クエリ→正解集合）。クロスモーダル検索の定性確認。",
+   "deliverable": "画像とテキストを1つのFAISS基盤に載せ、テキストでも画像でも引ける統一マルチモーダル検索エンジン（永続化・評価込み）",
+   "gpu_note": "全てCPU・faiss-cpu。小型 CLIP/SigLIP を実DL&CPU推論。",
+   "scripts": [
+    "01_shared_space_clip.py",
+    "02_faiss_multimodal_index.py",
+    "03_crossmodal_search.py",
+    "04_recall_eval.py",
+    "mini_project.py"
+   ],
+   "needs_groups": [
+    "dl",
+    "hf",
+    "vector",
+    "metrics"
+   ],
+   "prereqs": [
+    "16_clip_zeroshot_retrieval",
+    "17_faiss_image_search"
    ]
   }
  ]

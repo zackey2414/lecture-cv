@@ -42,6 +42,14 @@ a{color:var(--p700)}
 .logo-text small{display:block;font-size:10px;font-weight:500;color:var(--g500);letter-spacing:.3px}
 .nav-roadmap{text-decoration:none;font-weight:700;font-size:14px;color:var(--p700);padding:6px 12px;border-radius:10px}
 .nav-roadmap:hover{background:var(--p100)}
+.topnav{display:flex;gap:.3rem}
+.topnav a{text-decoration:none;font-weight:700;font-size:13.5px;color:var(--p700);padding:6px 11px;border-radius:10px;white-space:nowrap}
+.topnav a:hover{background:var(--p100)}
+.mermaid{background:#fff;border:1px solid var(--g200);border-radius:12px;padding:1rem;overflow-x:auto;margin:1.2rem 0;text-align:center}
+.reco-list{display:flex;flex-wrap:wrap;gap:.5rem;list-style:none;margin:1rem 0;padding:0}
+.reco-list li{background:#fff;border:1px solid var(--g200);border-radius:999px;padding:.25rem .7rem;font-size:.82rem}
+.reco-list a{text-decoration:none;color:var(--g800);display:inline-flex;align-items:center;gap:.35rem}
+.prereq-row a{display:inline-block;background:var(--p100);color:var(--p700);padding:.1em .5em;border-radius:6px;text-decoration:none;font-size:.8rem;margin:.1rem .2rem .1rem 0}
 /* hero */
 .hero{margin-top:56px;background:linear-gradient(135deg,var(--p900),var(--p600) 55%,var(--p400));color:#fff;text-align:center;padding:4.5rem 1.5rem 6rem}
 .hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:900;letter-spacing:-.02em}
@@ -152,7 +160,10 @@ def page(title: str, body: str, *, rel: str = "") -> str:
     <span class="logo-mark">CV</span>
     <span class="logo-text">lecture-cv<small>Computer Vision を自分の血肉にする</small></span>
   </a>
-  <a class="nav-roadmap" href="{rel}roadmap.html">ロードマップ</a>
+  <nav class="topnav">
+    <a href="{rel}graph.html">学習順序グラフ</a>
+    <a href="{rel}roadmap.html">ロードマップ</a>
+  </nav>
 </header>
 {body}
 </body>
@@ -172,6 +183,7 @@ for m in modules:
     m["_num"] = m["id"][:2]
 
 authored = [m for m in modules if m["_authored"]]
+modmap = {m["id"]: m for m in modules}
 
 # ----------------------------------------------------------------------------- index page
 tracks: dict[str, list] = {}
@@ -215,6 +227,74 @@ SITE.mkdir(exist_ok=True)
 roadmap_md = (ROOT / "docs" / "roadmap.md").read_text()
 roadmap_body = f'<main class="container content">{md_to_html(roadmap_md)}</main>'
 (SITE / "roadmap.html").write_text(page("ロードマップ — lecture-cv", roadmap_body))
+
+# ----------------------------------------------------------------------------- graph page（前提DAG）
+_depth_memo: dict[str, int] = {}
+
+
+def _depth(mid: str) -> int:
+    if mid in _depth_memo:
+        return _depth_memo[mid]
+    ps = [p for p in modmap[mid].get("prereqs", []) if p in modmap]
+    _depth_memo[mid] = 0 if not ps else 1 + max(_depth(p) for p in ps)
+    return _depth_memo[mid]
+
+
+def _short(title: str) -> str:
+    return re.split(r"[—-]", title)[0].strip()
+
+
+reco = sorted(modules, key=lambda m: (_depth(m["id"]), int(m["id"][:2])))
+mer = [
+    "flowchart LR",
+    "  classDef intro fill:#dcfce7,stroke:#22c55e,color:#14532d;",
+    "  classDef beginner fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a;",
+    "  classDef intermediate fill:#fef3c7,stroke:#f59e0b,color:#7c2d12;",
+    "  classDef advanced fill:#fee2e2,stroke:#ef4444,color:#7f1d1d;",
+]
+for m in modules:
+    num = m["id"][:2]
+    mer.append(f'  n{num}["{num} {_short(m["title"])[:16]}"]:::{LEVEL_CLASS.get(m["level"], "intro")}')
+    mer.append(f'  click n{num} "{m["id"]}.html"')
+for m in modules:
+    for p in m.get("prereqs", []):
+        if p in modmap:
+            mer.append(f'  n{p[:2]} --> n{m["id"][:2]}')
+mermaid_txt = "\n".join(mer)
+
+reco_items = "".join(
+    f'<li><a href="{m["id"]}.html"><span class="level-badge {LEVEL_CLASS.get(m["level"], "intro")}">'
+    f'{m["level"]}</span>{m["id"][:2]} {html.escape(_short(m["title"]))}</a></li>'
+    for m in reco
+)
+
+
+def _prereq_links(m) -> str:
+    ps = [p for p in m.get("prereqs", []) if p in modmap]
+    return " ・ ".join(f'<a href="{p}.html">{p[:2]}</a>' for p in ps) or "—"
+
+
+table_rows = "".join(
+    f'<tr><td><a href="{m["id"]}.html">{m["id"]}</a></td>'
+    f'<td>{html.escape(m["track"])}</td><td>{_prereq_links(m)}</td></tr>'
+    for m in modules
+)
+graph_body = f"""<main class="container content">
+<h1>学習順序グラフ（前提マップ）</h1>
+<p>この講座は番号順の一本道ではなく、<strong>前提（prerequisite）でつながった有向グラフ（DAG）</strong>です。番号は安定した ID にすぎず、実際に学ぶ順番は下のグラフが正です。あとから回を足しても、各回の「前提」をたどれば学習の筋道が崩れません。</p>
+<h2>依存グラフ</h2>
+<p class="muted">ノードをクリックすると各回へ移動します（色＝レベル：緑=入門・青=初級・橙=中級・赤=上級）。オフラインでは描画されないことがあります（その場合は下の推奨順・前提表を参照）。</p>
+<pre class="mermaid">{html.escape(mermaid_txt)}</pre>
+<h2>推奨学習順（前提を満たす一例・トポロジカル順）</h2>
+<ol class="reco-list">{reco_items}</ol>
+<h2>前提一覧</h2>
+<table><thead><tr><th>モジュール</th><th>トラック</th><th>前提</th></tr></thead><tbody>{table_rows}</tbody></table>
+</main>
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+mermaid.initialize({{ startOnLoad: true, theme: 'neutral', flowchart: {{ useMaxWidth: false }} }});
+</script>"""
+(SITE / "graph.html").write_text(page("学習順序グラフ — lecture-cv", graph_body))
 
 # ----------------------------------------------------------------------------- module pages
 def strip_h1(md: str) -> str:
@@ -262,7 +342,12 @@ for idx, m in enumerate(modules):
 
     groups = "".join(f'<code class="chip">{html.escape(g)}</code>' for g in (m.get("needs_groups") or [])) or '<span class="muted">追加依存なし</span>'
     status = '公開' if m["_authored"] else '準備中（プレースホルダ）'
+    prereq_html = " ".join(
+        f'<a href="{p}.html">{p[:2]} {html.escape(modmap[p]["title"][:14])}</a>'
+        for p in m.get("prereqs", []) if p in modmap
+    ) or '<span class="muted">なし（最初から学べる）</span>'
     meta_rows = (
+        f'<tr><th>前提</th><td class="prereq-row">{prereq_html}</td></tr>'
         f'<tr><th>トラック</th><td>{html.escape(m["track"])}</td></tr>'
         f'<tr><th>レベル</th><td><span class="level-badge {lv}">{m["level"]}</span></td></tr>'
         f'<tr><th>依存グループ</th><td>{groups}</td></tr>'
