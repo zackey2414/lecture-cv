@@ -1,36 +1,213 @@
-# 11_classification_transfer_learning: 画像分類と転移学習 — ResNet/ViT(torchvision/timm/HuggingFace)
+# 第13回 画像分類と転移学習 — ResNet/ViT(torchvision・timm・HuggingFace)
 
-> トラック: **深層CV(分類)** ／ レベル: **中級** ／ 必要な依存グループ: `dl` `hf`
+> トラック: **深層CV(分類)** ／ レベル: **中級** ／ 必要な依存グループ: `dl`（torch・torchvision）と `hf`（transformers・timm・huggingface_hub・safetensors）。評価で `metrics`（torchmetrics・scikit-learn）も使います。すべて **CPU で完走**します。
 
 ## 🎯 この章のゴール
-CNN(残差接続)とViT(パッチ埋め込み+CLS)の仕組みを概念と実装で理解し、torchvision/timm/HFから事前学習重みをロードして推論、最終層付け替え+特徴抽出器凍結で小データをfine-tuneでき、pipelineと手書き(processor+model分離)の両方を書ける。
 
-## 扱うトピック
-- ResNetの畳み込み+残差、ViTのパッチ/位置埋め込み/CLS
-- torchvision.models(weights API)とtimm.create_model(pretrained)
-- HF: pipeline('image-classification')とAutoImageProcessor+ResNet/ViTForImageClassificationの手書き
-- 転移学習: requires_grad_(False)凍結とnn.Linearヘッド付け替え、学習率の段差
-- id2labelでのラベル変換、torch.no_grad/inference_mode
-- timmのforward_features/num_classes=0とcreate_transformでモデル固有前処理
+ここまで（00〜12回）は OpenCV/Pillow による画像表現と前処理、古典的な特徴量、そしてデータパイプラインを扱ってきました。本章からはいよいよ**深層CV**に入ります。最初のテーマは、画像分類の二大バックボーンである **CNN(ResNet)** と **ViT(Vision Transformer)** を「概念」と「実装」の両面から理解し、**事前学習済みの重みを活かして少ないデータ・少ない計算で新しいタスクに適応させる**——すなわち**転移学習(transfer learning)**を自分の手で書けるようになることです。GPU を持っていなくても、CPU だけで数十秒のうちに「学習前は当てずっぽう、学習後はほぼ正解」という転移学習の威力を再現します。
 
-## 主要API
-`torchvision.models.resnet50` / `timm.create_model` / `AutoImageProcessor` / `ViTForImageClassification` / `model.config.id2label` / `param.requires_grad_(False)` / `nn.Linear` / `torch.inference_mode`
+到達点は4つです。第一に、**ResNet（畳み込み＋残差接続）と ViT（パッチ埋め込み＋CLSトークン）**の発想の違いを言葉で説明できること。第二に、HuggingFace の **`pipeline` で最短分類**を体験したうえで、その中身である **`AutoImageProcessor` + `*ForImageClassification` を手書き**で分解できること（`画像→pixel_values→logits→argmax→id2label` の一連）。第三に、**torchvision / timm / HuggingFace の3つのエコシステム**から事前学習重みをロードし、分類ヘッドを外して**埋め込み（特徴ベクトル）**を取り出せること。第四に、**バックボーンを凍結（`requires_grad_(False)`）して新しい `nn.Linear` ヘッドに付け替え**、合成データで微調整し、**top-1/top-5 accuracy・混同行列・macro-F1** で素のモデルと比較評価できることです。
 
-## 評価方法
-小分類データセット(CIFAR-10部分集合等)でtop-1/top-5 accuracyと混同行列をtorchmetrics(Accuracy, ConfusionMatrix)で算出し、素の事前学習モデルとヘッド付け替えfine-tune後でaccuracyを比較してmacro-F1も併記する。
-
-## 完成物
-事前学習ResNet/ViTを特徴抽出器として小データに転移学習し、accuracy/混同行列を出力する学習・評価スクリプト(pipeline版と手書き版の両方)。
-
-## CPU / GPU メモ
-CPUで現実的な小モデル(resnet18/vit_tiny/mobilenetv3_small)・小バッチ・少エポックに限定。transformers 5.xはAutoImageProcessor必須(AutoFeatureExtractor廃止)。
-
-## 予定スクリプト
-- `01_pipeline_classify.py`
-- `02_resnet_vit_manual.py`
-- `03_transfer_finetune.py`
+本章のスクリプトはすべて、ネット接続もデータセットも不要で完走するよう、**色×形の幾何図形を合成生成**して題材にします（「赤い丸」「青い三角」など人にも機械にも区別しやすい9クラス）。初回だけ HuggingFace / torchvision からモデル重み（合計150MB程度）をダウンロードしてローカルにキャッシュしますが、それ以外はオフラインで動きます。実写真で試したい人向けに、`data/13_classification_transfer_learning/` に画像を置けば自動でそちらを使う導線も用意しました。**transformers は 5.x（v5）の正準API**で統一しているので、古いブログの `AutoFeatureExtractor` 系コードとは書き方が違う点に最初に注意してください（詳細は第11節）。
 
 ---
-> ⚠️ この回はロードマップ上の**プレースホルダ**です。教材本体（解説＋実行コード＋演習）は順次作成します。
 
-> 依存追加の例: `uv add --group dl <packages>`（必要グループ: `dl` `hf`）
+## 1. 転移学習という発想 — なぜ事前学習が効くのか
+
+深層学習の分類モデルをゼロから学習させるには、ふつう数十万〜数百万枚のラベル付き画像と、GPU での長時間学習が要ります。現実のプロジェクトでそんな贅沢は稀で、手元にあるのは「数十〜数百枚の自前データ」ということがほとんどです。ここで効くのが**転移学習**——**巨大データ(ImageNet 等)で先に鍛えたモデルの「視覚特徴」を流用し、最後の数層だけを自分のタスクに合わせて学習し直す**やり方です。本章はこの「事前学習＋微調整」という、現代CVの最も実用的な定石を体得する回です。
+
+なぜ流用が成り立つのでしょうか。CNN や ViT が ImageNet で学習する過程では、浅い層が「エッジ・色・コーナー」、中間層が「テクスチャ・模様」、深い層が「物体パーツ」といった**汎用的で再利用可能な視覚特徴**を獲得することが知られています。これらは犬や猫を見分けるためだけの特徴ではなく、「画像とはどういうものか」という一般的な知識です。だから新しいタスクのクラスが、その特徴空間の中で**線形に分離できる**なら、最後の線形層（分類ヘッド）をほんの少し学習するだけで高精度が出ます。本章の `03_transfer_finetune.py` は、まさにこれを数値で見せます——凍結した ResNet 特徴の上に乗せた**乱数初期化のヘッドは正解率 0.111（9クラスの偶然＝1/9）**ですが、**わずか30ステップ学習しただけで 1.000** まで跳ね上がります。
+
+転移学習には大きく2つの流儀があります。ひとつは本章が主に扱う**特徴抽出(feature extraction)**で、バックボーンを完全に凍結し、新しいヘッドだけを学習します。データが少ない・計算資源が乏しいときの第一選択で、過学習しにくく高速です。もうひとつは**ファインチューニング(fine-tuning)**で、バックボーンも含めて全体を（ただし**バックボーンには小さい学習率、ヘッドには大きい学習率**という「学習率の段差」をつけて）微調整します。データが比較的多く、タスクが ImageNet と離れているときに効きますが、壊しすぎ（事前学習特徴の破壊）に注意が要ります。迷ったら「まず特徴抽出、足りなければファインチューニング」が実務の順序です。
+
+## 2. CNN(ResNet)とViT — 2つのバックボーンの仕組み
+
+**ResNet** は CNN（畳み込みニューラルネット）の代表格です。畳み込みは「小さなフィルタを画像上で滑らせて局所パターンを検出する」操作で、層を重ねるほど広い範囲・抽象的な特徴を捉えます。ただし層を深くすると勾配が消失して学習が進まなくなる——この壁を破ったのが ResNet の**残差接続(residual/skip connection)**で、各ブロックを `出力 = F(x) + x` の形にし、「変換 `F(x)` を学ぶ代わりに、入力からの差分だけを学べばよい」ようにしました。これにより100層を超える深いネットが安定して学習できるようになり、ResNet は今なお最も使われる CNN バックボーンです。本章では最小構成の **ResNet-18**（約1170万パラメータ、最終手前の特徴は512次元）を使います。
+
+**ViT(Vision Transformer)** は、自然言語処理の Transformer を画像に持ち込んだ発想です。画像を 16×16 などの**パッチ**に分割し、各パッチを1つの「トークン（単語のようなもの）」とみなして系列にします。224×224 をパッチ16で切れば 14×14＝196 個のパッチになり、先頭に分類用の特殊トークン **[CLS]** を1つ足して計197トークンを Transformer に通します。各トークンには「画像のどこにあったか」を表す**位置埋め込み(position embedding)**が加わります。Transformer の**自己注意(self-attention)**は全パッチ同士の関係を一度に見るので、CNN のような局所性の制約がなく、大域的な関係を捉えやすいのが特徴です。最終的に **[CLS] トークンの表現**を取り出して分類します。本章では軽量な **ViT-tiny**（hidden 192次元）を使います。
+
+両者の使い分けの勘所はこうです。**CNN(ResNet)は局所性という強い帰納バイアスを持ち、少〜中規模データでも安定**して学習でき、推論も軽い。一方**ViT はバイアスが弱い分、大量データ（や強い事前学習）があると CNN を上回る**ことが多く、注意機構で解釈もしやすい。CPU 推論の軽さ・実装の枯れ具合では ResNet が依然有利な場面が多く、本章でも転移学習の主役は ResNet-18 にしています。`02_resnet_vit_manual.py` は同じ合成画像を ResNet と ViT の両方に通し、出力（`pixel_values`/`logits` の形、予測ラベル）を並べて、2つのバックボーンが**同じ「画像→logits→argmax」の枠組み**で動くことを体感させます。
+
+## 3. 高レベルAPI `pipeline` で最短分類（`01_pipeline_classify.py`）
+
+まずは成功体験から始めます。HuggingFace の `pipeline` は、**前処理・推論・後処理を1行にまとめた最高レベルのAPI**です。`task="image-classification"` を指定してモデルIDを渡すだけで、PIL 画像を入れれば `[{"label": ..., "score": ...}, ...]` がスコア降順で返ってきます。内部では `AutoImageProcessor` がリサイズ・正規化を行い、モデルが推論し、`softmax` と `id2label` で人が読めるラベルに直す——という一連を全部肩代わりしてくれます。最初は中身を気にせず「動く」ことを味わうのが目的です。
+
+```python
+from transformers import pipeline
+clf = pipeline("image-classification", model="microsoft/resnet-18", device=device, top_k=5)
+results = clf(pil_image)   # [{'label': 'envelope', 'score': 0.87}, ...] が score 降順で返る
+```
+
+`device` には `torch.device`（`"cpu"`/`"mps"`/`"cuda"`）をそのまま渡せます。`top_k` で上位何件返すかを決められます。注意したいのは、本章の入力は**合成図形**なので、ImageNet の1000クラスに「赤い丸」というラベルは存在せず、出力は `envelope`(封筒) や `pick`(ピック) など**それっぽい別物**になる点です。これは異常ではありません——学ぶべきは「ラベルの正しさ」ではなく「`pipeline` がどう動くか」という**仕組み**です。意味のある予測を見たければ、`data/13_classification_transfer_learning/` に実写真を置いて再実行してください（`load_demo_images` が自動でそちらを優先します）。
+
+`pipeline` は手軽な反面、前処理や後処理が**ブラックボックス**になりがちです。本講座のゴールは「AIの補助なしに自力でCVコードを書けること」なので、便利さに甘えず**中身を分解**します。次節からは `pipeline` がやっていることを、`processor` と `model` に分けて自分の手で書き下していきます。`01_pipeline_classify.py` は4枚の画像を分類して上位5件を表示し、予測パネル（`01_pipeline_predictions.png`）と JSON（`01_pipeline_predictions.json`）を保存します。
+
+## 4. `pipeline` を分解する — processor + model の手書き（`02_resnet_vit_manual.py`）
+
+`pipeline` の正体は「**前処理器(processor/transforms) ＋ モデル(model)**」の2部品です。これを分けて書けると、入力テンソルの形を確認したり、途中の特徴を取り出したり、独自の後処理を挟んだりと、応用が一気に広がります。HuggingFace 版の正準フローは次の通りで、`AutoImageProcessor` が PIL 画像を `pixel_values`（正規化済みの `(1, 3, 224, 224)` テンソル）に変換し、`*ForImageClassification` モデルがそれを `logits`（1000クラス分のスコア）に変換します。
+
+```python
+from transformers import AutoImageProcessor, ViTForImageClassification
+processor = AutoImageProcessor.from_pretrained("WinKawaks/vit-tiny-patch16-224")
+model = ViTForImageClassification.from_pretrained("WinKawaks/vit-tiny-patch16-224").eval()
+
+inputs = processor(images=img, return_tensors="pt")          # 前処理: resize→rescale→normalize
+with torch.inference_mode():                                 # 推論は勾配を切る（CPUで必須の作法）
+    logits = model(**inputs).logits                          # (1, 1000)
+idx = int(logits.argmax(-1).item())
+label = model.config.id2label[idx]                           # インデックス→ラベル名に変換
+```
+
+ここで `AutoImageProcessor` が内部で行っているのは、**リサイズ → 0-1 への rescale → チャンネルごとの正規化 `(x - mean)/std`** です（演習2でこの中身を手で再現します）。`return_tensors="pt"` で PyTorch テンソルを受け取り、推論は **`model.eval()` ＋ `torch.inference_mode()`** で囲むのが鉄則です。これを忘れると無駄に勾配を計算してメモリと時間を浪費します（特にCPUでは致命的）。そして `argmax` で得た**生のインデックスは人には読めない**ので、必ず `model.config.id2label[idx]` で `envelope` のようなラベル名に直します。`02_resnet_vit_manual.py` は torchvision の ResNet-18 と HF の ViT-tiny で同じ画像を分類し、`pixel_values` と `logits` の形を表示して、CNN と ViT が同じ枠組みで動くことを示します。
+
+torchvision の場合は `processor` の代わりに**重みに紐づく前処理オブジェクト**を使います。`ResNet18_Weights.DEFAULT.transforms()` が正準な前処理（resize/centercrop/normalize、内部は `transforms.v2`）を返し、`weights.meta["categories"]` が ImageNet-1k の1000ラベルを持っています。HuggingFace では `processor` と `id2label` がモデルに同梱され、torchvision では `weights` オブジェクトに前処理とラベルが同梱される——**「前処理とラベルは必ずモデル/重みとセットで管理する」**という発想は共通です。手打ちで平均/分散をズラすと精度が静かに落ちるので、必ず付属の前処理を使ってください。
+
+## 5. 3つのエコシステム（torchvision / timm / HuggingFace）の使い分け
+
+事前学習モデルの入手先は主に3つあり、それぞれ流儀が違います。**torchvision** は PyTorch 公式で、`weights` API（`ResNet18_Weights.DEFAULT`）が「重み・前処理・ラベル」を一体で提供する堅実な選択肢です。**timm**（PyTorch Image Models）は ResNet/ViT/EfficientNet/MobileNet など**膨大な画像モデルを統一API**で扱え、CPU向け軽量モデルの宝庫です。**HuggingFace transformers** はマルチモーダルまで含む巨大エコシステムで、`pipeline` や `AutoModel` の統一インターフェース、Hub での共有が強みです。下表に要点をまとめます。
+
+| エコシステム | モデル作成 | 前処理 | ラベル | 強み |
+| --- | --- | --- | --- | --- |
+| torchvision | `resnet18(weights=ResNet18_Weights.DEFAULT)` | `weights.transforms()` | `weights.meta["categories"]` | 公式・枯れている・依存が軽い |
+| timm | `timm.create_model("resnet18", pretrained=True)` | `create_transform(**resolve_data_config(...))` | （別途）`num_classes` で制御 | モデル数が圧倒的・軽量モデル豊富 |
+| HuggingFace | `ViTForImageClassification.from_pretrained(id)` | `AutoImageProcessor.from_pretrained(id)` | `model.config.id2label` | 統一API・Hub共有・マルチモーダル |
+
+実務での使い分けはこうです。**「とにかく定番のCNN/ViTを手堅く」なら torchvision**、**「珍しいモデルや極小モデルを試したい」なら timm**、**「pipeline で手早く、あるいは CLIP など別タスクと統一的に」なら HuggingFace**。本章はこの3つすべてを通すことで、どれが来ても同じ「ロード→前処理→推論」の型で対応できる感覚を養います。なお timm では前処理を**手打ちせず** `resolve_data_config` ＋ `create_transform` で**モデル固有の入力サイズ・平均/分散を自動生成**するのが事故防止の定石です（モデルごとに正しい正規化値が違うため）。
+
+重要なバージョン注意として、**transformers 5.x（v5）では画像プロセッサが torchvision バックエンドの fast 実装のみ**になりました。そのため `AutoImageProcessor` を使うには torchvision が事実上必須で（本章は `dl` グループで導入済み）、旧 `AutoFeatureExtractor` や `use_fast=` 引数は廃止されています。古い記事のコードをそのまま写すと動かないので、**画像は必ず `AutoImageProcessor`** と覚えてください。
+
+## 6. 埋め込みの取り出し — penultimate / pooler / CLS / forward_features
+
+分類モデルは「画像→logits（クラス確率）」を出しますが、**最後の分類層を外すと「画像→特徴ベクトル（埋め込み）」**として使えます。この埋め込みこそ、第15回のメトリック学習、第16回の CLIP 検索、第17回の FAISS ベクトル検索の土台です。本章で取り出し方の選択肢を体得しておきましょう。`02_resnet_vit_manual.py` は3通りの取り出し方を実演し、それぞれの形（次元）を表示します。
+
+```python
+# torchvision: 最終 fc を Identity に差し替え → penultimate(512次元)が出力になる
+model.fc = nn.Identity()
+emb = model(x).squeeze(0)                        # (512,)
+
+# timm: num_classes=0 で分類ヘッドを外す → global average pooling 済みの埋め込み
+emb_model = timm.create_model("resnet18", pretrained=True, num_classes=0)
+pooled = emb_model(x)                            # (1, 512)  プール済みベクトル
+feat_map = emb_model.forward_features(x)         # (1, 512, 7, 7)  未プーリングの特徴マップ
+
+# HuggingFace ViT: base モデルの last_hidden_state から CLS / mean-pool を取る
+out = vit_base(**inputs)                         # last_hidden_state: (1, 197, 192)
+cls = out.last_hidden_state[:, 0]                # (1, 192)  先頭の CLS トークン
+mean = out.last_hidden_state[:, 1:].mean(dim=1)  # (1, 192)  パッチトークンの平均
+```
+
+ここに**3つの落とし穴**があります。第一に、**`pooler_output` と `last_hidden_state` の形の違い**。ViT の `last_hidden_state` は `(B, 1+196, hidden)` でトークン列、`pooler_output` は `(B, hidden)` の集約ベクトル、ResNet系の `last_hidden_state` は `(B, C, H, W)` の特徴マップ、と中身が全く違います。第二に、**timm で `num_classes=0` を忘れると 1000次元のロジットが返り、埋め込みと誤用**してしまいます（必ず `num_classes=0` か `forward_features`）。第三に、本章で実際に遭遇したように、**ViT-tiny の `pooler` はチェックポイントに含まれず乱数初期化のことがある**（ロード時に `MISSING` 警告が出る）。この場合 `pooler_output` は無意味なので、埋め込みには**学習済みの CLS トークンか mean-pool を使う**のが安全です。
+
+埋め込みが意味を持つことを確かめるため、`02` の最後では**コサイン類似度**を計算します。L2 正規化してから内積を取るのがコサイン類似度で、同じクラス（赤い丸×2）の類似度が **0.97**、別クラス（赤い丸 vs 青い三角）が **0.69** と、**同クラスの方が明確に高い**ことが確認できます（`02_embedding_cosine.png`）。この「似た画像は近く、違う画像は遠い」という性質こそ、検索・クラスタリングの根幹です。なお埋め込みをコサイン類似度に使うときは**必ず L2 正規化**が要る点を覚えておいてください（第16回で CLIP の `get_image_features` が未正規化という落とし穴として再登場します）。
+
+## 7. 転移学習の実装 — 凍結 + ヘッド付け替え（`03_transfer_finetune.py`）
+
+いよいよ本章の成果物です。やることは3ステップに集約されます。**(1) ImageNet 学習済み ResNet-18 をロードし、最終 fc を `nn.Identity()` で外して特徴抽出器にする。(2) 全パラメータを `requires_grad_(False)` で凍結する。(3) 9クラス用の新しい `nn.Linear(512, 9)` ヘッドを付ける**。これで「凍結された汎用特徴 ＋ 学習可能な小さなヘッド」という転移学習モデルが完成します。コードの核心は次の通りで、凍結したかどうかは「学習可能パラメータ数が 0 か」で確認できます。
+
+```python
+backbone = resnet18(weights=ResNet18_Weights.DEFAULT)
+backbone.fc = nn.Identity()                       # 1000クラス分類層を外す → 512次元が出力に
+for param in backbone.parameters():
+    param.requires_grad_(False)                   # 特徴抽出器として完全凍結
+head = nn.Linear(512, NUM_CLASSES)                # 新しい分類ヘッド（これだけ学習する）
+```
+
+CPU で高速に回すための工夫として、**凍結バックボーンの出力は二度と変わらない**ことを利用し、全画像の特徴を**一度だけ前計算してキャッシュ**します。以降は軽い `nn.Linear` だけを学習するので、126枚の特徴抽出も30ステップの学習も一瞬で終わります（実務でも頻出の最適化です）。ひとつ実装上の罠があります——特徴抽出を `torch.inference_mode()` で行うと「推論専用テンソル」になり、**後でヘッドを学習する際の autograd に入力できずエラー**になります。前計算した特徴を学習に使う場合は、`torch.inference_mode()` ではなく **`torch.no_grad()`** を使ってください（no_grad のテンソルは通常テンソルとして扱えます）。本章のコードはこの点を踏まえて `no_grad` にしてあります。
+
+```python
+optimizer = torch.optim.Adam(head.parameters(), lr=1e-2)   # 学習対象は head だけ
+for step in range(30):
+    optimizer.zero_grad()
+    loss = loss_fn(head(f_train), y_train)                 # キャッシュ特徴 → ヘッド → 損失
+    loss.backward(); optimizer.step()
+```
+
+全体ファインチューニングをしたい場合は、`optimizer` に**パラメータグループ**を渡し、`backbone` には小さい学習率（例 1e-5）、`head` には大きい学習率（例 1e-3）を与えます。これが冒頭で触れた**「学習率の段差」**で、事前学習特徴を壊さずに微修正するための定石です（本章はコードのコメントで触れるに留め、まずは凍結＝特徴抽出で転移学習の本質を掴みます）。
+
+## 8. 評価 — top-1/top-5・混同行列・macro-F1（torchmetrics）
+
+転移学習が「効いた」かどうかは、**数値で示す**のが本講座の方針です。評価指標の定義から押さえましょう。**top-1 accuracy** は最もスコアの高い予測が正解と一致した割合、**top-5 accuracy** は上位5予測のどれかに正解が含まれる割合（クラス数が多いほど意味を持つ指標で、9クラスでは易しめ）。**macro-F1** はクラスごとの F1（precision と recall の調和平均）を**単純平均**したもので、各クラスを平等に評価するためクラス不均衡に強い指標です。**混同行列**は行=正解・列=予測の集計表で、対角が大きいほど良く、どのクラスをどのクラスと取り違えたかが一目で分かります。これらは torchmetrics で計算します。
+
+```python
+from torchmetrics.classification import MulticlassAccuracy, MulticlassF1Score, MulticlassConfusionMatrix
+acc1 = MulticlassAccuracy(num_classes=9, average="micro")            # top-1
+acc5 = MulticlassAccuracy(num_classes=9, average="micro", top_k=5)   # top-5
+f1   = MulticlassF1Score(num_classes=9, average="macro")
+cm   = MulticlassConfusionMatrix(num_classes=9)
+top1, top5, mf1, conf = acc1(logits, y), acc5(logits, y), f1(logits, y), cm(logits, y)
+```
+
+ひとつ実装の注意点として、**`top_k` を使う指標には argmax 後のラベルではなく `logits`（スコア列）を渡す**必要があります（上位kを計算するため）。`03_transfer_finetune.py` を実行すると、**学習前（乱数ヘッド）の top-1 = 0.111（＝1/9 の偶然）から、30ステップ学習後に top-1 = 1.000・macro-F1 = 1.000** へと跳ね上がる様子が表示され、混同行列（`03_confusion_matrix.png`）は完全な対角になります。下表がその比較で、まさに「凍結した汎用特徴の上に、わずかな線形層を学習しただけ」で分類が成立したことを示しています。
+
+| モデル | top-1 | top-5 | macro-F1 | 解釈 |
+| --- | --- | --- | --- | --- |
+| 学習前（乱数ヘッド） | 約0.11 | 約0.55 | 約0.03 | 9クラスの偶然（1/9）とほぼ同じ＝何も学べていない |
+| 学習後（30ステップ） | 1.00 | 1.00 | 1.00 | 凍結特徴＋線形ヘッドだけで完全分類 |
+
+合成図形は色と形がはっきり分かれているため精度が満点になりますが、**大事なのは絶対値ではなく「偶然レベル→高精度への跳躍」というパターン**です。実データはもっと難しく、混同行列に取り違えが現れます（本章でも `noise_std` を大きくすれば誤りが出ます）。クラス別の precision/recall/F1 は scikit-learn の `classification_report` でも出力しており（第14回への布石）、「accuracy だけでなくクラス別・複数指標で見る」習慣をここで付けておきましょう。評価指標の体系的な扱いは第14回で深掘りします。
+
+## 9. このモジュールの構成（スクリプト一覧）
+
+各スクリプトは単一責務で、上から順に「最短で動かす → 中身を分解する → 転移学習で仕上げる」と理解が積み上がるように並んでいます。すべて `outputs/13_classification_transfer_learning/` に図と JSON を保存し、画面表示には依存しません。共通部品（device 判定・合成データ生成・保存）は `dl_helpers.py` にまとめ、各スクリプトが import して使います。深層CVトラックの最初の回なので、`dl_helpers.get_device()` の device 判定ロジックは以降の回でもそのまま再利用できます。
+
+| ファイル | 役割（単一責務） |
+| --- | --- |
+| `dl_helpers.py` | `get_device`・合成データ生成（色×形9クラス）・`load_demo_images`(data/優先)・図の保存。道具箱 |
+| `01_pipeline_classify.py` | `pipeline("image-classification")` で最短分類、top-k 表示、予測パネル/JSON 保存 |
+| `02_resnet_vit_manual.py` | processor+model 手書き（CNN vs ViT）、埋め込み取り出し（penultimate/CLS/forward_features）、コサイン類似度 |
+| `03_transfer_finetune.py` | 凍結＋ヘッド付け替えで転移学習、特徴キャッシュ、top-1/top-5・混同行列・macro-F1 で評価 |
+| `exercises.py` | TODO形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+
+表の通り `dl_helpers.py` だけは「読み物」ではなく「再利用する道具」です。最初に一読してから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。とりわけ合成データ生成（`make_shape_image` / `make_dataset`）が、分類デモ・埋め込み・転移学習のすべての練習台になっている点に注目してください。
+
+## 10. 動かし方
+
+このモジュールは `dl`（torch・torchvision）と `hf`（transformers・timm ほか）、評価用に `metrics`（torchmetrics・scikit-learn）の依存グループを使います。GPU は不要で、**初回のみ**モデル重み（ResNet-18×2系統・ViT-tiny、合計150MB程度）をダウンロードしてキャッシュします。プロジェクトルートで以下を順に実行してください。
+
+```bash
+# 依存をインストール（初回のみ）。本章は dl / hf / metrics グループが必要。
+uv sync --group dl --group hf --group metrics
+
+# 各スクリプトを実行（結果は outputs/13_classification_transfer_learning/ に保存される）
+uv run python lectures/13_classification_transfer_learning/01_pipeline_classify.py
+uv run python lectures/13_classification_transfer_learning/02_resnet_vit_manual.py
+uv run python lectures/13_classification_transfer_learning/03_transfer_finetune.py
+
+# 演習: まずは TODO を自分で埋める（最初は全部 FAIL）
+uv run python lectures/13_classification_transfer_learning/exercises.py
+# どうしても分からない時だけ、模範解答の挙動を見る
+SHOW_SOLUTION=1 uv run python lectures/13_classification_transfer_learning/exercises.py
+
+# （任意）実写真で試す: data/13_classification_transfer_learning/ に *.jpg/*.png を置いて 01/02 を再実行
+```
+
+実行後は `outputs/13_classification_transfer_learning/` の画像を解説と照らし合わせてください。特に `02_embedding_cosine.png`（同クラスは類似度が高い）と `03_confusion_matrix.png`（学習後は完全な対角）を見ると、本章の2大テーマ（**埋め込みの意味**と**転移学習の威力**）が視覚的に腑に落ちます。なお初回ダウンロードしたモデルは `~/.cache/huggingface`（HF）と `~/.cache/torch/hub`（torchvision）にキャッシュされ、2回目以降はオフラインで即起動します。Docker で使う場合はこのキャッシュをボリュームマウントすると毎回の再DLを防げます。
+
+## 11. よくあるエラーと対処（チェックリスト）
+
+最後に、本章（とくに transformers 5.x）でつまずきやすい点を「症状 → 原因 → 対処」でまとめます。深層CVは環境とAPIの罠が多いので、詰まったらまずここを見てください。
+
+| 症状 | ほぼ確実な原因 | 対処 |
+| --- | --- | --- |
+| `AutoFeatureExtractor` が無い/動かない | transformers 5.x で廃止された | `AutoImageProcessor` を使う（画像は常にこれ） |
+| `AutoImageProcessor` がエラーで作れない | torchvision 未導入（v5 は fast 実装のみ） | `uv sync --group dl` で torchvision を入れる |
+| `RuntimeError: ... device` で落ちる | model と inputs の device がズレている | `inputs.to(model.device)` で必ず揃える |
+| `Inference tensors cannot be saved for backward` | `inference_mode` で作った特徴を学習に使った | 前計算は `torch.no_grad()` で行う（clone でも可） |
+| 予測ラベルが整数のまま読めない | `id2label` で変換していない | `model.config.id2label[idx]` でラベル名に直す |
+| 埋め込みが1000次元になる | timm で `num_classes=0` を忘れた | `num_classes=0` か `forward_features` を使う |
+| `pooler_output` が無意味な値 | そのチェックポイントの pooler が未学習(MISSING) | CLS トークンか mean-pool を埋め込みに使う |
+| CPU 推論が異常に遅い | float16/half を使った、勾配を切っていない | CPUは float32、推論は `eval()`+`inference_mode()` |
+| 図中の日本語が豆腐(□)になる | 既定フォントにCJKグリフが無い | 図中の文字はASCIIにする（本章はそうしている） |
+
+とりわけ上3つ（`AutoFeatureExtractor` 廃止・torchvision 必須・device 揃え）は transformers 5.x の「あるある」です。古いブログのコードを写経して動かないときは、まずこの3点を疑ってください。
+
+## 12. まとめ
+
+本章では、画像分類の二大バックボーン（CNN＝ResNet、ViT）の仕組みを概念と実装の両面から押さえ、HuggingFace の `pipeline` で最短分類を体験したうえで `AutoImageProcessor` + `*ForImageClassification` に分解し、torchvision/timm/HuggingFace の3エコシステムから事前学習重みをロードして推論・埋め込み取り出しを行い、最後に**バックボーン凍結＋ヘッド付け替え**による転移学習を合成データで実装して、top-1/top-5・混同行列・macro-F1 で「学習前の偶然レベル→学習後の高精度」という跳躍を数値で確認しました。通底するのは「**汎用的な事前学習特徴を流用し、少しの学習で新タスクに適応する**」という現代CVの最も実用的な発想です。
+
+ここで身につけた「埋め込みを取り出す」「コサイン類似度で似た画像を測る」「凍結＋ヘッド学習」という3つの道具は、第14回（評価指標）、第15回（メトリック学習）、第16回（CLIP ゼロショット）、第17回（FAISS 検索）へとそのまま続いていきます。まずは演習を全問 PASS させ、`03_confusion_matrix.png` の対角が意味すること（＝転移学習が効いたこと）を自分の言葉で説明できるようにしてから、次へ進んでください。
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
+> Python 3.12 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ transformers 5.11.0 ／ timm 1.0.27 ／ huggingface_hub 1.18.0 ／ safetensors 0.8.0 ／ torchmetrics 1.9.0 ／ scikit-learn 1.9.0 ／ numpy 2.4.6 ／ Pillow 12.2.0 ／ matplotlib 3.10.9。使用モデル: `microsoft/resnet-18`・`WinKawaks/vit-tiny-patch16-224`・torchvision `ResNet18_Weights.DEFAULT`・timm `resnet18`（すべて CPU・初回のみ重みDL）。
