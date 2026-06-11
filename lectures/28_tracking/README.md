@@ -1,37 +1,292 @@
-# 26_tracking: 物体追跡 — OpenCV CSRT/KCF・ByteTrack・DeepSORTとMOT評価
+# 28_tracking: 物体追跡 — 単一物体トラッカ・SORT/DeepSORT・MOT 評価
 
-> トラック: **動画・追跡** ／ レベル: **中級** ／ 必要な依存グループ: `dl` `detect` `track` `metrics`
-
-## 🎯 この章のゴール
-検出器なしの単一物体トラッカ(CSRT/KCF)と、検出器(YOLO)出力にフレーム間で同一IDを付与する多物体追跡(ByteTrack/DeepSORT)を実装し、純CPUのByteTrackでリアルタイム追跡を成立させ、MOTA/IDF1/HOTAでトラッキング品質を評価できる。
-
-## 扱うトピック
-- 単一物体トラッカ(cv2.TrackerCSRT_create/legacy.TrackerKCF_create、selectROI)
-- supervision.ByteTrack(Kalman+Hungarian、純CPU、検出器非依存)
-- deep_sort_realtime.DeepSort(外見特徴)との対比
-- update_with_detections/sv.DetectionsとID切替の扱い
-- 評価: MOTA=1-(FN+FP+IDSW)/GT・IDF1・HOTA=√(DetA×AssA)
-- フレーム毎のハンガリアン法による最適対応付け
-
-## 主要API
-`cv2.TrackerCSRT_create` / `cv2.legacy.TrackerKCF_create` / `supervision.ByteTrack` / `update_with_detections` / `deep_sort_realtime.DeepSort` / `motmetrics.MOTAccumulator` / `scipy.optimize.linear_sum_assignment`
-
-## 評価方法
-多物体追跡をmotmetricsでMOTA(検出誤りとID切替を統合、負値もとる)・MOTP・IDF1(ID単位のF1)で評価し、HOTA(検出DetAと関連付けAssAを分離、IoU閾値で平均)はTrackEvalで算出する。各フレームでGT-予測をハンガリアン法で対応付ける。
-
-## 完成物
-YOLO検出+ByteTrackで動画の多物体を追跡しID付き軌跡を描画するスクリプトと、MOTA/IDF1/HOTAを出すMOT評価コード。
-
-## CPU / GPU メモ
-ByteTrackはKalman+HungarianでGPU不要・軽量、CPU実演に最適。CSRTはmain、KCF/MOSSEはcv2.legacy(contrib)で名前空間の違いを明示。TrackEvalはPyPI安定版なしでGit pin導入。
-
-## 予定スクリプト
-- `01_single_object_tracker.py`
-- `02_yolo_bytetrack.py`
-- `03_deepsort.py`
-- `04_mot_metrics.py`
+> トラック: **動画・追跡** ／ レベル: **中級** ／ 主要依存: `numpy` `opencv` `scipy`（任意で `dl`）
+>
+> この回は **巨大依存・衝突依存を実行経路で使いません**。`supervision(ByteTrack)` /
+> `deep_sort_realtime` / `motmetrics` / `TrackEval` は numpy2 系や大きな依存と衝突しうるため、
+> **概念紹介＋任意導入**にとどめ、本体は numpy + OpenCV で **自前実装** して完走させます。
 
 ---
-> ⚠️ この回はロードマップ上の**プレースホルダ**です。教材本体（解説＋実行コード＋演習）は順次作成します。
 
-> 依存追加の例: `uv add --group dl <packages>`（必要グループ: `dl` `detect` `track` `metrics`）
+## 🎯 この章のゴール
+
+- **検出 (detection)** と **追跡 (tracking)** の違いを説明でき、検出器なしの単一物体トラッカ
+  （OpenCV）と、検出器の出力に ID を付ける多物体追跡（MOT）を **自分で実装** できる。
+- **SORT** の 2 部品（等速カルマンフィルタ + ハンガリアン法による IoU 対応付け）を numpy で
+  ゼロから書ける。**DeepSORT** が外見特徴で ID スイッチをどう減らすかを再現できる。
+- 追跡品質を **MOTA / MOTP / IDF1 / HOTA(簡易)** で評価でき、それぞれが「検出の良さ」と
+  「ID の一貫性」のどちらを測るのかを区別できる。
+- 完成形として「**合成動画 → cv2 検出 → 自前 SORT → ID 軌跡描画 → MOT 評価**」の
+  パイプラインを外部依存ゼロで動かせる。
+
+---
+
+## 1. 直感 — 「検出」と「追跡」は何が違うのか
+
+物体検出は、各フレームを **独立に** 見て「どこに何があるか」を答えます。ところが検出器は
+フレーム間のつながりを知りません。フレーム 1 で見つけた人と、フレーム 2 で見つけた人が
+「同じ人」かどうかは、検出だけでは決して分かりません。追跡 (tracking) とは、この
+**フレームをまたいで同じ物体に同じ番号（ID）を振り続ける** 仕事です。監視カメラの人数
+カウント、スポーツの選手分析、自動運転の周辺車両の挙動予測 — どれも「同一性の維持」が要で、
+そこが追跡の担当範囲です。
+
+追跡には大きく 2 系統あります。一つは **単一物体トラッカ (single object tracker)**。最初の
+1 フレームで対象の矩形（ROI）を 1 回だけ与えると、以降は前フレームの「見え方」を手がかりに
+その 1 個を追い続けます。検出器が要らない代わりに、対象が隠れたり大きく変形したりすると
+見失います。もう一つが **tracking-by-detection**（検出に基づく追跡）。毎フレーム検出器を回し、
+得られた多数のボックスを **フレーム間で対応付け** て ID を割り振ります。多物体・出入りの
+多いシーンに強く、ByteTrack や DeepSORT、そして本章で自作する SORT がこの系統です。
+
+本章はまず単一物体トラッカで「追跡とは前フレームとの照合だ」という感覚を掴み、次に
+tracking-by-detection の核（カルマン予測と対応付け）を自分の手で組み立てます。入力は
+すべて **合成データ**（壁で反射する複数の長方形）で、正解の軌跡 (ground truth) を完全に
+把握できるので、評価指標を厳密に検算できます。
+
+---
+
+## 2. 単一物体トラッカ（OpenCV）— `init` / `update` と「ビルド差」の罠
+
+OpenCV の単一物体トラッカは、どれも同じ 2 メソッドで動きます。最初のフレームと ROI を渡す
+`tracker.init(frame, (x, y, w, h))`、以降は `ok, box = tracker.update(frame)` を毎フレーム
+呼ぶだけ。`ok=False` は「見失った」の合図で、実務ではここで検出器による **再初期化
+(re-detection)** にフォールバックします。代表的な選択肢は **CSRT**（高精度・低速）、
+**KCF**（高速・そこそこ）、**MIL**（頑健・依存が軽い）。速度と精度はトレードオフで、用途に
+応じて選びます。
+
+ここで初学者が必ずハマるのが **ビルドによって使えるトラッカが違う** 問題です。`CSRT` は
+新しめのビルドでは `cv2.TrackerCSRT_create`（main 名前空間）にありますが、`KCF` や `MOSSE`
+は contrib パッケージの `cv2.legacy.TrackerKCF_create` にあることが多く、さらに本講座のような
+`opencv-python-headless` ビルドでは **そもそも contrib が入っていない** ため `cv2.legacy`
+自体が存在しません。記事のコードをそのまま写すと `AttributeError` になります。対策は単純で、
+**`hasattr` で実在を確認してから使う** こと。`01_single_object_tracker.py` の
+`list_available_trackers()` は CSRT→KCF→MIL の優先順で、実在するものだけを集めます（この
+環境では MIL のみが該当します）。
+
+なお `GOTURN` / `Nano` / `DaSiamRPN` は `hasattr` 上は存在しても、**別途モデル重み（.onnx 等）が
+必要** で、重みが無いと `init` で失敗します。だから「重み不要で動く」CSRT/KCF/MIL を優先する、
+というのが安全な設計です。`01` は合成クリップ（ジグザグに動く長方形）で MIL を初期化し、
+各フレームの予測と GT の IoU を測って `平均IoU` と `成功率(IoU>0.5)` を出します。
+
+```bash
+uv run python lectures/28_tracking/01_single_object_tracker.py
+# → このビルドで使えるトラッカ: ['MIL'] / 平均IoU≈0.82 / 成功率1.00
+```
+
+---
+
+## 3. SORT を自作する — カルマンフィルタ + ハンガリアン法
+
+多物体追跡の王道 **SORT (Simple Online and Realtime Tracking)** は、驚くほど少ない部品で
+できています。(1) 各トラックの次フレーム位置を予測する **等速カルマンフィルタ**、(2) 予測
+ボックスと新しい検出を **IoU を手がかりに 1対1 対応付ける** ハンガリアン法、これだけです。
+外見特徴も深層ネットも使わないのに、検出器がそこそこ良ければ実用十分の速度・精度が出ます。
+だからこそ「追跡の最小公倍数」として最初に手で書く価値があります。
+
+**カルマンフィルタ** は「予測 (predict) → 更新 (update)」の 2 段で動きます。SORT の状態は
+7 次元 `[u, v, s, r, u', v', s']`（中心 u,v・面積 s・アスペクト比 r とそれらの速度）。`predict`
+で等速モデルにより中心と面積を 1 フレーム進め、検出が当たったら `update` で観測を取り込んで
+補正します。検出が一時的に欠けても予測だけで生き延びられる（`max_age` フレームまで）ので、
+短いオクルージョンに耐えられるのが効きどころです。`02_sort_from_scratch.py` の
+`KalmanBoxTracker` が状態遷移 `F`・観測 `H`・各共分散 `P,Q,R` を素直に numpy で実装しています。
+
+**対応付け** は「コスト行列を作って総コスト最小の組を選ぶ」問題です。コストを `1 - IoU` と
+すれば「IoU が高い組ほど結びたい」を表現でき、最適解は **ハンガリアン法**
+（`scipy.optimize.linear_sum_assignment`）で得られます。scipy が無い環境でも動くよう、
+`_common.linear_assignment` は **貪欲法（最小コストから順に確定）へ自動フォールバック** します。
+重要なのは、割り当てた後に **IoU 閾値で足切り** すること。ハンガリアン法は「全部を無理やり
+結ぶ」ので、重なりが薄い組（IoU < 0.3 など）は採用しない、というゲートを必ず入れます。
+SORT 本体の 1 フレームは「① 全トラックを predict → ② 検出と対応付け → ③ マッチは update、
+余った検出は新規トラック生成、長く当たらないトラックは破棄」という流れです。
+
+```bash
+uv run python lectures/28_tracking/02_sort_from_scratch.py
+# → 4 物体 / 40 フレームを追跡し、ID 別の軌跡を outputs/ に保存
+```
+
+---
+
+## 4. DeepSORT の核 — 外見特徴で ID スイッチを抑える
+
+SORT は動き（IoU）だけで対応付けるため、**物体同士が交差・重なる** と弱点が出ます。重なった
+瞬間は IoU だけでは「どちらがどちら」を区別できず、ID が入れ替わる **ID スイッチ (IDSW)** が
+起きます。**DeepSORT** の発想は明快で、ここに「**外見の指紋**」を足します。各検出から見た目を
+表す特徴ベクトル（本来は ReID 用の小さな CNN 埋め込み）を取り出し、**動きのコストと外見の
+コストを合成** して対応付ければ、「位置は近いが見た目が違う」組を弾けるようになります。
+
+`03_kalman_appearance.py` は、巨大依存 `deep_sort_realtime` を使わず、外見特徴を
+**HSV 色ヒストグラム** で代用して DeepSORT のエッセンスを再現します。合成シーンを「物体ごとに
+固有色の塗りつぶし長方形」として描けば、検出ボックスを切り出した色ヒストグラムが物体ごとに
+はっきり区別できます。コストは `(1-λ)·(1-IoU) + λ·(1-cos類似度)` の形で、λ が外見の重み。
+特徴は指数移動平均で滑らかに更新して、見えの一時変化に頑健にします。同じシーンを「動きのみ」
+と「動き+外見」で追跡し、**GT 視点の ID スイッチ数** を数えて比較すると、外見を足した方が
+スイッチが激減する（このサンプルでは 6 → 0）ことが確認できます。
+
+```bash
+uv run python lectures/28_tracking/03_kalman_appearance.py
+# → 動きのみ IDSW=6 / 動き+外見 IDSW=0
+```
+
+実運用で色ヒストグラムを ReID 埋め込みに替えれば、これがそのまま DeepSORT になります。なお
+**ByteTrack** は別アプローチで、外見ではなく「**低スコア検出も捨てずに 2 段階で対応付ける**」
+ことで隠れ・低信頼の物体を拾い、IDSW と取りこぼしを同時に減らします（Kalman+Hungarian のみで
+純 CPU・軽量）。本章の SORT 実装はその土台でもあります。
+
+---
+
+## 5. MOT 評価指標 — MOTA / MOTP / IDF1 / HOTA を自作で理解する
+
+追跡の良し悪しは **「検出が当たっているか」** と **「ID が一貫しているか」** の両面で測ります。
+最も有名な **MOTA (Multiple Object Tracking Accuracy)** は誤りを 1 本にまとめた指標で、
+
+```
+MOTA = 1 - (FN + FP + IDSW) / GT総数
+```
+
+`FN`（取りこぼし）・`FP`（誤検出）・`IDSW`（ID 入れ替え）を全フレーム足し、GT 総数で割って
+1 から引きます。誤りが多いと **平気で負の値** になります。注意したいのは MOTA が「検出寄り」
+の指標で、ID 一貫性の比重が小さいこと。一方 **MOTP** は「**当たった組だけ**」の平均 IoU で、
+位置精度を表します。取りこぼしが多くても MOTP は下がらない（当たった分しか見ない）ので、
+MOTA とセットで読みます。
+
+**IDF1** は ID を通した一貫性を測る F1 です。GT の各 ID と予測の各 ID を **系列全体で 1対1 対応
+させ**（一致フレーム数が最大になるように、これもハンガリアン法）、`IDTP`（正しく同じ ID で
+当て続けたフレーム数）から `IDF1 = 2·IDTP / (2·IDTP + IDFP + IDFN)` を計算します。MOTA が高くても
+途中で ID が切れれば IDF1 は下がるので、「人物を最後まで同一視できたか」を見たいときの主指標
+です。最後に **HOTA** は近年の標準で、検出の良さ `DetA` と関連付けの良さ `AssA` を **明示的に
+分離** し `HOTA = √(DetA × AssA)` で統合します。本章の `04_mot_metrics.py` は **単一 IoU 閾値の
+簡易版** HOTA を実装します（公式は 0.05〜0.95 の閾値で平均する多段版で、それは TrackEval が
+担当します）。
+
+`04` は実装の正しさを **サニティチェック** で保証します。予測＝GT を入れれば MOTA=IDF1=HOTA=1.0、
+IDSW=0 になることを `assert` で確認し、続いて素朴な IoU トラッカ（ノイズ検出入力）を評価して、
+誤りが各指標に反映される様子を表示します。
+
+```bash
+uv run python lectures/28_tracking/04_mot_metrics.py
+# → 完璧予測: MOTA=1.000 ... / 素朴トラッカ: MOTA≈0.85, IDF1≈0.92, HOTA≈0.93
+```
+
+---
+
+## 6. 実務の使い分け — どれを選ぶか
+
+- **対象が 1 個・短時間・検出器が無い** → 単一物体トラッカ（CSRT が高精度、KCF が高速）。
+  ただし長時間や激しい変形では見失うので、定期的な再検出を併用する。
+- **多物体・検出器あり・CPU で軽快に** → **ByteTrack**（外見不要・低スコア 2 段対応で頑健）。
+  本章の自前 SORT はその思想の最小実装で、まずこれを理解してから移行する。
+- **多物体・見た目で取り違えを防ぎたい（似た動きの群衆・スポーツ）** → **DeepSORT** 系
+  （外見 ReID 埋め込み）。本章の `03` がその核を体現している。
+- **評価** → 研究比較なら HOTA（TrackEval）、運用監視なら MOTA/IDF1 の併読。MOTA だけで判断
+  しない（ID 一貫性は IDF1/AssA を見る）。
+
+> 衝突依存メモ: `supervision`(ByteTrack) / `deep_sort_realtime` / `motmetrics` / `TrackEval` は
+> 本講座の numpy2 系・巨大依存と競合しうるため、**実行経路では使いません**。試したい場合のみ
+> 隔離グループで任意導入してください（`uv add --group track supervision deep-sort-realtime`、
+> `uv add --group metrics motmetrics`、`uv add --group metrics "trackeval @ git+https://github.com/JonathonLuiten/TrackEval"`）。
+
+---
+
+## 🛠 章末ミニプロジェクト — 検出 → 追跡 → 評価の統合
+
+`mini_project.py` は、ここまでの部品を 1 本のパイプラインに統合した **完成形** です。
+
+1. **合成カラー動画**（複数の動く物体）を生成。
+2. **① 検出器**: `cv2.connectedComponentsWithStats` で前景 blob のボックスを得る（毎フレーム
+   独立・ID 無し。物体が重なると 1 blob に融合する＝検出器の限界も体験できる）。
+3. **② 追跡器**: 02 の自前 **SORT** を `importlib` で再利用し、フレーム間に同一 ID を付与。
+4. **③ 可視化**: ID 別の色で枠と軌跡を描き、`mp4` 動画とモンタージュ PNG を保存。
+5. **④ 評価**: 04 の自前 MOT 指標で **MOTA / MOTP / IDF1 / HOTA** を GT に対して算出。
+
+```bash
+uv run python lectures/28_tracking/mini_project.py
+# → MOTA≈0.85 / IDF1≈0.78 / HOTA≈0.82、追跡動画とモンタージュを outputs/28_tracking/ に保存
+```
+
+**発展課題**: `detect_blobs` を torchvision の検出器（`fasterrcnn_resnet50_fpn` 等）に差し替える、
+SORT を ByteTrack 流の 2 段対応に拡張する、`03` の外見特徴を ResNet 埋め込みにする、など。
+部品の境界（検出 / 対応付け / 評価）が分かれているので差し替えが容易です。
+
+---
+
+## ✅ 到達チェックリスト
+
+- [ ] 検出と追跡の違い、単一物体トラッカと tracking-by-detection の違いを説明できる。
+- [ ] `cv2` トラッカを `hasattr` でガードして安全に使い、CSRT(main) と KCF(legacy/contrib) の
+      名前空間差を説明できる。
+- [ ] カルマンフィルタの predict/update と、IoU コスト + ハンガリアン法の対応付けを自分で書ける。
+- [ ] IoU 閾値ゲート・`max_age`・`min_hits` の役割を説明できる。
+- [ ] ID スイッチが起きる原因と、外見特徴で減らせる理屈を説明・再現できる。
+- [ ] MOTA / MOTP / IDF1 / HOTA の定義式を書け、何を測るかを区別できる。
+- [ ] 検出→追跡→評価のパイプラインを最後まで動かし、結果を読める。
+
+---
+
+## ❓ 落とし穴・FAQ・デバッグ
+
+- **`AttributeError: module 'cv2' has no attribute 'TrackerCSRT_create'`**: headless / 非 contrib
+  ビルドでは無いことがある。`hasattr` で確認し、`cv2.legacy` も存在チェックしてから使う。
+  contrib が要るなら `uv add opencv-contrib-python`（headless と排他）。
+- **BGR / RGB の取り違え**: `cv2` は BGR、HF/matplotlib は RGB。外見特徴や可視化で色が壊れたら
+  `cv2.cvtColor` の向きを疑う。
+- **ハンガリアン法が変な組を結ぶ**: 割り当て後の **IoU 閾値ゲート** を忘れている。最適割当は
+  「全部結ぶ」ので、薄い重なりは必ず足切りする。
+- **ID がチラつく/すぐ消える**: `min_hits` を上げて確定までの猶予を、`max_age` を上げて
+  欠測時の生存期間を調整する。検出の取りこぼしが多いなら検出側を先に直す。
+- **ID がすぐ入れ替わる**: 物体が交差している。`03` のように外見特徴を足すか、ByteTrack の
+  2 段対応を検討する。IoU 閾値が高すぎても対応が切れてスイッチが増える。
+- **MOTA が負になる**: 仕様どおりの挙動。FN+FP+IDSW が GT を超えると負になる。MOTA だけで
+  良し悪しを判断せず、IDF1/HOTA も併読する。
+- **MOTP が高いのに MOTA が低い**: MOTP は「当たった組」だけを見るので、取りこぼし(FN)が
+  多いと MOTA だけ落ちる。両者の役割の違いを思い出す。
+- **scipy が無い**: `linear_assignment` は貪欲法に自動フォールバックするので動くが、最適性は
+  落ちる。可能なら `scikit-learn`/`scipy` を入れてハンガリアン法を使う。
+- **動画 mp4 が書けない**: 環境によっては `VideoWriter` が開けない。`mini_project.py` は
+  `isOpened()` を確認し、ダメならモンタージュ PNG にフォールバックして exit 0 を保つ。
+
+---
+
+## 🚀 発展トピック・参考
+
+- **ByteTrack**（Zhang+ 2022）: 高/低スコア検出を 2 段で対応付け、純 Kalman+Hungarian・CPU 軽量。
+  正準実装は `supervision.ByteTrack`（任意）。本章の SORT を 2 段化すると近づける。
+- **DeepSORT**（Wojke+ 2017）: 動き(Kalman) + 外見(ReID 埋め込み) + マッチングカスケード。
+  `deep_sort_realtime`（任意）。本章 `03` がその核。
+- **OC-SORT / BoT-SORT / StrongSORT**: SORT 系の改良版（観測中心の補正、カメラ運動補償、強い
+  外見特徴など）。SORT を理解していれば差分として読める。
+- **HOTA / TrackEval**: 公式 MOT 評価。HOTA は IoU 閾値 0.05〜0.95 で `DetA×AssA` を平均する。
+  PyPI 安定版が無いため Git pin で導入（任意）。本章は単一閾値の簡易版で原理を掴む。
+- **データセット**: MOT17/MOT20、DanceTrack(交差が多く外見が効く)、KITTI/BDD100K(運転)。
+- 参考: SORT (Bewley+ 2016) `arXiv:1602.00763`、DeepSORT `arXiv:1703.07402`、
+  ByteTrack `arXiv:2110.06864`、HOTA (Luiten+ 2021) IJCV。
+
+---
+
+## ▶ 動かし方
+
+```bash
+# 共有ユーティリティの自己テスト
+uv run python lectures/28_tracking/_common.py
+# 1) 単一物体トラッカ（OpenCV, hasattr ガード）
+uv run python lectures/28_tracking/01_single_object_tracker.py
+# 2) 自前 SORT（カルマン + ハンガリアン）
+uv run python lectures/28_tracking/02_sort_from_scratch.py
+# 3) 外見特徴で ID スイッチ抑制（DeepSORT の核）
+uv run python lectures/28_tracking/03_kalman_appearance.py
+# 4) MOT 評価指標を自前実装で検証
+uv run python lectures/28_tracking/04_mot_metrics.py
+# 章末ミニプロジェクト（検出→追跡→評価の統合）
+uv run python lectures/28_tracking/mini_project.py
+# 演習（自己採点）と模範解答
+uv run python lectures/28_tracking/exercises.py
+uv run python lectures/28_tracking/exercises_solutions.py
+```
+
+出力（可視化・動画）は `outputs/28_tracking/` に保存されます。すべて CPU・合成データで完結し、
+ネット接続もモデル重みも不要です（OpenCV トラッカに重みファイルは不要）。
+
+---
+
+> 参照ライブラリ（版）: opencv-python-headless 4.13 / numpy 2.x / scipy 1.x（任意）/
+> torch 2.12+cpu / torchvision 0.27+cpu / transformers 5.11（本章では未使用）。
+> 衝突依存（supervision/deep_sort_realtime/motmetrics/TrackEval）は実行経路では使わず、
+> 概念紹介＋任意導入にとどめています。 — 2026-06
