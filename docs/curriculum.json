@@ -1,0 +1,1276 @@
+{
+ "overview": "Python既習者が、AIの補助なしに自力でCV関連コードを書き切れる状態を目標とする総合ハンズオン講座。OpenCV/Pillowの画像表現(BGR/RGB・ndarray)と前処理から始め、古典CV(特徴点マッチング→ホモグラフィ→パノラマ、カメラキャリブレーション/ステレオ、watershed/GrabCut/背景差分)、深層CV(ResNet/ViTの分類と転移学習、物体検出、セグメンテーション、単眼深度・姿勢・オプティカルフロー、物体追跡・行動認識、顔検出/認識)、CLIP/SigLIPによるゼロショット分類・画像テキスト検索とFAISSベクトルDB、画像キャプション/VQA/OCR/文書理解、拡散モデルによる生成・編集、異常検知・画像品質、マルチモーダル埋め込み(SigLIP2/ImageBind)までを実装する。さらに各タスクで評価指標を必ず測り(物体検出mAPはnumpyで自力実装しpycocotoolsと突き合わせ)、推論プロファイリング→量子化→枝刈り→ONNX→ランタイム最適化と知識蒸留(CLIP/VLM蒸留含む)のモデル圧縮トラックを通過し、最終的に参照リポジトリ Cluster-CLIP(dense CLIP特徴+空間連結クラスタリング+FAISS+SQLite+multiprocessingストリーム)をCPUで動く小型版として自力再構築できる到達度を目指す。全モジュールがGPU無し(MacBook等CPUのみ)で完走できるよう設計する。",
+ "level_progression": "入門=各ライブラリの正準APIとデータ表現(BGR/RGB・テンソル形状CHW/HWC・torch.deviceのCPU/MPS/CUDAフォールバック)を把握し、pipeline等の高レベルAPIで最短コードを動かして成功体験を得る段階。初級=pipelineの中身を分解し、前処理(processor/transforms)→推論(eval+inference_mode)→可視化→評価までを自分の手で書ける基礎アプリ実装段階。中級=複数モデルからCPUで現実的なものを選定し、タスク固有の評価指標(mIoU/Dice/Recall@k/CER/AbsRel等)を計算し、解像度低減・フレームスキップ・スレッド/プロセス分離・量子化などCPU最適化を調べながら実務タスクを完遂できる段階。上級=パイプライン統合・モデル圧縮(蒸留/量子化/ONNX)・dense特徴クラスタリング・ストリーム並列処理など、ライブラリ構成を理解した応用設計とCluster-CLIP再構築ができる段階。並びは依存関係順(画像基礎→古典CV→動画/ストリーム→分類/評価→埋め込み/CLIP/FAISS→検出/セグメ/キャプション等の各タスク→生成/異常/マルチモーダル→最適化/蒸留→Cluster-CLIP応用)で、要求された検出・セグメ・キャプションは独立した入門モジュールとして軽量モデルで先に置き、評価(mAP自作含む)と最適化トラックで仕上げる。",
+ "modules": [
+  {
+   "id": "00_setup",
+   "title": "環境構築 — uv + Docker + CPU版PyTorch + HuggingFaceキャッシュ + device判定",
+   "track": "環境構築",
+   "level": "入門",
+   "goal": "uvの依存グループとDocker(python:3.12-slim + libgl1/ffmpeg)で本講座の実行環境を再現でき、Linuxで巨大なCUDA版torchを避けてCPUホイールを入れる方法、HF_HOMEキャッシュの永続化、cpu/mps/cudaを自動判定するtorch.deviceの定石を全回で再利用できる形で確立する。",
+   "evaluation": "—",
+   "deliverable": "device.py(cpu/mps/cuda判定とスレッド数設定を返す共通ユーティリティ)、CPU専用torchが入ったpyproject.toml/Dockerfile、import確認スクリプト一式。",
+   "needs_groups": [
+    "dl"
+   ],
+   "topics": [
+    "uv add --group の依存グループ運用とpyproject.toml/uv.lock",
+    "PyTorch CPUインデックス([[tool.uv.index]] explicit=true + [tool.uv.sources])とmacのMPS",
+    "torch.device自動判定とPYTORCH_ENABLE_MPS_FALLBACK",
+    "HuggingFaceキャッシュ(HF_HOME)とDockerボリュームマウント、HF_HUB_OFFLINE",
+    "opencv-python と opencv-python-headless の排他、headless運用の方針",
+    "torch.set_num_threads / OMP_NUM_THREADS によるCPUスレッド調整"
+   ],
+   "key_apis": [
+    "torch.cuda.is_available",
+    "torch.backends.mps.is_available",
+    "torch.device",
+    "torch.set_num_threads",
+    "HF_HOME",
+    "uv add --group",
+    "[[tool.uv.index]]"
+   ]
+  },
+  {
+   "id": "01_image_basics",
+   "title": "画像の基礎 — ndarray表現・BGR/RGB・OpenCV/Pillow I/O・headless表示",
+   "track": "画像の基礎",
+   "level": "入門",
+   "goal": "画像が(H,W,3)uint8のnumpy配列であること、OpenCVがBGR・Pillow/matplotlib/PyTorchがRGBという最重要前提を体得し、imread/imwriteとPIL.Image.open/saveの正準形、None戻り値・日本語パス・headless表示の罠を回避して確実に画像を入出力・表示できる。",
+   "evaluation": "—",
+   "deliverable": "BGR/RGB相互変換とNoneチェック・日本語パス対応を備えた画像ロード/セーブのヘルパと、同一画像をOpenCV/Pillow/matplotlibで正しい色で保存し見比べる比較スクリプト。",
+   "needs_groups": [],
+   "topics": [
+    "ndarrayのshape/dtype/値域と画素アクセス(y,x)",
+    "BGR↔RGBとcv2.cvtColor、グレースケールは(H,W)で次元が違う",
+    "cv2.imread/imwrite(IMREAD_*フラグ、None戻り値、imdecode/np.fromfileで日本語パス)",
+    "PIL.Image.open/save/size/mode、PIL↔numpy(np.asarray/Image.fromarray)",
+    "cv2.imshowがheadless/Dockerで固まる問題とplt.imshow/imwrite代替",
+    "uint8オーバーフロー(numpy + vs cv2.addの飽和演算)"
+   ],
+   "key_apis": [
+    "cv2.imread",
+    "cv2.imwrite",
+    "cv2.cvtColor",
+    "cv2.COLOR_BGR2RGB",
+    "cv2.imdecode",
+    "np.fromfile",
+    "PIL.Image.open",
+    "Image.fromarray",
+    "plt.imshow"
+   ]
+  },
+  {
+   "id": "02_cv_libraries_overview",
+   "title": "画像・動画処理ライブラリの地図",
+   "track": "画像の基礎",
+   "level": "入門",
+   "goal": "画像・動画処理の主要ライブラリ（OpenCV/Pillow/scikit-image/imageio/PyAV/torchvision transforms v2/albumentations/kornia）の役割分担・長所短所・選び方を地図として把握し、課題に応じて適切に選べる。",
+   "evaluation": "概念回（数値評価なし／拡張の前後を可視化で確認）",
+   "deliverable": "ライブラリ早見表＋同一処理の書き比べ＋albumentations拡張デモ",
+   "needs_groups": [],
+   "topics": [
+    "ライブラリの使い分け",
+    "相互運用(ndarray⇄PIL⇄Tensor)",
+    "同一処理の書き比べ",
+    "データ拡張ライブラリの住み分け"
+   ],
+   "key_apis": [
+    "cv2",
+    "PIL.Image",
+    "albumentations.Compose",
+    "torchvision.transforms.v2"
+   ]
+  },
+  {
+   "id": "03_image_transforms",
+   "title": "色空間・描画・幾何変換 — 前処理パイプラインの土台",
+   "track": "画像の基礎",
+   "level": "初級",
+   "goal": "色空間変換(Gray/HSV、OpenCVのH=0-179スケール)、矩形/テキスト等の描画、リサイズ(dsizeが(W,H)で逆順・補間の使い分け)・反転・クロップ、PIL↔numpy↔cv2の軸順の違いを正準形で書け、検出結果の可視化や前処理に直結する基礎技能を身につける。",
+   "evaluation": "—",
+   "deliverable": "HSV色域でのオブジェクト抽出マスク生成器と、アスペクト比保持/正方形強制リサイズ・EXIF正規化を含む再利用可能な前処理関数群。",
+   "needs_groups": [],
+   "topics": [
+    "cv2.cvtColor(BGR2GRAY/BGR2HSV)とinRangeによる色マスク",
+    "cv2.line/rectangle/circle/putText(座標(x,y)・BGRタプル・LINE_AA)",
+    "cv2.resize(dsize=(W,H)・INTER_AREA縮小/INTER_CUBIC拡大)・flip・スライスクロップ",
+    "PIL.Image.resize/crop/rotate/thumbnailとResampling.LANCZOS",
+    "size=(W,H)とshape=(H,W)の軸順の混同解消",
+    "EXIF Orientationとexif_transposeによる正規化"
+   ],
+   "key_apis": [
+    "cv2.cvtColor",
+    "cv2.inRange",
+    "cv2.rectangle",
+    "cv2.putText",
+    "cv2.resize",
+    "cv2.INTER_AREA",
+    "cv2.flip",
+    "PIL.Image.resize",
+    "ImageOps.exif_transpose"
+   ]
+  },
+  {
+   "id": "04_filtering_edges_morphology",
+   "title": "フィルタ・エッジ・閾値・モルフォロジー・輪郭・ワーピング",
+   "track": "画像の基礎",
+   "level": "中級",
+   "goal": "平滑化フィルタ、Sobel/Laplacian/Canny、Otsu/適応的閾値、収縮膨張とオープニング/クロージング、findContoursによる形状解析、ヒストグラム平坦化/CLAHE、アフィン/透視変換を一通り自力で書け、二値化→モルフォロジー→輪郭→ワーピングという古典CVの前処理連鎖を組める。",
+   "evaluation": "—",
+   "deliverable": "スキャン文書を二値化→輪郭検出→透視変換で正面化する書類補正スクリプトと、フィルタ/エッジ/閾値の効果を並べて保存する比較ツール。",
+   "needs_groups": [],
+   "topics": [
+    "平滑化(blur/GaussianBlur/medianBlur/bilateralFilter/filter2D)",
+    "エッジ(Sobel/Laplacian/Canny、CV_64FとconvertScaleAbs)",
+    "閾値(threshold/THRESH_OTSU/adaptiveThreshold)",
+    "モルフォロジー(erode/dilate/morphologyEx、getStructuringElement)",
+    "輪郭抽出と形状解析(findContoursは4系で2返し、contourArea/boundingRect/approxPolyDP)",
+    "ヒストグラム/CLAHE、アフィン・透視変換(getPerspectiveTransform/warpPerspective)による書類まっすぐ化"
+   ],
+   "key_apis": [
+    "cv2.GaussianBlur",
+    "cv2.Canny",
+    "cv2.threshold",
+    "cv2.adaptiveThreshold",
+    "cv2.morphologyEx",
+    "cv2.findContours",
+    "cv2.createCLAHE",
+    "cv2.getPerspectiveTransform",
+    "cv2.warpPerspective"
+   ]
+  },
+  {
+   "id": "05_classical_features_matching",
+   "title": "特徴点検出とマッチング — SIFT/ORB・BFMatcher/FLANN・テンプレート・Hough",
+   "track": "古典CV",
+   "level": "初級",
+   "goal": "局所特徴量の考え方を体得し、SIFT/ORBでキーポイントと記述子を抽出、Loweの比率テスト(0.75)で誤対応を除去するマッチングを書け、テンプレートマッチングとHough変換(直線/円)の限界(回転・スケール非不変、パラメータ過敏)も実験で理解する。",
+   "evaluation": "マッチング品質を定量化する: 比率テスト後の良マッチ数と、後続のRANSACで得たインライア率(inliers/total)を指標とし、同一物体の異なる視点ペアで良マッチ数・インライア率を測って閾値0.75の妥当性を比較検証する。",
+   "deliverable": "2枚画像から良マッチ対応を抽出・可視化し良マッチ数とインライア率を出力するスクリプト、テンプレート/Houghのパラメータスイープ比較。",
+   "needs_groups": [],
+   "topics": [
+    "SIFT(特許失効でmain移行)とORB(NORM_HAMMING)、detectAndCompute",
+    "BFMatcher/FlannBasedMatcher、knnMatchと比率テスト/クロスチェック",
+    "drawKeypoints/drawMatchesによる対応可視化",
+    "テンプレートマッチング(matchTemplate/minMaxLoc)とマルチスケール探索",
+    "Hough変換(Canny→HoughLinesP/HoughCircles)のパラメータ敏感性",
+    "SIFTとORBの速度/頑健性の比較"
+   ],
+   "key_apis": [
+    "cv2.SIFT_create",
+    "cv2.ORB_create",
+    "cv2.BFMatcher",
+    "cv2.FlannBasedMatcher",
+    "knnMatch",
+    "cv2.matchTemplate",
+    "cv2.minMaxLoc",
+    "cv2.HoughLinesP",
+    "cv2.HoughCircles"
+   ]
+  },
+  {
+   "id": "06_homography_panorama",
+   "title": "ホモグラフィ推定とパノラマ合成",
+   "track": "古典CV",
+   "level": "初級",
+   "goal": "特徴点マッチングの応用として、対応点からfindHomography(RANSAC)で射影変換を推定しwarpPerspectiveで2枚を貼り合わせる手作りパノラマパイプラインを書き、最低4対応点・インライアmask検証の実務注意を理解した上で高レベルのcv2.Stitcherと比較できる。",
+   "evaluation": "推定ホモグラフィの品質を、対応点を変換した後の再投影誤差(平均ユークリッド距離)とRANSACインライア数/比で評価し、手作りパイプラインとcv2.Stitcherの合成結果を重なり領域のSSIMで比較する。",
+   "deliverable": "複数枚を順次つなぐ手作りパノラマ合成スクリプトと、再投影誤差・インライア数をレポートする検証コード。",
+   "needs_groups": [],
+   "topics": [
+    "対応点→findHomography(RANSAC)とインライアmask検証",
+    "warpPerspective/perspectiveTransformによる位置合わせと合成",
+    "重なり領域のブレンディングとシーム",
+    "cv2.Stitcher_createによる自動パノラマとの比較",
+    "最低4点必要・外れ値除去(比率テスト+RANSAC)の必須性",
+    "物体位置合わせ(平面物体検出)への応用"
+   ],
+   "key_apis": [
+    "cv2.findHomography",
+    "cv2.RANSAC",
+    "cv2.warpPerspective",
+    "cv2.perspectiveTransform",
+    "cv2.Stitcher_create"
+   ]
+  },
+  {
+   "id": "07_camera_calibration_stereo",
+   "title": "カメラキャリブレーション・ステレオ・エピポーラ幾何",
+   "track": "古典CV",
+   "level": "中級",
+   "goal": "内部/外部パラメータと歪み係数の意味を理解し、チェスボードからcalibrateCameraで較正→undistortで歪み補正、さらにステレオ較正→平行化→StereoSGBMで視差マップ→reprojectImageTo3Dで点群化する一連を書け、再投影誤差で品質を評価できる。",
+   "evaluation": "calibrateCameraの戻り値であるRMS再投影誤差(画素単位)を品質指標とし、cv2.projectPointsで再投影した点とコーナー検出点の平均誤差を自前でも計算してライブラリ値と一致を確認する。ステレオは既知サイズ物体で視差→距離の妥当性を検証。",
+   "deliverable": "チェスボード画像群から内部行列/歪み係数を求めundistortするキャリブレーションツールと、ステレオ対から視差マップ・深度を生成するスクリプト。",
+   "needs_groups": [],
+   "topics": [
+    "findChessboardCorners/cornerSubPixとcalibrateCamera",
+    "歪み係数とgetOptimalNewCameraMatrix/undistort",
+    "基礎/基本行列とエピポーラ拘束(findFundamentalMat)",
+    "stereoCalibrate/stereoRectifyによる平行化",
+    "StereoSGBMによる視差マップとreprojectImageTo3D",
+    "視差→深度(古典)とDepth Anything(深層・25回)の対比"
+   ],
+   "key_apis": [
+    "cv2.findChessboardCorners",
+    "cv2.cornerSubPix",
+    "cv2.calibrateCamera",
+    "cv2.undistort",
+    "cv2.findFundamentalMat",
+    "cv2.stereoRectify",
+    "cv2.StereoSGBM_create",
+    "cv2.reprojectImageTo3D"
+   ]
+  },
+  {
+   "id": "08_classical_segmentation",
+   "title": "古典セグメンテーションと復元 — Watershed・GrabCut・古典inpaint",
+   "track": "古典CV",
+   "level": "初級",
+   "goal": "距離変換+マーカ制御のWatershedで接触物体を分離し、矩形指定のGrabCutで対話的に前景抽出、cv2.inpaintで傷消し/物体除去を行え、深層SAM(20回)やLaMa(29回)の前段として人手の事前知識を与える古典手法の感覚と限界を掴む。",
+   "evaluation": "前景抽出の精度を、GrabCut/Watershed結果と手動アノテーションマスクのIoU=交差/和とDice=2TP/(2TP+FP+FN)で評価する(IoU/Diceは自作の混同行列から算出)。復元は元画像とのPSNR/SSIMで比較。",
+   "deliverable": "矩形指定で前景を切り出すGrabCutツールと、マスクIoU/Diceを出力する評価コード、傷消しinpaintスクリプト。",
+   "needs_groups": [],
+   "topics": [
+    "distanceTransform/connectedComponentsとマーカ設計",
+    "watershedによる接触物体分離",
+    "grabCut(GC_INIT_WITH_RECT)による前景抽出",
+    "cv2.inpaint(TELEA/NS)による復元",
+    "パラメータ・初期化への敏感性(前処理込みの体系化)",
+    "深層手法(SAM/LaMa)への橋渡し"
+   ],
+   "key_apis": [
+    "cv2.distanceTransform",
+    "cv2.connectedComponents",
+    "cv2.watershed",
+    "cv2.grabCut",
+    "cv2.GC_INIT_WITH_RECT",
+    "cv2.inpaint",
+    "cv2.INPAINT_TELEA"
+   ]
+  },
+  {
+   "id": "09_video_io_basics",
+   "title": "動画I/Oの基礎 — VideoCapture/VideoWriter・メタデータ・FPS",
+   "track": "動画・ストリーム",
+   "level": "入門",
+   "goal": "動画=連続フレームと理解し、VideoCaptureでファイル/カメラを開きwhileループでretフラグ判定しながらread()→処理→release()する正準パターン、CAP_PROPでのメタデータ取得とシーク、FOURCC指定のVideoWriter書き出し、ソースFPSと処理FPSの違いを書ける。",
+   "evaluation": "—",
+   "deliverable": "動画を1フレームずつ読み、Nフレーム間引きで縮小画像を連番保存しつつ処理FPSを表示し、結果をVideoWriterで再書き出しするスクリプト。",
+   "needs_groups": [],
+   "topics": [
+    "VideoCapture/isOpened/read/release の正準ループとretチェック",
+    "フレームはBGR numpy配列、cvtColor/resize/ROIの基本操作",
+    "CAP_PROP(FPS/FRAME_COUNT/WIDTH/HEIGHT)とPOS_FRAMESシーク",
+    "VideoWriter(FOURCC・出力サイズ整合・isOpened検証、mp4v/.mp4とXVID/.avi)",
+    "time.perf_counter+dequeでの処理FPS移動平均",
+    "ライブではFRAME_COUNTが不正値になり得る判断"
+   ],
+   "key_apis": [
+    "cv2.VideoCapture",
+    "cap.read",
+    "cap.release",
+    "cap.get",
+    "cv2.CAP_PROP_FPS",
+    "cv2.VideoWriter",
+    "cv2.VideoWriter_fourcc",
+    "time.perf_counter"
+   ]
+  },
+  {
+   "id": "10_classical_video_motion",
+   "title": "古典的な動画処理 — オプティカルフロー・背景差分",
+   "track": "動画・ストリーム",
+   "level": "中級",
+   "goal": "学習を使わない古典的な動画解析（フレーム/背景差分、疎/密オプティカルフロー、meanshift/camshift）を自力で実装し、映像中の動きを抽出・可視化できる。",
+   "evaluation": "定性評価（フロー場・前景マスク・追跡窓の可視化）",
+   "deliverable": "合成連番フレームに対する背景差分・LK/Farnebäckフロー・meanshift追跡の可視化",
+   "needs_groups": [],
+   "topics": [
+    "フレーム/背景差分",
+    "Lucas-Kanade疎フロー",
+    "Farnebäck密フロー",
+    "meanshift/camshift"
+   ],
+   "key_apis": [
+    "cv2.calcOpticalFlowPyrLK",
+    "cv2.calcOpticalFlowFarneback",
+    "cv2.createBackgroundSubtractorMOG2",
+    "cv2.CamShift"
+   ]
+  },
+  {
+   "id": "11_realtime_stream",
+   "title": "リアルタイム・ストリーム処理 — 背景差分・最適化・スレッド/プロセス分離・RTSP/YouTube",
+   "track": "動画・ストリーム",
+   "level": "中級",
+   "goal": "CPUのみで実時間に追いつかせる定石(縮小・フレームスキップ・grab/retrieve)、producer/consumerのスレッド/プロセス分離とキュー満杯時のフレームドロップ、背景差分による動体検出、RTSP/yt-dlpライブURL接続と再接続を実装し、640x480程度でCPUリアルタイム処理を成立させる。",
+   "evaluation": "パイプラインのリアルタイム性能を評価する: 各ステージの処理レイテンシ(p50/p99, time.perf_counter)・スループット(処理FPS, EMA)・フレームドロップ率を計測し、縮小/スキップ/スレッド分離の前後で数値比較して律速段を特定する。",
+   "deliverable": "Webカメラ/動画/YouTube URLを入力に背景差分で動体を検出し、スレッド分離+フレームドロップでリアルタイム動作するストリームアプリと性能プロファイル出力。",
+   "needs_groups": [
+    "video"
+   ],
+   "topics": [
+    "背景差分(MOG2/KNN)+モルフォロジーによる動体検出",
+    "CPU実時間化(早期resize INTER_AREA・フレームスキップ・grab/retrieve)",
+    "threadingのproducer/consumerとqueue.Queue(maxsize=1)+put_nowaitドロップ",
+    "multiprocessingでCPUバウンド推論を分離(GIL回避)",
+    "RTSP低遅延(CAP_FFMPEG・rtsp_transport;tcp・BUFFERSIZE=1)と再接続ループ",
+    "yt-dlpでライブ配信URLを解決しVideoCaptureへ"
+   ],
+   "key_apis": [
+    "cv2.createBackgroundSubtractorMOG2",
+    "cap.grab",
+    "cap.retrieve",
+    "threading.Thread",
+    "queue.Queue",
+    "put_nowait",
+    "multiprocessing.Process",
+    "cv2.CAP_FFMPEG",
+    "cv2.CAP_PROP_BUFFERSIZE"
+   ]
+  },
+  {
+   "id": "12_data_pipeline_augmentation",
+   "title": "PyTorch画像テンソルとデータ拡張 — transforms v2 / albumentations / DataLoader",
+   "track": "深層CV(分類)",
+   "level": "初級",
+   "goal": "HWC↔CHW変換・ToImage/ToDtype/Normalizeのスケーリング、Dataset/DataLoaderでのバッチ化、torchvision transforms v2とalbumentationsによるデータ拡張、学習時のみ拡張・推論は決定論的という原則、CLIP/ImageNetでmean/stdが異なる点を自力で書ける。",
+   "evaluation": "—",
+   "deliverable": "小画像フォルダを読むカスタムDatasetと、学習用(拡張あり)/推論用(決定論)2系統のtransformを切り替えるパイプライン、拡張結果を格子状に保存する確認ツール。",
+   "needs_groups": [
+    "dl",
+    "aug"
+   ],
+   "topics": [
+    "画像テンソルのHWC↔CHWとToImage/ToDtype(0-1スケール)",
+    "Normalize(ImageNet統計とCLIP専用統計の違い)",
+    "torch.utils.data.Dataset/DataLoaderとnum_workers",
+    "transforms v2(RandomResizedCrop/Flip/ColorJitter)",
+    "albumentations.Composeと検出/セグメ用のbbox/mask同時変換",
+    "学習時拡張・推論時決定論(eval/no_grad)の原則"
+   ],
+   "key_apis": [
+    "torchvision.transforms.v2",
+    "v2.ToImage",
+    "v2.ToDtype",
+    "v2.Normalize",
+    "torch.utils.data.Dataset",
+    "DataLoader",
+    "albumentations.Compose"
+   ]
+  },
+  {
+   "id": "13_classification_transfer_learning",
+   "title": "画像分類と転移学習 — ResNet/ViT(torchvision/timm/HuggingFace)",
+   "track": "深層CV(分類)",
+   "level": "中級",
+   "goal": "CNN(残差接続)とViT(パッチ埋め込み+CLS)の仕組みを概念と実装で理解し、torchvision/timm/HFから事前学習重みをロードして推論、最終層付け替え+特徴抽出器凍結で小データをfine-tuneでき、pipelineと手書き(processor+model分離)の両方を書ける。",
+   "evaluation": "小分類データセット(CIFAR-10部分集合等)でtop-1/top-5 accuracyと混同行列をtorchmetrics(Accuracy, ConfusionMatrix)で算出し、素の事前学習モデルとヘッド付け替えfine-tune後でaccuracyを比較してmacro-F1も併記する。",
+   "deliverable": "事前学習ResNet/ViTを特徴抽出器として小データに転移学習し、accuracy/混同行列を出力する学習・評価スクリプト(pipeline版と手書き版の両方)。",
+   "needs_groups": [
+    "dl",
+    "hf"
+   ],
+   "topics": [
+    "ResNetの畳み込み+残差、ViTのパッチ/位置埋め込み/CLS",
+    "torchvision.models(weights API)とtimm.create_model(pretrained)",
+    "HF: pipeline('image-classification')とAutoImageProcessor+ResNet/ViTForImageClassificationの手書き",
+    "転移学習: requires_grad_(False)凍結とnn.Linearヘッド付け替え、学習率の段差",
+    "id2labelでのラベル変換、torch.no_grad/inference_mode",
+    "timmのforward_features/num_classes=0とcreate_transformでモデル固有前処理"
+   ],
+   "key_apis": [
+    "torchvision.models.resnet50",
+    "timm.create_model",
+    "AutoImageProcessor",
+    "ViTForImageClassification",
+    "model.config.id2label",
+    "param.requires_grad_(False)",
+    "nn.Linear",
+    "torch.inference_mode"
+   ]
+  },
+  {
+   "id": "14_eval_classification",
+   "title": "評価指標の基礎(A) — 混同行列・precision/recall/F1・ROC/PR・AUC",
+   "track": "評価指標",
+   "level": "初級",
+   "goal": "全評価の最小単位TP/FP/FN/TNと混同行列を理解し、precision/recall/F1とmacro/micro/weighted平均、top-k accuracy、しきい値非依存のROC-AUC/PR-AUC(=AP)を、scikit-learn/torchmetrics利用と自作の両方で計算でき、クラス不均衡でaccuracyやROC-AUCが楽観的になる罠を説明できる。",
+   "evaluation": "本モジュール自体が評価指標の実装回。confusion_matrixからprecision/recall/F1/accuracyをnumpyで自作し、sklearn/torchmetricsの結果と一致を検証。スコア閾値を掃引してROC/PR曲線を描き、台形則でAUC/APを自前計算してライブラリ値と突き合わせる。",
+   "deliverable": "予測スコアと正解ラベルから混同行列・各種指標・ROC/PR曲線を自作実装で計算し、sklearn/torchmetricsと一致確認するレポート生成スクリプト。",
+   "needs_groups": [
+    "dl",
+    "metrics"
+   ],
+   "topics": [
+    "TP/FP/FNと混同行列、accuracyの不均衡での誤誘導",
+    "precision/recall/F1とmacro/micro/weighted平均の使い分け",
+    "top-k accuracyと多クラスのone-vs-rest分解",
+    "ROC曲線/ROC-AUCとPR曲線/PR-AUC(=AP)、不均衡での違い",
+    "sklearnとtorchmetricsのupdate→compute→resetサイクル",
+    "自作実装とライブラリ値の突き合わせ"
+   ],
+   "key_apis": [
+    "sklearn.metrics.confusion_matrix",
+    "sklearn.metrics.classification_report",
+    "sklearn.metrics.roc_auc_score",
+    "sklearn.metrics.average_precision_score",
+    "torchmetrics.classification.Accuracy",
+    "torchmetrics.classification.AUROC",
+    "torchmetrics.classification.AveragePrecision"
+   ]
+  },
+  {
+   "id": "15_image_embeddings_metric_learning",
+   "title": "画像埋め込みとメトリック学習 — ViT/ResNet特徴・対照/triplet学習",
+   "track": "埋め込み・検索",
+   "level": "中級",
+   "goal": "分類ヘッド無しのViTModel/ResNetModelからlast_hidden_state/pooler_output/CLSトークン/mean poolingで埋め込みを取り出し、L2正規化とコサイン類似度を理解し、contrastive/triplet/InfoNCEで『似たものを近く』に配置するメトリック学習を実装でき、良い埋め込みが検索/分類/クラスタリングを支えることを統合的に理解する。",
+   "evaluation": "埋め込み品質を、抽出ベクトルでのkNN分類精度(accuracy)と、ラベル付きクエリでのRecall@k(上位kに同クラスが入る割合)で評価する。triplet学習の前後で同指標を比較し、ハードネガティブ採用の効果を定量化する。",
+   "deliverable": "ViT/ResNet埋め込みを抽出・L2正規化してkNN分類とRecall@kを測るスクリプトと、小データでtriplet/InfoNCEを回して埋め込み空間を改善する学習コード。",
+   "needs_groups": [
+    "dl",
+    "hf"
+   ],
+   "topics": [
+    "ViTのlast_hidden_state[:,0](CLS)/mean poolingとResNetのpooler_output(GAP)の形の違い",
+    "output_hidden_statesで中間層、F.normalizeによるL2正規化",
+    "timm forward_featuresとモデル固有前処理",
+    "コサイン類似度とkNN分類による埋め込み品質評価",
+    "TripletMarginLoss/InfoNCEとハードネガティブ",
+    "CLIPの対照学習がメトリック学習の一種である位置づけ"
+   ],
+   "key_apis": [
+    "ViTModel",
+    "ResNetModel",
+    "last_hidden_state",
+    "pooler_output",
+    "torch.nn.functional.normalize",
+    "torch.nn.TripletMarginLoss",
+    "torch.nn.CosineSimilarity",
+    "timm.create_model"
+   ]
+  },
+  {
+   "id": "16_clip_zeroshot_retrieval",
+   "title": "CLIP/SigLIPによるゼロショット分類と画像テキスト検索",
+   "track": "マルチモーダル",
+   "level": "中級",
+   "goal": "画像と言語を共有潜在空間に射影する原理を理解し、CLIPProcessorで同時前処理→logits_per_image→softmax(SigLIPはsigmoid)のゼロショット分類、get_image_features/get_text_featuresを正規化必須(forward内のlogitsは正規化済みという非対称)で取り出し、コサイン類似度でtext→image/image→text検索を書ける。",
+   "evaluation": "ゼロショット分類はラベル付き小データでtop-1 accuracyを測る。画像テキスト検索はクエリごとのRecall@1/5/10とretrieval mAP(クエリ別APの平均)、MRRをtorchmetrics.retrievalで算出し、正規化忘れ時との結果差も実験で示す。",
+   "deliverable": "任意ラベルでゼロショット分類し、画像コレクションへのテキスト検索ランキング(Recall@k/mAP付き)を返すスクリプト(CLIPとSigLIPの確率解釈の違いを並記)。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "embed"
+   ],
+   "topics": [
+    "共有埋め込み空間と対照学習の直感、candidate_labelsでのゼロショット",
+    "pipeline('zero-shot-image-classification')とAutoModel手書きの対比",
+    "get_image_features/get_text_featuresは未正規化→F.normalizeが必須",
+    "CLIPはsoftmax(相互排他)・SigLIPはsigmoid(独立)という損失/確率解釈の違い",
+    "正規化+内積/コサインによるtext→image・image→image検索とtorch.topk",
+    "sentence-transformers(clip-ViT-B-32)/open-clipの高レベルAPI対比"
+   ],
+   "key_apis": [
+    "CLIPModel",
+    "CLIPProcessor",
+    "AutoModel",
+    "model.get_image_features",
+    "model.get_text_features",
+    "outputs.logits_per_image",
+    "torch.softmax",
+    "torch.sigmoid",
+    "torch.topk"
+   ]
+  },
+  {
+   "id": "17_faiss_image_search",
+   "title": "FAISSベクトルDBと画像検索システム(評価込み)",
+   "track": "埋め込み・検索",
+   "level": "中級",
+   "goal": "NN/ANNの概念とFAISSの基本ループを理解し、IndexFlatL2/IP(正規化でコサイン)、IndexIDMapでのメタデータ紐付け、write_index永続化、IVF/HNSW/PQ(index_factory)の精度速度トレードオフを扱い、CLIP/ResNet埋め込みでend-to-endの画像検索を構築してRecall@k/QPSで定量評価できる。",
+   "evaluation": "ANN品質を評価する: IndexFlat(厳密)の結果をground truthとし、IVF/HNSW/PQのRecall@kを集合一致(np.intersect1d)で算出。nprobe/efSearchをスイープしてQPS(time計測)-recall曲線を描き、ラベル付き検索ではretrieval mAPも測る。ground truthをANN自身で作る誤りを避ける。",
+   "deliverable": "画像群を埋め込み・正規化してFAISSへadd・永続化し、クエリ画像/テキストで検索、Recall@kとQPS-recall曲線を出力する画像検索システム一式。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "vector",
+    "metrics"
+   ],
+   "topics": [
+    "IndexFlatL2/IndexFlatIP+normalize_L2(コサイン)、float32/C連続必須",
+    "IndexIDMap/add_with_idsとSQLite等メタデータ別管理、-1ガード",
+    "write_index/read_indexとメタデータDBのセット永続化",
+    "IVFFlat(train/nlist/nprobe)・HNSW(M/efSearch)・IVFPQ/OPQ(index_factory)",
+    "埋め込み→正規化→add→search のend-to-endパイプライン",
+    "インクリメンタル更新(Cluster-CLIPのstream/writer.pyが実例)"
+   ],
+   "key_apis": [
+    "faiss.IndexFlatIP",
+    "faiss.normalize_L2",
+    "faiss.IndexIDMap",
+    "index.add_with_ids",
+    "index.search",
+    "faiss.write_index",
+    "faiss.IndexIVFFlat",
+    "faiss.index_factory",
+    "np.ascontiguousarray"
+   ]
+  },
+  {
+   "id": "18_object_detection_intro",
+   "title": "物体検出 入門 — torchvision weights API・YOLO・DETR/RT-DETR",
+   "track": "検出",
+   "level": "入門",
+   "goal": "torchvision検出モデル([0,1] float CHWのリスト入力・内部正規化)、Ultralytics YOLO(1行推論)、HF DETR/RT-DETR(post_process_object_detectionとtarget_sizes=(H,W))の3系統で最小推論を書き、score閾値フィルタ・NMS・draw_bounding_boxesでの可視化、COCOラベルのindex0=__background__を扱える。",
+   "evaluation": "まずscore閾値・NMS後の検出を可視化で定性確認し、定量はtorchmetrics.detection.MeanAveragePrecision(preds/targetをbox辞書で渡す)でmAP@0.5/mAP@[.5:.95]を簡易算出する(本格的な自作実装は17回)。target_sizesの(H,W)取り違えによるbbox歪みの有無も検証。",
+   "deliverable": "同一画像をtorchvision/YOLO/DETRの3系統で検出し、閾値・NMS・可視化を統一APIでまとめ、torchmetricsでmAPを出すベンチ用スクリプト。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "detect"
+   ],
+   "topics": [
+    "torchvision: fasterrcnn等のweights enum・weights.transforms()・出力{boxes(xyxy),labels,scores}",
+    "Ultralytics YOLO('yolo11n.pt')のresults[0].boxes/.plot()、YOLO11(NMS内蔵)とYOLO26(NMS-free)",
+    "HF DETR/RT-DETR: AutoModelForObjectDetection+post_process_object_detection、target_sizesは(H,W)",
+    "score閾値とtorchvision.ops.nms/batched_nms、box_convert/box_iou",
+    "draw_bounding_boxes(uint8画像要求)による可視化",
+    "COCO categoriesとid2label、CPU向け軽量モデル(mobilenet/rtdetr_r18/yolo11n)"
+   ],
+   "key_apis": [
+    "torchvision.models.detection.fasterrcnn_resnet50_fpn_v2",
+    "weights.transforms()",
+    "ultralytics.YOLO",
+    "results[0].boxes.xyxy",
+    "AutoModelForObjectDetection",
+    "image_processor.post_process_object_detection",
+    "torchvision.ops.nms",
+    "torchvision.utils.draw_bounding_boxes"
+   ]
+  },
+  {
+   "id": "19_detection_map_from_scratch",
+   "title": "★物体検出mAPの自力実装 — IoU→マッチング→PR曲線→AP補間→mAP",
+   "track": "評価指標",
+   "level": "中級",
+   "goal": "IoUを定義し、予測をconfidence降順に並べてIoU≥閾値の未マッチGTへ貪欲に対応付けTP/FP/FNを決め、累積からprecision/recall列→AP(11点/全点/COCO101点補間)→クラス平均mAP@0.5・IoU 0.50:0.05:0.95平均mAP@[.5:.95]をnumpyで一から実装し、pycocotoolsのCOCOevalと突き合わせて検証する。",
+   "evaluation": "本モジュール自体が評価指標の自作実装回。自作mAP(PR曲線面積・101点補間)とpycocotoolsのAP/AP50/AP75が小数点数桁まで一致することを検証データで確認し、補間方式やソート抜けによる差分を意図的に作って原因を説明できるようにする。",
+   "deliverable": "GT/予測(COCO形式)からIoUマッチング・PR・AP・mAPをnumpyで計算する自作評価器と、pycocotools COCOevalとの一致レポート。",
+   "needs_groups": [
+    "dl",
+    "metrics"
+   ],
+   "topics": [
+    "IoU=交差/和とtorchvision.ops.box_iouでの検算",
+    "confidence降順ソート・クラス別評価・1GptへのTP二重カウント防止",
+    "cumsum(tp)/cumsum(fp)→precision/recall列の構築",
+    "AP補間方式の違い(PASCAL11点/全点monotone/COCO101点)",
+    "IoU閾値ループでmAP@0.5とmAP@[.5:.95]、AP_S/M/L・AR",
+    "pycocotools COCOeval(iouType='bbox')での検算、bbox形式(xywh vs xyxy)とmaxDets/areaRng"
+   ],
+   "key_apis": [
+    "np.argsort",
+    "np.cumsum",
+    "np.maximum.accumulate",
+    "torchvision.ops.box_iou",
+    "pycocotools.coco.COCO",
+    "pycocotools.cocoeval.COCOeval",
+    "coco.loadRes",
+    "COCOeval.summarize"
+   ]
+  },
+  {
+   "id": "20_open_vocabulary_detection",
+   "title": "オープン語彙物体検出 — OWL-ViT/OWLv2・Grounding DINO",
+   "track": "検出",
+   "level": "中級",
+   "goal": "任意のテキストラベルで物体を検出する手法を理解し、OWL-ViT/OWLv2(candidate_labels)とGrounding DINO(小文字+ピリオド区切りキャプション)を使い分け、post_process_grounded_object_detection/post_process_object_detection(target_sizes=(H,W))でbox/score/labelを取り出し、box_threshold/text_threshold調整で過検出/未検出を制御できる。",
+   "evaluation": "任意ラベル検出を、GTがある画像でprecision/recall(IoU≥0.5マッチ)とmAP(17回の自作mAPまたはtorchmetrics)で評価し、box_threshold/text_thresholdをスイープしてP-R曲線とF1最大点を求めて閾値選択の妥当性を定量化する。",
+   "deliverable": "テキストラベルを与えて未学習カテゴリを検出し、閾値スイープでP/R/F1を出すOWLv2/Grounding DINO比較スクリプト。",
+   "needs_groups": [
+    "dl",
+    "hf"
+   ],
+   "topics": [
+    "pipeline('zero-shot-object-detection')とAutoModelForZeroShotObjectDetection",
+    "OWL-ViT/OWLv2のcandidate_labelsによる検出",
+    "Grounding DINOのキャプション形式('a cat. a remote.')とbox/text閾値",
+    "post_process_*のtarget_sizes=(H,W)と座標変換",
+    "閉語彙(16回)/開語彙の位置づけとCLIP系検索との関係",
+    "Cluster-CLIP baselinesのOWLv2実装との対応"
+   ],
+   "key_apis": [
+    "pipeline('zero-shot-object-detection')",
+    "Owlv2ForObjectDetection",
+    "AutoModelForZeroShotObjectDetection",
+    "IDEA-Research/grounding-dino-tiny",
+    "processor.post_process_grounded_object_detection",
+    "google/owlvit-base-patch32"
+   ]
+  },
+  {
+   "id": "21_segmentation_intro",
+   "title": "セマンティックセグメンテーション 入門 — DeepLab/FCN/LR-ASPP・SegFormer・mIoU/Dice",
+   "track": "セグメンテーション",
+   "level": "入門",
+   "goal": "分類との違い(ピクセル単位ラベル)を理解し、torchvision(deeplabv3/fcn/lraspp_mobilenet軽量)の出力out['out']をargmaxでクラスマップ化、HF pipeline('image-segmentation')のSegFormerで即推論し、クラスID→パレット色で可視化、評価指標mIoU/Dice/pixel accを自力とtorchmetricsで計算できる。",
+   "evaluation": "セグメンテーション精度を、予測マスクとGTマスクのピクセル混同行列からpixel acc・per-class IoU・mIoU=平均IoU・Dice=2TP/(2TP+FP+FN)を自作実装で計算し、torchmetrics.segmentation.MeanIoU/Diceと一致確認する。ignore_index・未出現クラスのNaN扱いも明示。",
+   "deliverable": "画像をセマンティックセグメンテーションして色付きマスクを保存し、mIoU/Dice/pixel accを自作とtorchmetricsで出す評価スクリプト。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "metrics"
+   ],
+   "topics": [
+    "torchvision: deeplabv3/lraspp、出力dict out['out']のargmax(1)",
+    "HF pipeline('image-segmentation')でSegFormer(nvidia/segformer-b0)、返り値[{label,mask}]",
+    "クラスID→パレット色の可視化とnn.functional.interpolate",
+    "pixel accuracy・per-class IoU・mIoU・Dice(=F1)・FWIoUの定義",
+    "background/ignore_indexと未出現クラスの扱い",
+    "ピクセル混同行列からの指標算出"
+   ],
+   "key_apis": [
+    "torchvision.models.segmentation.lraspp_mobilenet_v3_large",
+    "output['out']",
+    "logits.argmax(dim=1)",
+    "pipeline('image-segmentation')",
+    "nvidia/segformer-b0-finetuned-ade-512-512",
+    "torchmetrics.segmentation.MeanIoU",
+    "torchmetrics.classification.Dice"
+   ]
+  },
+  {
+   "id": "22_instance_panoptic_sam",
+   "title": "インスタンス/パノプティックセグメンテーションとSAM — mask AP・PQ",
+   "track": "セグメンテーション",
+   "level": "中級",
+   "goal": "Mask R-CNN(masks(N,1,H,W)確率→>0.5でbool)、Mask2Formerのpost_process_instance/panoptic_segmentation、プロンプト型SAM(点/box入力→post_process_masks)を使い、軽量なSlimSAM/MobileSAM/SAM2-tinyでCPU動作させ、mask AP(COCOeval segm)とPQ=SQ×RQの評価を実装できる。",
+   "evaluation": "インスタンスはmask IoUベースのmask AP(COCOeval iouType='segm'、box IoUをマスクIoUに置換)で評価。パノプティックはPQ=SQ×RQ(IoU>0.5で一意マッチ、SQ=マッチ片平均IoU、RQ=2TP/(2TP+FP+FN))をtorchmetrics.PanopticQualityで算出。SAMはマスクとGTのIoUで品質確認。",
+   "deliverable": "Mask R-CNN/Mask2Formerでインスタンス/パノプティックセグメンテーションし、点/box指定SAMでマスク生成、mask AP・PQを出す実習一式。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "detect",
+    "metrics"
+   ],
+   "topics": [
+    "maskrcnn_resnet50_fpn_v2の{boxes,labels,scores,masks}とdraw_segmentation_masks(bool要求)",
+    "Mask2Formerのインスタンス/パノプティック後処理({segments_info,segmentation})",
+    "SAM/SamProcessorのinput_points(1=前景/0=背景)/input_boxesとpost_process_masks/iou_scores",
+    "Ultralytics SAM('mobile_sam.pt')/SAM('sam2.1_t.pt')、SlimSAM",
+    "mask AP(COCOeval iouType='segm')とRLE(pycocotools.mask)",
+    "パノプティックPQ=SQ(平均IoU)×RQ(検出F1)、things/stuff統合"
+   ],
+   "key_apis": [
+    "torchvision.models.detection.maskrcnn_resnet50_fpn_v2",
+    "torchvision.utils.draw_segmentation_masks",
+    "SamModel",
+    "SamProcessor",
+    "processor.post_process_masks",
+    "pycocotools.cocoeval.COCOeval",
+    "torchmetrics.detection.PanopticQuality"
+   ]
+  },
+  {
+   "id": "23_text_prompt_segmentation",
+   "title": "テキストプロンプト/参照セグメンテーション — CLIPSeg・Grounded-SAM",
+   "track": "セグメンテーション",
+   "level": "中級",
+   "goal": "文で指定した領域をマスク化する手法を理解し、軽量なCLIPSeg(logits+sigmoid+閾値)でCPUテキスト条件付きセグメンテーションを実行し、発展としてGrounding DINOの検出boxをSAMのinput_boxesに渡すGrounded-SAMの2段構成を組め、参照領域のIoU/Diceで評価できる。",
+   "evaluation": "参照テキストで指定した領域の予測マスクとGTマスクのIoU/Diceで評価し、CLIPSegのsigmoidしきい値をスイープしてIoU最大の閾値を求める。Grounded-SAMはGDINOのbox閾値が最終マスクIoUに与える影響を比較する。",
+   "deliverable": "テキストで対象を指定してマスクを生成するCLIPSegスクリプトと、GDINO+SAMのGrounded-SAMパイプライン、IoU/Dice評価コード。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "detect"
+   ],
+   "topics": [
+    "CLIPSegProcessor/CLIPSegForImageSegmentationのテキスト条件付きセグメ",
+    "outputs.logits→sigmoid→閾値でマスク化",
+    "Grounding DINO(box検出)→SAM(input_boxes)のGrounded-SAM 2段構成",
+    "pipeline('mask-generation')との比較",
+    "しきい値選択とマスク品質の関係",
+    "検出+セグメの連携設計"
+   ],
+   "key_apis": [
+    "CLIPSegProcessor",
+    "CLIPSegForImageSegmentation",
+    "CIDAS/clipseg-rd64-refined",
+    "torch.sigmoid",
+    "SamModel",
+    "SamProcessor",
+    "grounding-dino + SAM input_boxes"
+   ]
+  },
+  {
+   "id": "24_image_captioning",
+   "title": "画像キャプション生成 入門 — BLIP/GIT/ViT-GPT2と生成パラメータ・評価",
+   "track": "マルチモーダル",
+   "level": "入門",
+   "goal": "Encoder-Decoderキャプショニングを、BLIP/GIT/ViT-GPT2の小型モデルでpipeline('image-text-to-text')とAutoModelForVision2Seq手書きの両方で実装し、model.generateのnum_beams/max_new_tokens/repetition_penaltyで出力を制御、無条件/条件付きキャプションを書け、BLEU/CIDEr/CLIPScoreで品質評価できる。",
+   "evaluation": "生成キャプションを参照キャプションと比較しBLEU(sacrebleu)・ROUGE-L・CIDEr(TF-IDF重みn-gramコサイン、主指標)で評価し、参照不要のCLIPScore(画像-テキスト整合度、torchmetrics)も併記。num_beams/max_new_tokensを変えてスコア変化を観察する。",
+   "deliverable": "複数小型モデルで画像にキャプションを付け、生成パラメータを変えながらBLEU/CIDEr/CLIPScoreを出力する比較スクリプト。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "metrics"
+   ],
+   "topics": [
+    "BlipForConditionalGeneration/VisionEncoderDecoderModel(vit-gpt2)/GITの違い",
+    "processor(image,return_tensors='pt')→generate→decode(skip_special_tokens=True)",
+    "無条件キャプションと条件付き(text=...)、transformers v5のimage-text-to-text",
+    "generate制御(num_beams/max_new_tokens/do_sample/repetition_penalty)、バッチbatch_decode",
+    "評価指標BLEU/METEOR/ROUGE-L/CIDEr(主指標)/SPICE",
+    "参照不要のCLIPScore"
+   ],
+   "key_apis": [
+    "BlipForConditionalGeneration",
+    "VisionEncoderDecoderModel",
+    "nlpconnect/vit-gpt2-image-captioning",
+    "pipeline('image-text-to-text')",
+    "model.generate",
+    "processor.batch_decode",
+    "torchmetrics.multimodal.CLIPScore"
+   ]
+  },
+  {
+   "id": "25_vqa_vlm",
+   "title": "VQAと軽量VLMによる画像理解・グラウンディング",
+   "track": "マルチモーダル",
+   "level": "中級",
+   "goal": "チャット形式VLMのapply_chat_template→generate→batch_decodeの正準フローを身につけ、CPUで現実的なmoondream2(caption/query/detect/point)やSmolVLM2-256M/500MでVQA・グラウンディングを実行でき、VQA accuracyで評価し、大型Qwen2.5-VLは概念のみ整理する。",
+   "evaluation": "VQAの正答を、VQA v2方式のaccuracy=min(一致した人間回答数/3,1)を10人サブセットで平均して評価(小データで近似)し、exact-match/正規化一致も併用。グラウンディングはmoondreamのdetect/point出力とGTのIoU/距離で確認する。",
+   "deliverable": "画像について質問応答・物体ポインティングを行うVLMチャットスクリプトと、小VQAセットでaccuracyを出す評価コード。",
+   "needs_groups": [
+    "dl",
+    "hf"
+   ],
+   "topics": [
+    "AutoModelForImageTextToTextとapply_chat_template(画像をcontentに埋め込む)",
+    "moondream2(trust_remote_code/revision固定、caption/query/detect/point)",
+    "SmolVLM2-256M/500MでのVQA、generate(max_new_tokens)",
+    "Qwen2.5-VL(process_vision_info)は概念のみ",
+    "BLIP-2/GITとの位置づけ整理",
+    "VQA accuracy=min(#agree/3,1)の評価"
+   ],
+   "key_apis": [
+    "AutoModelForImageTextToText",
+    "processor.apply_chat_template",
+    "model.generate",
+    "processor.batch_decode",
+    "vikhyatk/moondream2",
+    "HuggingFaceTB/SmolVLM2-256M-Instruct"
+   ]
+  },
+  {
+   "id": "26_ocr_document",
+   "title": "OCRと文書理解 — Tesseract/EasyOCR/TrOCR・Donut/LayoutLM・CER/WER",
+   "track": "マルチモーダル",
+   "level": "中級",
+   "goal": "印字/手書き文字抽出を古典Tesseract・深層EasyOCR・Transformer系TrOCRの3系統で比較し、座標付き出力とgenerateの違いを理解、OCRフリーのDonut(task_prompt→token2json)やLayoutLMv3、document-question-answering pipelineで帳票の構造化/質問応答を実装し、CER/WERで評価できる。",
+   "evaluation": "認識文字列と正解の編集距離からCER=(置換+削除+挿入)/参照文字数とWERをjiwerで算出(日本語は分かち書き依存のためCERを主指標)。文書QAはDocVQAのANLS概念を紹介しexact-match/編集距離で近似評価する。前処理(小文字化・NFKC)を揃える。",
+   "deliverable": "同一文書画像をTesseract/EasyOCR/TrOCRで読み比べCER/WERを出す比較スクリプトと、Donut/DocVQAで帳票から項目抽出・質問応答するコード。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "ocr",
+    "metrics"
+   ],
+   "topics": [
+    "pytesseract(image_to_string/image_to_data、要OSパッケージtesseract-ocr-jpn)",
+    "easyocr.Reader(['ja','en'],gpu=False).readtext",
+    "TrOCR(VisionEncoderDecoderModel、microsoft/trocr-base-printed)",
+    "Donut(naver-clova-ix/donut-base-finetuned-docvqa、token2json)",
+    "LayoutLMv3とdocument-question-answering pipeline",
+    "評価指標CER=(S+D+I)/参照文字数・WER、jiwerと前処理(NFKC正規化)"
+   ],
+   "key_apis": [
+    "pytesseract.image_to_string",
+    "easyocr.Reader",
+    "TrOCRProcessor",
+    "VisionEncoderDecoderModel",
+    "DonutProcessor",
+    "processor.token2json",
+    "pipeline('document-question-answering')",
+    "jiwer.cer"
+   ]
+  },
+  {
+   "id": "27_depth_pose_flow",
+   "title": "単眼深度・姿勢/キーポイント・オプティカルフロー",
+   "track": "深度・姿勢・動き",
+   "level": "中級",
+   "goal": "Depth Anything V2(depth-estimation pipeline)で単眼相対深度、MediaPipe Pose Landmarkerで人体33点キーポイント、torchvision RAFT(small)で深層密オプティカルフローを推定でき、相対深度の正規化・[-1,1]正規化と8の倍数サイズ・反復出力の最後採用といった前処理の勘所と、深度/姿勢/フローの評価指標を理解する。",
+   "evaluation": "深度はGTがある場合AbsRel=mean(|d-d*|/d*)・RMSE・δ<1.25(threshold accuracy)を算出(相対深度はスケール合わせ後)。フローはEPE=予測と真の流れの平均端点誤差。姿勢はOKS(物体スケールとper-keypoint定数で正規化)とPCK@0.2を計算する。",
+   "deliverable": "1枚画像→深度マップ可視化、動画→姿勢キーポイント描画、画像対→フロー可視化を行うスクリプト群とAbsRel/EPE/OKSの評価コード。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "pose",
+    "metrics"
+   ],
+   "topics": [
+    "Depth Anything V2(Small)のpipeline('depth-estimation')、出力は相対(逆)深度で正規化が必要",
+    "MediaPipe Pose Landmarker(IMAGE/VIDEO/LIVE_STREAMモード、XNNPACK CPU)",
+    "torchvision RAFT(raft_small、[-1,1]正規化・8の倍数・flow_to_image)",
+    "古典オプティカルフロー(Lucas-Kanade/Farneback)との対比と輝度一定仮定",
+    "評価: 深度AbsRel/RMSE/δ<1.25、フローEPE、姿勢OKS/PCK",
+    "CPU負荷対策(small/低解像度/inference_mode)"
+   ],
+   "key_apis": [
+    "transformers.pipeline('depth-estimation')",
+    "AutoModelForDepthEstimation",
+    "mediapipe PoseLandmarker",
+    "torchvision.models.optical_flow.raft_small",
+    "torchvision.utils.flow_to_image",
+    "cv2.calcOpticalFlowPyrLK",
+    "cv2.calcOpticalFlowFarneback"
+   ]
+  },
+  {
+   "id": "28_tracking",
+   "title": "物体追跡 — OpenCV CSRT/KCF・ByteTrack・DeepSORTとMOT評価",
+   "track": "動画・追跡",
+   "level": "中級",
+   "goal": "検出器なしの単一物体トラッカ(CSRT/KCF)と、検出器(YOLO)出力にフレーム間で同一IDを付与する多物体追跡(ByteTrack/DeepSORT)を実装し、純CPUのByteTrackでリアルタイム追跡を成立させ、MOTA/IDF1/HOTAでトラッキング品質を評価できる。",
+   "evaluation": "多物体追跡をmotmetricsでMOTA(検出誤りとID切替を統合、負値もとる)・MOTP・IDF1(ID単位のF1)で評価し、HOTA(検出DetAと関連付けAssAを分離、IoU閾値で平均)はTrackEvalで算出する。各フレームでGT-予測をハンガリアン法で対応付ける。",
+   "deliverable": "YOLO検出+ByteTrackで動画の多物体を追跡しID付き軌跡を描画するスクリプトと、MOTA/IDF1/HOTAを出すMOT評価コード。",
+   "needs_groups": [
+    "dl",
+    "detect",
+    "track",
+    "metrics"
+   ],
+   "topics": [
+    "単一物体トラッカ(cv2.TrackerCSRT_create/legacy.TrackerKCF_create、selectROI)",
+    "supervision.ByteTrack(Kalman+Hungarian、純CPU、検出器非依存)",
+    "deep_sort_realtime.DeepSort(外見特徴)との対比",
+    "update_with_detections/sv.DetectionsとID切替の扱い",
+    "評価: MOTA=1-(FN+FP+IDSW)/GT・IDF1・HOTA=√(DetA×AssA)",
+    "フレーム毎のハンガリアン法による最適対応付け"
+   ],
+   "key_apis": [
+    "cv2.TrackerCSRT_create",
+    "cv2.legacy.TrackerKCF_create",
+    "supervision.ByteTrack",
+    "update_with_detections",
+    "deep_sort_realtime.DeepSort",
+    "motmetrics.MOTAccumulator",
+    "scipy.optimize.linear_sum_assignment"
+   ]
+  },
+  {
+   "id": "29_video_action_recognition",
+   "title": "動画理解・行動認識 — VideoMAE / r3d_18",
+   "track": "動画・追跡",
+   "level": "上級",
+   "goal": "クリップ(複数フレーム)から行動クラスを推定する仕組みを理解し、transformers VideoMAE(kinetics finetuned)かtorchvision r3d_18を使ってフレームサンプリング(clip_len/frame_rate)と専用正規化を正しく行い、CPUで小モデル+短クリップの推論を成立させ、top-1/top-5で評価できる。",
+   "evaluation": "行動認識の正解率をclip-levelのtop-1/top-5 accuracyで評価し、小検証セットで混同行列も併記する。前処理(clip_len/frame_rate/正規化)を変えるとスコアが壊れることを実験で示し、正しいサンプリングの重要性を定量化する。",
+   "deliverable": "動画クリップから行動クラスを推定し、フレームサンプリングを変えながらtop-1/top-5を出すスクリプト。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "video"
+   ],
+   "topics": [
+    "クリップ単位の行動認識とVideoMAEForVideoClassification",
+    "VideoMAEImageProcessorのフレームサンプリング(clip_len/frame_rate)と専用正規化",
+    "torchvision r3d_18(R3D_18_Weights、Kinetics-400)",
+    "pipeline('video-classification')",
+    "cv2.VideoCaptureでのフレーム抽出(torchvision内蔵デコーダ廃止のため)",
+    "評価: clip-levelのtop-1/top-5 accuracy"
+   ],
+   "key_apis": [
+    "VideoMAEForVideoClassification",
+    "VideoMAEImageProcessor",
+    "torchvision.models.video.r3d_18",
+    "R3D_18_Weights.DEFAULT",
+    "pipeline('video-classification')",
+    "cv2.VideoCapture"
+   ]
+  },
+  {
+   "id": "30_face_detection_recognition",
+   "title": "顔検出と顔認識 — Haar→DNN/MediaPipe・insightface ArcFace",
+   "track": "深度・姿勢・動き",
+   "level": "中級",
+   "goal": "古典Haar/LBPカスケードで顔検出の原理を学び、OpenCV DNN(res10 SSD)やMediaPipe Face Detectorで頑健化、検出済み顔からinsightface ArcFaceの512次元埋め込みを得てコサイン類似度で1:1照合・1:N検索を実装でき、TAR@FARで認証性能を評価できる。",
+   "evaluation": "顔認識(認証)を、同一/別人ペアのコサイン類似度分布からROC曲線を描き、誤受入率FARを固定したときの正受入率TAR@FAR(例FAR=1e-3)で評価する。閾値はFAR固定で決定。顔検出はGTとのIoUマッチでprecision/recallを算出する。",
+   "deliverable": "画像中の顔を検出してArcFace埋め込みを抽出し、本人判定(1:1)と顔検索(1:N)を行うスクリプトと、TAR@FAR/ROCを出す評価コード。",
+   "needs_groups": [
+    "face",
+    "pose",
+    "metrics"
+   ],
+   "topics": [
+    "Haar Cascade(detectMultiScale)→OpenCV DNN(res10 SSD)→MediaPipe Face Detectorの段階移行",
+    "insightface FaceAnalysis(buffalo_l、ctx_id=-1でCPU、onnxruntime)",
+    "face.normed_embeddingとコサイン類似度による1:1照合/1:N検索",
+    "閾値設計と初回モデル自動DL",
+    "評価: 検出のprecision/recall、認識のROC/TAR@FAR",
+    "顔の位置合わせ(landmark)の役割"
+   ],
+   "key_apis": [
+    "cv2.CascadeClassifier",
+    "detectMultiScale",
+    "cv2.dnn.readNetFromCaffe",
+    "mediapipe FaceDetector",
+    "insightface.app.FaceAnalysis",
+    "prepare(ctx_id=-1)",
+    "face.normed_embedding"
+   ]
+  },
+  {
+   "id": "31_generation_editing",
+   "title": "画像生成・編集 — 拡散モデル text-to-image・インペイント・超解像・背景除去",
+   "track": "生成・編集",
+   "level": "上級",
+   "goal": "diffusersで生成系を概観し、SD-Turbo(steps=1/guidance=0.0)でCPUでも数秒〜十数秒のtext-to-image、マスク指定インペイント(diffusers/LaMa)、超解像(OpenCV dnn_superres/Swin2SR)、背景除去/マッティングを実装でき、FID/PSNR/SSIM/LPIPSで生成・復元品質を評価できる。",
+   "evaluation": "超解像/インペイントなど参照ありタスクはPSNR=10log10(MAX^2/MSE)・SSIM・LPIPS(知覚距離、-1..1正規化必須)で復元忠実度を評価。text-to-image生成は実画像群と生成群のFID(InceptionV3特徴のFréchet距離)・KID・ISを数百枚規模で算出する。指標ごとの良し悪し方向を明示。",
+   "deliverable": "SD-Turboでプロンプト生成、マスクインペイントで物体除去、dnn_superres/Swin2SRで超解像を行うスクリプトと、FID/PSNR/SSIM/LPIPS評価コード。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "diffusion",
+    "classical",
+    "metrics"
+   ],
+   "topics": [
+    "拡散モデルの直感とAutoPipelineForText2Image(SD-Turbo、num_inference_steps=1/guidance_scale=0.0/attention_slicing)",
+    "インペイント(AutoPipelineForInpainting、古典cv2.inpaintとLaMaの比較)",
+    "超解像(cv2.dnn_superres ESPCN/FSRCNN→Swin2SR)",
+    "背景除去/マッティング",
+    "評価: 分布指標FID/KID/IS(十分なサンプル数)、参照あり忠実度PSNR/SSIM/LPIPS",
+    "CPU向け設定とsafety_checkerのNSFW黒画像注意"
+   ],
+   "key_apis": [
+    "AutoPipelineForText2Image",
+    "stabilityai/sd-turbo",
+    "AutoPipelineForInpainting",
+    "pipe.enable_attention_slicing",
+    "cv2.dnn_superres.DnnSuperResImpl_create",
+    "Swin2SRForImageSuperResolution",
+    "torchmetrics.image.FrechetInceptionDistance",
+    "torchmetrics.image.StructuralSimilarityIndexMeasure"
+   ]
+  },
+  {
+   "id": "32_anomaly_iqa",
+   "title": "異常検知と画像品質評価 — anomalib(PaDiM/PatchCore)・pyiqa",
+   "track": "異常検知・品質",
+   "level": "上級",
+   "goal": "正常画像のみで学習しキズ/欠陥を検出するメモリバンク型(PaDiM/PatchCore)をanomalibでCPU推論でき、異常マップとスコア閾値・image/pixelレベルAUROC/AUPRで評価し、pyiqaで参照あり(PSNR/SSIM/LPIPS)/参照なし(BRISQUE/NIQE/MUSIQ)の画像品質指標を計算して復元・生成評価に接続できる。",
+   "evaluation": "異常検知をimage-levelとpixel-levelのAUROC(ROC下面積)とAUPR(不均衡で実態を映す)で評価し、両者を併用する。画像品質はpyiqaで参照あり(PSNR/SSIM/LPIPS)/参照なし(BRISQUE/NIQE)指標を計算し、lower_betterを確認して混同しないようにする。",
+   "deliverable": "正常画像でPaDiM/PatchCoreを学習し欠陥の異常マップとAUROC/AUPRを出す異常検知スクリプトと、複数IQA指標を一括計算する品質評価コード。",
+   "needs_groups": [
+    "dl",
+    "anomaly",
+    "metrics"
+   ],
+   "topics": [
+    "anomalib PaDiM/PatchCore(メモリバンク型、正常のみ学習)とEngine(accelerator='cpu')",
+    "異常マップ(anomaly_map)とスコア閾値、MVTec ADでの評価",
+    "評価: image-level/pixel-level AUROC・AUPR",
+    "pyiqaの参照あり(PSNR/SSIM/LPIPS)と参照なし(BRISQUE/NIQE/MUSIQ/TOPIQ)",
+    "metric.lower_betterで指標の良し悪し方向を確認",
+    "生成・超解像(29回)評価との接続"
+   ],
+   "key_apis": [
+    "anomalib.models.Padim",
+    "anomalib.models.Patchcore",
+    "anomalib.engine.Engine",
+    "pyiqa.create_metric",
+    "metric.lower_better",
+    "sklearn.metrics.roc_auc_score",
+    "sklearn.metrics.average_precision_score"
+   ]
+  },
+  {
+   "id": "33_multimodal_embeddings",
+   "title": "マルチモーダル埋め込みの拡張 — SigLIP2多言語・ImageBind(音声+画像+テキスト)",
+   "track": "マルチモーダル",
+   "level": "上級",
+   "goal": "画像-テキストを越える埋め込みを理解し、SigLIP2の多言語・高精度埋め込みで検索を強化し、ImageBindで音声・画像・テキストを1つの空間に束ねるクロスモーダル検索(音→画像など)を体験でき、共有空間でのRecall@kでクロスモーダル検索精度を評価できる。",
+   "evaluation": "クロスモーダル検索をRecall@k(例: 音声クエリで対応画像が上位kに入る割合)とretrieval mAPで評価し、共有埋め込み空間の品質を定量化する。SigLIP2は多言語クエリでの検索Recall@kをCLIPと比較する。",
+   "deliverable": "SigLIP2多言語で画像テキスト検索を強化し、ImageBindで音→画像のクロスモーダル検索を行う小デモと、Recall@k評価コード。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "embed",
+    "vector"
+   ],
+   "topics": [
+    "SigLIP2(多言語)のget_text_features/get_image_featuresと検索強化",
+    "ImageBindで音声/画像/テキストを単一空間に(ModalityType.VISION/TEXT/AUDIO)",
+    "data.load_and_transform_*とクロスモーダル検索(音→画像)",
+    "FAISS(15回)との接続で大規模化",
+    "ImageBindは実験的・概念デモに留める",
+    "SigLIP/SigLIP2のsigmoid損失と多言語対応"
+   ],
+   "key_apis": [
+    "AutoModel",
+    "google/siglip2-base-patch16-224",
+    "model.get_text_features",
+    "model.get_image_features",
+    "imagebind_model.imagebind_huge",
+    "data.load_and_transform_audio_data",
+    "ModalityType.AUDIO",
+    "faiss.IndexFlatIP"
+   ]
+  },
+  {
+   "id": "34_inference_profiling",
+   "title": "推論高速化の地図 — 計測ファースト・プロファイリング・autocast・torch.compile",
+   "track": "最適化・デプロイ",
+   "level": "初級",
+   "goal": "最適化前に必ず計測する原則を体得し、レイテンシ(p50/p99)とスループット(img/s)の違い、eval+inference_modeでの勾配/Dropout無効化、ウォームアップ→多数回反復→中央値評価の正しいベンチ手順、torch.profilerでのボトルネック特定、CPUはbf16のautocast・torch.compile(Inductor)での高速化を書ける。",
+   "evaluation": "本モジュール自体が評価(ベンチ)回。同一モデルでウォームアップ有無・eval/inference_mode有無・bf16 autocast・torch.compileの各条件のlatency(p50/p99)とスループットを測り、公平な比較表を作る。ウォームアップを省いた誤計測との差も示す。",
+   "deliverable": "任意モデルのlatency/スループットを正しい手順で計測しprofilerで律速演算子を特定、bf16/compileの効果を表にするベンチマークユーティリティ。",
+   "needs_groups": [
+    "dl"
+   ],
+   "topics": [
+    "計測ファースト原則とレイテンシp50/p99 vs スループット",
+    "model.eval()/torch.inference_mode()の効果とウォームアップ",
+    "正しいベンチ(perf_counter・中央値/分位点、GPUはcuda.synchronize)",
+    "torch.profilerでCPU時間集計(key_averages().table)とchrome trace",
+    "数値精度(CPUはfp16が遅くbf16が現実的)とtorch.autocast(device_type='cpu')",
+    "torch.compile(mode/初回コンパイルコスト/グラフブレイク)"
+   ],
+   "key_apis": [
+    "model.eval()",
+    "torch.inference_mode()",
+    "time.perf_counter",
+    "torch.utils.benchmark.Timer",
+    "torch.profiler.profile",
+    "key_averages().table",
+    "torch.autocast",
+    "torch.compile"
+   ]
+  },
+  {
+   "id": "35_quantization_pruning",
+   "title": "量子化と枝刈り — PTQ(動的/静的)・QAT・torchao・pruningの実効速度の罠",
+   "track": "最適化・デプロイ",
+   "level": "中級",
+   "goal": "int8量子化のscale/zero-point・対称/非対称・per-tensor/per-channelを理解し、動的PTQ(CPU向き)/静的PTQ(fuse+QuantStub+キャリブレーション)/QATとtorchao quantize_を使い分け、非構造化pruningはマスクを掛けるだけで実速度もサイズも縮まないという最大の誤解を実測で確認し、構造化pruningで実圧縮できる。",
+   "evaluation": "圧縮効果を三角関係で評価する: 量子化/pruning前後でaccuracy(またはmAP)の劣化・latency(p50/p99)・モデルサイズ(MB)を測って比較表にする。特に非構造化pruningでスパース率を上げても実latency・サイズが変わらないことを実測で示し、構造化pruningとの差を定量化する。",
+   "deliverable": "小分類モデルに動的/静的量子化・torchao quantize_・非構造/構造pruningを適用し、accuracy/latency/サイズの三指標を比較するスクリプト。",
+   "needs_groups": [
+    "dl",
+    "quant"
+   ],
+   "topics": [
+    "量子化理論(scale/zero-point、対称/非対称、per-channel、PTQ/QATの使い分け)",
+    "動的量子化(quantize_dynamic、Linear/LSTM、CNNはほぼ効かない)",
+    "静的PTQ(fuse_modules+QuantStub/DeQuantStub+キャリブレーション)とQAT",
+    "torchao quantize_(Int8DynamicActivationInt8WeightConfig)とバックエンド(fbgemm/qnnpack)",
+    "非構造化/構造化pruning(l1_unstructured/ln_structured/global)とprune.remove",
+    "『prune.removeはマスクを焼くだけ』実効速度の罠の実測"
+   ],
+   "key_apis": [
+    "torch.ao.quantization.quantize_dynamic",
+    "prepare/convert",
+    "QuantStub",
+    "fuse_modules",
+    "torch.backends.quantized.engine",
+    "torchao.quantization.quantize_",
+    "torch.nn.utils.prune.l1_unstructured",
+    "prune.remove"
+   ]
+  },
+  {
+   "id": "36_onnx_runtime",
+   "title": "ONNXエクスポートとonnxruntime — グラフ最適化・動的量子化",
+   "track": "最適化・デプロイ",
+   "level": "中級",
+   "goal": "torch.onnx.export(dynamo)でPyTorchモデルをONNX化し、onnx.checkerとonnxruntimeで数値一致(atol/rtol)を検証、InferenceSession(CPUExecutionProvider)でグラフ最適化/スレッド設定して推論、quantize_dynamicでCPUに最も効くint8化を行い、optimumでTransformersもONNX化できる。",
+   "evaluation": "ONNX化の正しさをtorch出力とonnxruntime出力の数値一致(atol/rtol、最大絶対誤差)で検証し、eager torch・ONNX・ONNX int8動的量子化のlatency/スループットとサイズ、int8の精度劣化(accuracy/mAP)を比較して費用対効果を定量化する。",
+   "deliverable": "分類/検出モデルをONNXエクスポート→数値一致検証→onnxruntime推論→動的量子化し、torch比のlatency/サイズ/精度を出す一連のスクリプト。",
+   "needs_groups": [
+    "dl",
+    "onnx"
+   ],
+   "topics": [
+    "torch.onnx.export(dynamo=True, onnxscript必須)とopset/dynamic_shapes",
+    "onnx.checker.check_modelとonnxruntimeでの数値一致検証(atol/rtol)",
+    "InferenceSession(providers=['CPUExecutionProvider'])とSessionOptions(graph最適化/intra_op_num_threads)",
+    "onnxruntime.quantization.quantize_dynamic(QUInt8、CPUで最も手軽に効くint8化)",
+    "optimum ORTModelForXXX(export=True)でTransformers ONNX化",
+    "netronでのグラフ可視化"
+   ],
+   "key_apis": [
+    "torch.onnx.export",
+    "onnx.checker.check_model",
+    "onnxruntime.InferenceSession",
+    "SessionOptions",
+    "GraphOptimizationLevel.ORT_ENABLE_ALL",
+    "onnxruntime.quantization.quantize_dynamic",
+    "QuantType.QUInt8",
+    "optimum.onnxruntime.ORTModel"
+   ]
+  },
+  {
+   "id": "37_runtime_edge_optimization",
+   "title": "ランタイム/エッジ最適化 — OpenVINO・CoreML・LiteRT・TensorRT概要",
+   "track": "最適化・デプロイ",
+   "level": "上級",
+   "goal": "プラットフォーム別ランタイムを理解し、CPU/IntelはOpenVINO(convert_model+compile_model('CPU')、NNCFで量子化)、MacはCoreML(coremltools.convert)、モバイルはLiteRT(litert-torch)で最適化でき、GPU専用TensorRTは概要/netron可視化に留め、速度/精度のトレードオフで手法選択の意思決定順序を整理する。",
+   "evaluation": "各ランタイム(eager torch/ONNX/OpenVINO/CoreML)でlatency(p50/p99)とスループット、精度保持(accuracy/mAP)を同一指標で公平比較し、モデルサイズも併記して用途別の最適手法を意思決定する。NNCF量子化前後の精度-速度トレードオフも測る。",
+   "deliverable": "同一モデルをOpenVINO(とMacではCoreML)へ変換して推論ベンチを取り、torch/ONNX/OpenVINOのlatency/精度/サイズ比較表を出すスクリプト。",
+   "needs_groups": [
+    "dl",
+    "onnx"
+   ],
+   "topics": [
+    "OpenVINO(openvino.convert_model/compile_model('CPU'))とNNCFのPTQ/QAT",
+    "CoreML(coremltools.convert、変換はLinux可だが予測はmacOS必須)",
+    "LiteRT(litert-torch、PyTorch→.tflite、旧ai-edge-torchから改名)",
+    "TensorRT/torch-tensorrtはGPU専用で概要・図解・netron可視化のみ",
+    "手法選択の意思決定順序(eval+inference_mode→bf16+compile→ONNX動的量子化→静的PTQ→QAT/pruning)",
+    "CPUのみで実習できるのはOpenVINOとMacのCoreML"
+   ],
+   "key_apis": [
+    "openvino.convert_model",
+    "openvino.compile_model",
+    "nncf.quantize",
+    "coremltools.convert",
+    "litert_torch",
+    "netron.start",
+    "torch_tensorrt.compile"
+   ]
+  },
+  {
+   "id": "38_knowledge_distillation",
+   "title": "知識蒸留の基礎(a) — 温度付きKD・特徴量蒸留(CPUトイ学習)",
+   "track": "最適化・デプロイ",
+   "level": "中級",
+   "goal": "teacher(凍結)→studentへ知識を移す蒸留の枠組みを理解し、温度TでソフトターゲットのKLにT^2スケールを掛けハードラベルCEとalpha結合するHinton蒸留、forward hookで中間特徴をMSEで合わせる特徴量蒸留(FitNets、射影層必須)を、CPUでMNIST/CIFAR-10の小モデルに対し学習ループを自分で書いて完結できる。",
+   "evaluation": "蒸留の効果を、同一studentアーキでの『素の教師あり学習』と『KD学習』のテストaccuracyを比較して定量化(暗黙知の移転)する。温度T・alphaを変えてaccuracy変化を観察し、特徴量蒸留追加による改善も測る。",
+   "deliverable": "小CNN teacher→より小さいstudentを温度付きKD+特徴蒸留でCPU学習し、素のstudentとのaccuracy差を出すトイ蒸留スクリプト一式。",
+   "needs_groups": [
+    "dl",
+    "distill"
+   ],
+   "topics": [
+    "蒸留の4本柱俯瞰(蒸留/量子化/プルーニング/低ランク)とteacher凍結",
+    "ソフトターゲットと温度付きKLダイバージェンス(F.kl_div, reduction='batchmean', T^2スケール)",
+    "ハードラベルCEとのalpha結合、レスポンス/特徴/関係ベース",
+    "CPUトイKD(MNIST/CIFAR-10で素のstudent vs 蒸留studentの精度差)",
+    "特徴量蒸留(register_forward_hook+射影層nn.Linear/1x1conv+MSE+正規化)",
+    "学習ループ(forward→loss→backward→step)とevalループ"
+   ],
+   "key_apis": [
+    "F.log_softmax",
+    "F.softmax",
+    "F.kl_div",
+    "nn.KLDivLoss(reduction='batchmean')",
+    "F.cross_entropy",
+    "module.register_forward_hook",
+    "nn.MSELoss",
+    "torch.optim.AdamW"
+   ]
+  },
+  {
+   "id": "39_clip_distillation",
+   "title": "VLM/CLIPの蒸留(b) — TinyCLIP/MobileCLIP・埋め込み模倣",
+   "track": "最適化・デプロイ",
+   "level": "上級",
+   "goal": "大CLIPを小型エンコーダへ蒸留する手法を理解し、埋め込みをL2正規化しlogit_scaleで温度付与したteacherの画像-テキスト類似度行列をstudentにKL/MSEで模倣させるcontrastive distillation、TinyCLIP(重み継承+親和性蒸留)とMobileCLIP(DataCompDRデータセット強化)の違いを学び、open_clipで小型CLIPをCPUロードしzero-shotを回して参照リポのmobileclip(mobileclip_blt.ts)に接続できる。",
+   "evaluation": "蒸留した小CLIPの品質を、ラベル付き小データでのzero-shot分類accuracyとteacher CLIPとの差で評価し、画像テキスト検索Recall@kも比較する。teacherとstudentの埋め込みコサイン類似度(整合度)を測り、logit_scale/正規化を揃えないとスケールずれが起きることを示す。",
+   "deliverable": "teacher CLIPの埋め込み/類似度をstudentに模倣させる蒸留ループ(または小型MobileCLIP/TinyCLIPのロード)と、zero-shot accuracy・Recall@k・埋め込み類似度の評価コード。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "embed",
+    "distill"
+   ],
+   "topics": [
+    "CLIP蒸留: 埋め込みL2正規化+logit_scale(温度)を揃えた類似度行列の模倣",
+    "TinyCLIP(重み継承+親和性蒸留)とMobileCLIP/MobileCLIP2(DataCompDRデータセット強化、アーキよりデータ)",
+    "open_clip.create_model_and_transforms('MobileCLIP-S0'/'TinyCLIP-...')でCPUロード",
+    "encode_image/encode_textとF.normalize、list_pretrainedで事前学習キー確認",
+    "参照リポのmobileclip_blt.ts(TorchScript)とエッジ展開",
+    "知識蒸留/dataset distillation/dataset reinforcementの用語区別"
+   ],
+   "key_apis": [
+    "open_clip.create_model_and_transforms",
+    "open_clip.get_tokenizer",
+    "model.encode_image",
+    "model.encode_text",
+    "torch.nn.functional.normalize",
+    "model.logit_scale",
+    "open_clip.list_pretrained"
+   ]
+  },
+  {
+   "id": "40_cluster_clip_dense_cluster",
+   "title": "Cluster-CLIP中核 — dense CLIP特徴と空間連結クラスタリング",
+   "track": "応用(Cluster-CLIP)",
+   "level": "上級",
+   "goal": "CLIPのvisual encoderを手でforward展開し、CLSではなくパッチ単位のdense特徴[C,H,W](ViT:パッチトークン、ResNet:attnpoolのv_proj/c_proj)を取り出し、grid_to_graph付きAgglomerativeClusteringで領域にまとめ各クラスタ平均→L2正規化で代表ベクトルとクラスタマップを得る、という『領域単位の開語彙検索』の核をCPU(H=W=7程度)で再実装できる。",
+   "evaluation": "クラスタリング品質を、各クラスタ代表ベクトルとテキストクエリのコサイン類似度がGT領域(BBox)とどれだけ重なるか=カバレッジ(クラスタマスク∩BBox/BBox面積)で評価し、クラスタ数やしきい値を変えてカバレッジを比較する。定性的にはクラスタマップ重畳で確認。",
+   "deliverable": "ViT-B-32のdense特徴を手で展開して7x7パッチ特徴を取り、空間連結Agglomerativeで領域クラスタと代表ベクトルを生成・可視化するCPU版スクリプト。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "embed",
+    "vector",
+    "metrics"
+   ],
+   "topics": [
+    "visual encoderのforward展開(ViT: transformer/パッチトークン、ResNet: attnpool v_proj/c_proj→1x1conv化)",
+    "CLSトークンを落としパッチ特徴[C,H,W]を取得(位置埋め込み/正規化の順序)",
+    "sklearn AgglomerativeClustering + grid_to_graph(空間連結)で領域クラスタ",
+    "クラスタ平均→F.normalizeで代表ベクトル、cmap/vecsの保存",
+    "CPU制約(H=W=7〜14、AgglomerativeはO(n^2)メモリ)",
+    "参照: build/models.pyのdense_clip_embeddings_vit/_resnet、cluster_agglomerative"
+   ],
+   "key_apis": [
+    "model.visual.transformer",
+    "model.visual.attnpool.v_proj",
+    "sklearn.cluster.AgglomerativeClustering",
+    "sklearn.feature_extraction.image.grid_to_graph",
+    "torch.nn.functional.normalize",
+    "np.save"
+   ]
+  },
+  {
+   "id": "41_cluster_clip_pipeline",
+   "title": "Cluster-CLIPパイプライン統合(総合) — Split→Build→Search→Stream",
+   "track": "応用(Cluster-CLIP)",
+   "level": "上級",
+   "goal": "講座の全要素を統合し、動画分割→dense CLIP+クラスタリングでFAISSインデックス+SQLite構築→テキスト検索→クラスタマスク重畳の可視化までをCPU完結のミニ版で実装し、さらにmultiprocessingのproducer/consumer/writer・キュー満杯時のフレームドロップ・ヒストグラム差分の適応サンプリングというリアルタイムストリーム処理設計を読み解いて自力で再構築できる。",
+   "evaluation": "検索品質を、Cluster-CLIP本体と同じくGT BBoxとクラスタマスクのカバレッジ閾値スイープからP@k(上位kの適合率)とNDCG(関連度の割引利得正規化)を算出して評価する。ストリームは処理FPS・レイテンシ・フレームドロップ率でリアルタイム性を併せて計測する。",
+   "deliverable": "動画→dense CLIPクラスタFAISS構築→テキスト検索→マスク可視化までをCPUで通すミニCluster-CLIPと、P@k/NDCG評価+ストリーム3プロセス版の実装。",
+   "needs_groups": [
+    "dl",
+    "hf",
+    "embed",
+    "vector",
+    "video"
+   ],
+   "topics": [
+    "Split(OpenCVで動画→フレームJPEG)とadaptive sampling(ヒストグラム差分)",
+    "Build(dense CLIP+Agglomerative→クラスタ代表ベクトルをFAISS、メタデータSQLite)",
+    "Search(テキストクエリ→CLIPテキストエンコーダ→FAISSコサイン近傍→該当フレーム+クラスタマスクHTML可視化)",
+    "Stream(camera/YouTubeをproducer/consumer/writerの3プロセス、put_nowait即ドロップ、POISON_PILL)",
+    "cv2.addWeightedによるマスク重畳と可視化",
+    "参照: stream/capture.py・profiler.py・search/pipeline.py"
+   ],
+   "key_apis": [
+    "cv2.VideoCapture",
+    "faiss.IndexFlatIP",
+    "faiss.write_index",
+    "sqlite3.connect",
+    "multiprocessing.Process",
+    "multiprocessing.Queue",
+    "put_nowait",
+    "cv2.addWeighted"
+   ]
+  }
+ ]
+}

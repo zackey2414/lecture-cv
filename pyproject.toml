@@ -52,6 +52,12 @@ dev = [
     "poethepoet>=0.29",
     "ipython>=8.27",
 ]
+# 教材閲覧サイトのビルド（Markdown→HTML 事前レンダリング）。
+# 例: uv run --group site python tools/build_site.py
+site = [
+    "markdown>=3.7",
+    "pygments>=2.18",
+]
 
 # 注: 以下の専用トラックは依存衝突を避けるため main の pyproject には含めず、
 # 各モジュールに到達してから個別に追加する（詳細は docs/roadmap.md「設計メモ・既知の注意点」）:
