@@ -1,0 +1,38 @@
+# 大容量データ（volumes でマウントするため不要）
+data/
+outputs/
+
+# Git
+.git/
+.gitignore
+
+# Python キャッシュ
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 仮想環境
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# モデル重み・キャッシュ
+*.pt
+*.pth
+*.onnx
+*.safetensors
+hf_cache/
+.cache/
+
+# IDE・OS
+.vscode/
+.idea/
+*.DS_Store
+
+# ログ・一時ファイル
+*.log
+*.tmp

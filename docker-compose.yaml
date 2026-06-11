@@ -1,0 +1,28 @@
+services:
+  lecture-cv:
+    image: lecture-cv
+    build: .
+    container_name: lecture-cv
+    volumes:
+      # 教材・データ・成果物をホストと同期（編集→即実行できるように）
+      - ./lectures:/app/lectures
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./docs:/app/docs
+      # 依存定義も同期
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./uv.lock:/app/uv.lock
+      # HuggingFace キャッシュを永続化（再ダウンロード回避）
+      - ./.cache/huggingface:/app/.cache/huggingface
+    working_dir: /app
+    # 学習中は起こしておき、`docker compose exec lecture-cv uv run python ...` で実行する
+    command: ["sleep", "infinity"]
+
+    # ===== GPU を使う場合は以下のコメントを外す（要 nvidia-container-toolkit） =====
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]

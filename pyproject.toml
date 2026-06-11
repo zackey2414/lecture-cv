@@ -1,0 +1,82 @@
+[project]
+name = "lecture-cv"
+version = "0.1.0"
+description = "Computer Vision を血肉にするためのハンズオン講座（OpenCV/Pillow/HuggingFace/FAISS/検出・セグメ・キャプション・評価・モデル圧縮ほか）"
+readme = "README.md"
+requires-python = ">=3.12"
+# 画像基礎トラック（00〜09）はこの main 依存だけで CPU 完走できる。
+# 深層・各タスクのトラックは下の dependency-groups を `uv sync --group <name>` で足す。
+dependencies = [
+    "numpy>=2.2",
+    # GUI 依存を含まない headless 版を既定にする（Docker/CI で動き、albumentations と衝突しない）。
+    # ローカルで cv2.imshow を使いたい場合は opencv-python（full）に差し替える。両者は排他。
+    "opencv-python-headless>=4.11",
+    "pillow>=11.0",
+    # headless 環境でも結果を確認できるよう、表示・可視化は matplotlib を既定にする。
+    "matplotlib>=3.9",
+]
+
+[dependency-groups]
+# 深層学習の土台（CPU 版 torch / torchvision）
+dl = [
+    "torch>=2.4",
+    "torchvision>=0.19",
+]
+# HuggingFace 一式（分類 / CLIP / 検出 / セグメ / キャプション / VLM など）
+hf = [
+    "transformers>=4.45",
+    "huggingface-hub>=0.25",
+    "safetensors>=0.4",
+    "timm>=1.0",
+    "sentencepiece>=0.2",
+    "einops>=0.8",
+]
+# ベクトル DB / 類似画像検索（GPU 版は faiss-gpu-cuvs。Linux+NVIDIA 限定・cpu と排他）
+vector = [
+    "faiss-cpu>=1.9",
+]
+# 評価指標（混同行列 / mAP / mIoU / Recall@k / FID ほか）
+metrics = [
+    "torchmetrics>=1.4",
+    "scikit-learn>=1.5",
+    "pycocotools>=2.0.8",
+]
+# データ拡張
+aug = [
+    "albumentations>=1.4",
+]
+# 開発ツール（uv sync で既定インストールされる）
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "poethepoet>=0.29",
+    "ipython>=8.27",
+]
+
+# 注: 以下の専用トラックは依存衝突を避けるため main の pyproject には含めず、
+# 各モジュールに到達してから個別に追加する（詳細は docs/roadmap.md「設計メモ・既知の注意点」）:
+#   detect / embed / video / ocr / pose / face / track / diffusion / anomaly / quant / onnx / distill
+
+# PyTorch CPU ホイール（Linux）。macOS は PyPI 既定（CPU/MPS）を使う。
+# GPU を使う場合はこの index を CUDA 版（例 cu126）に差し替える。
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
+
+[tool.poe.tasks]
+format = "uv run ruff format ."
+lint = "uv run ruff check --fix ."
+type-check = "uv run mypy ."
+check = ["format", "lint", "type-check"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+# 任意グループ（hf/vector/...）を常に同時インストールしないため missing imports は警告に降格。
+ignore_missing_imports = true
