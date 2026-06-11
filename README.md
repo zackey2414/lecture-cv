@@ -38,8 +38,9 @@ docker compose exec lecture-cv uv run python lectures/01_image_basics/01_imread_
 lecture-cv/
 ├── lectures/                 # 教材本体（番号_スネークケースのモジュール）
 │   ├── 00_setup/             # 環境構築・スモークテスト（check_env.py）
-│   ├── 01_image_basics/      # ★第1回（解説 + 実行コード + 演習）作成済み
-│   └── 02_… 〜 41_…/         # ロードマップ上のプレースホルダ（順次作成）
+│   ├── 01_image_basics/      # ★作成済み（解説 + 実行コード + 演習）
+│   ├── 02_… 〜 06_…/         # ★作成済み（ライブラリ地図・古典CV前半）
+│   └── 07_… 〜 41_…/         # ロードマップ上のプレースホルダ（順次作成）
 ├── docs/roadmap.md           # 全 42 モジュールのロードマップ（必読）
 ├── data/                     # 入力データ（各自で配置。.gitkeep のみ追跡）
 ├── outputs/                  # 実行結果の出力先

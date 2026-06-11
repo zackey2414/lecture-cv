@@ -1,35 +1,217 @@
-# 02_image_transforms: 色空間・描画・幾何変換 — 前処理パイプラインの土台
+# 第3回 色空間・描画・幾何変換 — 前処理パイプラインの土台
 
-> トラック: **画像の基礎** ／ レベル: **初級** ／ 必要な依存グループ: （基礎のみ・追加依存なし）
+> トラック: 画像の基礎 ／ レベル: 初級 ／ 依存: numpy・opencv-python-headless・pillow・matplotlib のみ（torch/faiss は使いません・追加グループ不要）
 
 ## 🎯 この章のゴール
-色空間変換(Gray/HSV、OpenCVのH=0-179スケール)、矩形/テキスト等の描画、リサイズ(dsizeが(W,H)で逆順・補間の使い分け)・反転・クロップ、PIL↔numpy↔cv2の軸順の違いを正準形で書け、検出結果の可視化や前処理に直結する基礎技能を身につける。
 
-## 扱うトピック
-- cv2.cvtColor(BGR2GRAY/BGR2HSV)とinRangeによる色マスク
-- cv2.line/rectangle/circle/putText(座標(x,y)・BGRタプル・LINE_AA)
-- cv2.resize(dsize=(W,H)・INTER_AREA縮小/INTER_CUBIC拡大)・flip・スライスクロップ
-- PIL.Image.resize/crop/rotate/thumbnailとResampling.LANCZOS
-- size=(W,H)とshape=(H,W)の軸順の混同解消
-- EXIF Orientationとexif_transposeによる正規化
+第1回で「画像は `(H, W, 3)` の `uint8` numpy 配列にすぎない」という地盤を作りました。この章では、その配列を**目的に合わせて作り替える基本操作**——色空間の変換、図形やテキストの描き込み、リサイズ・反転・クロップといった幾何変換——を、すべて「正準的な（現行版で正しい）書き方」で手に馴染ませます。これらはどれも地味ですが、検出・セグメンテーション・分類など後段のあらゆるタスクの**前処理**と**結果の可視化**で必ず使う、避けて通れない基礎技能です。
 
-## 主要API
-`cv2.cvtColor` / `cv2.inRange` / `cv2.rectangle` / `cv2.putText` / `cv2.resize` / `cv2.INTER_AREA` / `cv2.flip` / `PIL.Image.resize` / `ImageOps.exif_transpose`
+この章の隠れた主題は「**軸順と数値スケールの食い違いを、毎回意識的に変換する**」ことです。`cv2.resize` の `dsize` は `(幅W, 高さH)` 順なのに numpy の `shape` は `(高さH, 幅W)` 順、PIL の `size` も `(W, H)` 順、OpenCV の HSV は色相 `H` が `0-179`（一般的な `0-360` ではない）——こうした「順序が逆」「スケールが半分」といった罠は、知らないと一日溶かしますが、知っていれば一行で直せます。本章はそれらを知識ではなく「自分で再現し、回避コードを書ける」レベルまで落とし込みます。
 
-## 評価方法
-—
-
-## 完成物
-HSV色域でのオブジェクト抽出マスク生成器と、アスペクト比保持/正方形強制リサイズ・EXIF正規化を含む再利用可能な前処理関数群。
-
-## CPU / GPU メモ
-完全CPU。すべてOpenCV/Pillowのprebuiltホイールで動作する。
-
-## 予定スクリプト
-- `01_colorspace_hsv_mask.py`
-- `02_drawing.py`
-- `03_resize_crop_flip.py`
-- `04_exif_transpose.py`
+到達点を一言でいえば、**HSV 色域で特定の物体を抜き出すマスク生成器**と、**アスペクト比を保ったリサイズ・正方形への整形・EXIF 向き正規化までを含む再利用可能な前処理関数群**を、AI 補助なしでそらで書けること。これがこの章の合格ラインで、成果物そのものは `preprocess.py` にまとまっています。
 
 ---
-> ⚠️ この回はロードマップ上の**プレースホルダ**です。教材本体（解説＋実行コード＋演習）は順次作成します。
+
+## 1. 色空間変換 — Gray は次元が減り、HSV は独自スケール
+
+色空間とは「色をどんな数値の組で表すか」の取り決めです。OpenCV が読み込む画像は既定で **BGR**（青・緑・赤）ですが、用途に応じて別の表現へ変換します。最頻出は2つ。ひとつは**グレースケール**（輝度だけの白黒）で、エッジ検出や閾値処理の前段としてほぼ必ず通ります。もうひとつが **HSV**（色相・彩度・明度）で、「色で物体を選り分けたい」ときの定番です。変換はすべて `cv2.cvtColor(img, コード)` の一行で行います。
+
+ここで第1回の知識が効いてきます。BGR(3ch) をグレースケールにすると、戻り値の `shape` は `(H, W, 1)` ではなく **`(H, W)` の2次元**になり、チャンネル軸が消えます。「色を1つに落とすと次元が1つ減る」という対応です。逆に、グレースケールを他のカラー画像と並べたり重ねたりしたいときは `cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)` で見た目は白黒のまま3チャンネルに戻します。次元数が揃っていないと連結や重ね合わせで形が合わずに落ちるので、`shape` を一目見て次元を数える癖をつけてください。
+
+HSV で最も重要なのは**スケールの癖**です。一般的なカラーピッカーでは色相 `H` を 0〜360 度で表しますが、**OpenCV の HSV は `H` を `0-179`（半分の値）**で持ち、彩度 `S`・明度 `V` は `0-255` です。これは `uint8`（最大255）に色相を収めるための仕様で、Web の色相環の角度をそのまま入れると色域抽出に失敗します。`01_colorspace_hsv_mask.py` は純色の画素を実際に変換し、赤 `H=0`・黄 `H=30`・緑 `H=60`・青 `H=120` という値を数値で示します。
+
+```python
+gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)   # (H, W) ← 次元が1つ減る
+hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)     # H=0-179, S/V=0-255
+```
+
+上のコードを実行したら、必ず `gray.shape` が2次元、`hsv` が3次元であることと、各純色の `H` 値を確認してください。「`H` は 0-360 の半分」とだけ覚えておけば、後述する色マスクの数値設計でつまずきません。
+
+## 2. `inRange` による色マスク — 赤は 0/179 をまたぐ
+
+特定の色だけを抜き出したいとき、BGR のまま「赤が強い画素」を条件で書くのは至難です（明るさで R の値が大きく動くため）。そこで HSV に変換し、**色相 `H` の範囲**で選別します。`cv2.inRange(hsv, lower, upper)` は、各画素が `[lower, upper]` の範囲内なら 255、外なら 0 とする2値マスク（`(H, W)` の `uint8`）を返します。色相に加えて彩度 `S`・明度 `V` にも下限を設けると、背景の灰色（彩度が低い）や暗部を確実に除外できます。
+
+ここで初学者が必ず引っかかるのが**赤**です。赤の色相は `H=0` 付近にありますが、色相環は一周してつながっているため、赤は `179` 側にもはみ出します。つまり `[0, 10]` の一区間だけでは赤の半分を取りこぼします。正攻法は **`[0, 10]` と `[170, 179]` の2つのマスクを作り、`cv2.bitwise_or` で合成する**ことです。これは「色相環の端をまたぐ色は2区間に分ける」という、HSV 色抽出の最重要パターンです。
+
+下のコードは青（単一区間でよい）と赤（2区間を OR）の対比です。`S`・`V` の下限を `80, 60` 程度に上げている点に注目してください。これが背景のグレーを弾く効きどころです。
+
+```python
+hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+mask_blue = cv2.inRange(hsv, (100, 80, 60), (130, 255, 255))         # 青は単一区間
+red1 = cv2.inRange(hsv, (0, 80, 60), (10, 255, 255))
+red2 = cv2.inRange(hsv, (170, 80, 60), (179, 255, 255))
+mask_red = cv2.bitwise_or(red1, red2)                                # 赤は2区間を合成
+```
+
+抜き出したマスクで元画像の色だけを残すには `cv2.bitwise_and(bgr, bgr, mask=mask)` を使います。これらを色名で呼べるようまとめたのが成果物 `preprocess.extract_color(bgr, "red")` で、赤の両端またぎや軽いノイズ除去まで内側で面倒を見ます。`01_colorspace_hsv_mask.py` は4色すべてを抽出して保存するので、`01_mask_red.png` などを開いて「狙った物体だけが白くなっている」ことを確認してください。
+
+## 3. 図形・テキストの描画 — 検出結果の可視化に直結する
+
+`ndarray` には専用 API で直接、線・矩形・円・多角形・テキストを描き込めます。`cv2.line` / `cv2.rectangle` / `cv2.circle` / `cv2.polylines` / `cv2.putText` がそれです。ここでの約束事は3つ。**座標は `(x, y)`**（numpy の `img[y, x]` とは引数順が逆！）、**色は BGR タプル**、そして **`thickness=-1` で塗りつぶし**になることです。さらに `lineType=cv2.LINE_AA` を付けると縁がアンチエイリアスされ、斜線や円のギザギザが滑らかになります。
+
+`cv2.putText` だけは少し癖があります。座標が指す基準点は文字の**左下（ベースライン）**で、左上ではありません。また、文字の背景に帯を敷きたい（検出ラベルを読みやすくしたい）場合、`putText` 自体には背景機能がないので、`cv2.getTextSize` で文字の幅・高さを先に測り、その寸法に合わせて塗りつぶし矩形を描いてから文字を載せます。この「測ってから背景→文字」の手順が、見やすいラベル表示の定石です。
+
+```python
+# 座標は (x, y)、色は BGR。thickness=-1 で塗りつぶし、LINE_AA で滑らかに。
+cv2.rectangle(img, (x1, y1), (x2, y2), (0, 200, 0), 2, lineType=cv2.LINE_AA)
+(tw, th), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+cv2.rectangle(img, (x1, y1 - th - baseline - 4), (x1 + tw + 4, y1), (0, 200, 0), -1)
+cv2.putText(img, text, (x1 + 2, y1 - baseline - 2), cv2.FONT_HERSHEY_SIMPLEX,
+            0.5, (255, 255, 255), 1, lineType=cv2.LINE_AA)
+```
+
+この一連の処理を関数化したのが `02_drawing.py` の `draw_label_box` で、物体検出の出力でおなじみの「バウンディングボックス＋ラベル帯＋白文字」を1つの関数（単一責務）で描きます。後の検出・追跡の章で結果を可視化するとき、まさにこの形を使うことになります。生成される `02_detections.png` を見て、ラベルが枠にきれいに収まっていることを確認してください。
+
+## 4. リサイズ — `dsize=(W, H)` の罠と補間の使い分け
+
+リサイズは前処理の心臓部ですが、`cv2.resize` には2つの落とし穴があります。1つ目は**サイズの順序**。`cv2.resize(img, dsize)` の `dsize` は **`(幅W, 高さH)` 順**で、numpy の `shape=(高さH, 幅W)` とは逆です。`(200, 100)` を渡すと「幅200・高さ100」、つまり `shape` は `(100, 200, 3)` になります。ここを取り違えると縦横が入れ替わるか、エラーになります。「`shape` は H が先、`dsize` は W が先」と声に出して覚えてください。倍率で指定したいときは `dsize=None` にして `fx`・`fy` を使います。
+
+2つ目は**補間方法**です。拡大・縮小では、無い画素を周囲から推定（補間）します。経験則は明快で、**縮小は `cv2.INTER_AREA`**（複数画素を平均するのでモアレやジャギーが出にくい）、**拡大は `cv2.INTER_CUBIC`（高品質）か `cv2.INTER_LINEAR`（高速）** が定石です。`cv2.INTER_NEAREST`（最近傍）は最速ですが、拡大するとカクカクのドット絵になり、縮小では情報を取りこぼします。補間を選ばないと画質が無駄に落ちるので、用途に応じて明示しましょう。
+
+| 補間フラグ | 向く場面 | 特徴 |
+| --- | --- | --- |
+| `cv2.INTER_AREA` | **縮小** | 領域平均。モアレ・ジャギーが出にくい。縮小の第一候補 |
+| `cv2.INTER_CUBIC` | **拡大**（高品質） | 4×4 の三次補間。滑らかだがやや重い |
+| `cv2.INTER_LINEAR` | 拡大（既定・高速） | 2×2 の線形補間。速度と品質の標準的なバランス |
+| `cv2.INTER_NEAREST` | マスク/ラベル画像 | 最近傍。値を作らない＝ラベルIDを壊さない用途に限る |
+
+表の最終行が示すように、セグメンテーションのラベル画像のように「値そのものに意味がある（中間値を作ってはいけない）」画像は、あえて `INTER_NEAREST` を選びます。`03_resize_crop_flip.py` は高周波の同心円パターンを縮小→拡大し、`03_interpolation_compare.png` に `NEAREST` と `AREA`/`CUBIC` の差を並べます。拡大結果のギザギザと滑らかさの違いを目で確かめてください。
+
+## 5. 反転とクロップ — `flip` と numpy スライス
+
+反転は `cv2.flip(img, flipCode)` の一行です。`flipCode` の意味は **`1`=左右反転、`0`=上下反転、`-1`=上下左右**で、特に左右反転はデータ拡張（学習データの水増し）で頻出します。「左右だけ」を `0`、「上下だけ」を `1` と取り違えやすいので、`1` が水平（horizontal）だと結びつけて覚えると間違えません。
+
+クロップ（切り出し）には専用 API は不要で、**numpy のスライス**をそのまま使います。`img[y0:y1, x0:x1]` で矩形領域を取り出せます。ここでも軸順が肝心で、スライスは **`[行(y), 列(x)]` の順**です。「`x` が先」と思い込むと切り出す場所がずれます。スライスは多くの場合コピーではなくビュー（元配列への参照）なので、切り出した領域を書き換えると元画像にも反映される点も第1回どおりです。
+
+```python
+flip_h = cv2.flip(bgr, 1)      # 左右反転（データ拡張で多用）
+crop = bgr[50:200, 100:300]    # y: 50→200, x: 100→300 を切り出す（[y, x] の順！）
+```
+
+このように、反転とクロップは覚えることが少ない一方、軸順を間違えると静かにずれた結果が出ます。`03_resize_crop_flip.py` を実行し、`03_flip_h.png` で左右が反転していること、`03_crop.png` の `shape` が `(150, 200, 3)`（高さ150・幅200）になることを確認してください。
+
+## 6. 成果物 — アスペクト比保持と正方形への整形
+
+ここまでの部品を組み合わせると、実務でそのまま使える前処理関数になります。本章の成果物 `preprocess.py` には3つの整形関数を用意しました。`resize_keep_aspect(img, long_side)` は**長辺を指定値に合わせつつ縦横比を保つ**リサイズで、画像を歪ませません。内部では拡大か縮小かを判定して補間を自動で選び、計算した `(new_w, new_h)` を必ず `dsize` の `(W, H)` 順で渡します——前節の罠を関数の中に閉じ込めているわけです。
+
+分類・検出モデルの多くは**正方形の入力**を要求しますが、単純に正方形へリサイズすると縦横比が崩れて物体が歪みます。そこで2つの正攻法があります。`resize_to_square(img, size, pad_color)` は**レターボックス**方式で、比率を保って収めたうえで余白を `pad_color` で埋めて正方形にします（画像全体が残るが余白ができる）。`center_crop_square(img)` は**中央正方形クロップ**で、内接する最大の正方形を切り出します（余白は出ないが端の情報を捨てる）。どちらを選ぶかは「全体を残したいか／歪みも余白も避けたいか」で決めます。
+
+```python
+keep = resize_keep_aspect(bgr, long_side=256)            # 歪まない・比率保持
+square = resize_to_square(bgr, 256, pad_color=(0, 0, 0))  # 余白で正方形・全体が残る
+crop = center_crop_square(bgr)                           # 端を捨てて正方形
+```
+
+この3関数は、検出・分類の章で「モデルに入れる前の整形」として再利用します。`03_resize_crop_flip.py` の出力 `03_keep_aspect.png`・`03_square_letterbox.png`・`03_square_centercrop.png` を見比べると、同じ画像が「歪まないが余白あり」「正方形だが端が切れる」など、方式ごとにどう変わるかが一目で分かります。前処理は一度書いて使い回すのが鉄則なので、自分の手に馴染むこの関数群を一つ持っておきましょう。
+
+## 7. Pillow の幾何変換と `size=(W, H)` vs `shape=(H, W)`
+
+OpenCV が「配列をゴリゴリ計算する」のに向くのに対し、Pillow（`PIL`）は「画像を直感的に編集する」のに向きます。`Image.resize` / `crop` / `rotate` / `thumbnail` といった操作が読みやすい API で書けます。ここで再び**軸順**が立ちはだかります。`Image.size` は **`(幅W, 高さH)`** を返し、`resize((200, 150))` も `(幅, 高さ)` で指定します。numpy の `shape=(高さH, 幅W, ch)` とは逆順なので、OpenCV と Pillow を行き来するたびに「いま幅と高さのどちらが先か」を意識する必要があります。
+
+Pillow 固有の注意点もあります。高品質な縮小には **`Image.Resampling.LANCZOS`** を使います（OpenCV の `INTER_AREA` に相当する高品質縮小）。なお Pillow 10 以降で旧来の `Image.ANTIALIAS` 定数は削除済みなので、古い記事の `ANTIALIAS` をそのまま書くとエラーになります。`Image.rotate` は**反時計回りが正**で、`expand=True` を付けると回転後の画像が切れないよう外接箱を広げます。`Image.thumbnail` は「与えた箱に収まる最大」へ比率を保って縮小し、**元のオブジェクトをその場で書き換える**（戻り値ではない）点が他と違うので、元画像を残したいなら `copy()` してから呼びます。
+
+```python
+pil = Image.fromarray(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))  # cv2(BGR) → PIL(RGB)
+print(pil.size)                              # (W, H)  ← 幅が先！
+resized = pil.resize((200, 150), Image.Resampling.LANCZOS)   # 高品質縮小
+rotated = pil.rotate(30, expand=True, fillcolor=(0, 0, 0))   # 反時計回り・外接箱を拡張
+thumb = pil.copy(); thumb.thumbnail((120, 120))              # その場で縮小（戻り値なし）
+```
+
+`04_exif_transpose.py` はこれらを一通り実行し、各操作後の `size` を表示します。`resize` と `crop` は指定どおりのサイズに、`rotate(expand=True)` は外接箱の分だけ大きく、`thumbnail` は長辺が箱に収まるサイズになることを数値で確認してください。
+
+## 8. EXIF Orientation — スマホ写真が横倒しで読まれる罠
+
+スマホやデジカメで撮った写真を読み込むと、**画像が90度横倒し**になることがあります。これはバグではなく EXIF の **Orientation（向き）** という仕組みのためです。多くのカメラは、撮影時に**画素を回転させず、向きの情報だけをメタデータ（EXIF）に記録**します。賢い画像ビューアはこの向きタグを見て自動で回して表示しますが、`cv2.imread` や素朴な `Image.open` は**画素をそのまま**読むため、タグを無視すると横倒しのまま処理してしまいます。検出や認識の前処理でこれを放置すると、モデルが倒れた画像を見せられて精度が落ちます。
+
+正規化の正攻法は Pillow の **`ImageOps.exif_transpose`** です。これは EXIF の向き情報に従って**実際に画素を回転・反転し、向きタグを消した**画像を返します。以降は誰が読んでも正しい向きになります。`cv2` には同等の標準関数が無いため、向き正規化は Pillow に任せ、その後 numpy 経由で BGR へ変換するのが定石です。本章の成果物 `load_image_oriented(path)` がまさにこの「Pillow で向きを直して BGR で返す」関数で、写真を扱う前処理の入口に必ず一枚かませる価値があります。
+
+```python
+from PIL import Image, ImageOps
+naive = Image.open(path)                            # 画素は回らない（横倒しのまま）
+fixed = ImageOps.exif_transpose(Image.open(path))  # 画素を実際に回し、向きタグを消す
+# 以降 numpy/cv2 へ: np.asarray(fixed.convert("RGB")) → cv2.cvtColor(..., RGB2BGR)
+```
+
+`04_exif_transpose.py` は、わざと Orientation=6（時計回り90度の指示）を付けた JPEG を作り、素朴に開いた場合と `exif_transpose` した場合を保存します。`04_exif_naive.png`（横倒し）と `04_exif_fixed.png`（正しい向き）を見比べ、`size` が `(400, 300)` から `(300, 400)` へ入れ替わり、向きタグが消えることを確認してください。「写真の前処理は、まず EXIF 正規化から」を手癖にしましょう。
+
+## 9. PIL ↔ numpy ↔ cv2 の相互変換
+
+実務では OpenCV と Pillow を頻繁に行き来します。橋渡しの基本は2本で、**PIL → numpy が `np.asarray(pil)`、numpy → PIL が `Image.fromarray(arr)`** です。ただし第1回で強調したとおり、**Pillow と matplotlib は RGB、OpenCV は BGR**。境界をまたぐたびに `cv2.cvtColor(..., COLOR_BGR2RGB / COLOR_RGB2BGR)` で色順を変換しないと、赤と青が入れ替わった画像になります。「OpenCV だけが BGR の仲間外れ」と覚えておけば混乱しません。
+
+正しく変換が閉じているかを確かめる最良の方法が**ラウンドトリップ**です。`cv2(BGR) → RGB → PIL → numpy → cv2(BGR)` と一周して元の配列に戻れば、3者の橋渡しを完全に理解できた証拠です。下のコードを実行し、`np.array_equal` が `True` を返すことを確認してください。`np.asarray` は多くの場合コピーを作らない読み取り専用ビューを返すので、書き換えたい場合は `np.array(pil)`（コピー）を使う点も合わせて押さえておきます。
+
+```python
+rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)   # cv2(BGR) → RGB
+arr = np.asarray(Image.fromarray(rgb))        # RGB → PIL → numpy（読み取り専用ビュー）
+back = cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)   # numpy → cv2(BGR) へ戻す
+assert np.array_equal(bgr, back)              # 1周して一致 = 変換が正しく閉じた証拠
+```
+
+この一致が取れれば、どんな組み合わせでも色は崩れません。鍵は常に同じで、**境界をまたぐたびに色順を変換する**——この一点に尽きます。`04_exif_transpose.py` の末尾でこのラウンドトリップを検証しているので、出力ログの `True` を確認してください。
+
+## 10. このモジュールの構成（スクリプト一覧）
+
+各スクリプトは単一責務で、上から順に読めば理解が積み上がるよう並んでいます。すべて `outputs/03_image_transforms/` に結果を保存し、画面表示には依存しません（headless 安全）。共通処理（合成画像生成・日本語パス対応 I/O・出力先管理）は `cv_helpers.py` に、本章の成果物である再利用前処理関数は `preprocess.py` にまとめ、各スクリプトはそれらを import して使います。
+
+| ファイル | 役割（単一責務） |
+| --- | --- |
+| `cv_helpers.py` | 合成画像生成（色シーン／高周波パターン）・`imread/imwrite_unicode`・出力先。各スクリプトの道具箱 |
+| `preprocess.py` | **成果物**。HSV色抽出・アスペクト比保持/正方形整形・EXIF正規化の再利用関数群 |
+| `01_colorspace_hsv_mask.py` | Gray/HSV 変換、HSV の H=0-179 スケール、`inRange` 色マスク（赤の2区間合成）、`split`/`merge` |
+| `02_drawing.py` | `line`/`rectangle`/`circle`/`polylines`/`putText`、LINE_AA、検出可視化（枠＋ラベル） |
+| `03_resize_crop_flip.py` | `resize` の `dsize=(W,H)` 罠と補間の使い分け、`flip`、スライスクロップ、整形関数の実演 |
+| `04_exif_transpose.py` | PIL の `resize/crop/rotate/thumbnail`、`size` vs `shape`、EXIF `exif_transpose`、相互変換 |
+| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+
+`cv_helpers.py` と `preprocess.py` は「読み物」ではなく「再利用する道具」です。とくに `preprocess.py` は本章のゴールそのものなので、最初に一読してから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。
+
+## 11. 動かし方
+
+このモジュールは `numpy` / `opencv-python-headless` / `pillow` / `matplotlib` だけに依存し、GPU もネット接続も不要です。サンプル画像が無くても合成画像が自動生成されるので、いきなり実行できます（`data/sample.jpg` を置けば、そちらが優先して使われます）。プロジェクトルートで以下を順に実行してください。
+
+```bash
+# 依存をインストール（初回のみ）
+uv sync
+
+# 各スクリプトを実行（結果は outputs/03_image_transforms/ に保存される）
+uv run python lectures/03_image_transforms/01_colorspace_hsv_mask.py
+uv run python lectures/03_image_transforms/02_drawing.py
+uv run python lectures/03_image_transforms/03_resize_crop_flip.py
+uv run python lectures/03_image_transforms/04_exif_transpose.py
+
+# 演習: まずは TODO を自分で埋める（最初は全部 FAIL）
+uv run python lectures/03_image_transforms/exercises.py
+# どうしても分からない時だけ、模範解答の挙動を見る
+SHOW_SOLUTION=1 uv run python lectures/03_image_transforms/exercises.py
+```
+
+実行後は `outputs/03_image_transforms/` の画像を開き、解説と照らし合わせてください。特に `01_mask_red.png`（赤の2区間抽出）、`03_interpolation_compare.png`（補間の差）、`03_square_letterbox.png` と `03_square_centercrop.png`（正方形整形の2方式）、`04_exif_naive.png` と `04_exif_fixed.png`（EXIF 向きの違い）を見比べると、本章の要点が一目で腑に落ちます。
+
+## 12. よくあるエラーと対処（チェックリスト）
+
+最後に、この章でつまずく点を「症状 → 原因 → 対処」で一覧にします。実装中に詰まったら、まずここを見てください。多くの不具合は、この章で扱った数個の罠に集約されます。
+
+| 症状 | ほぼ確実な原因 | 対処 |
+| --- | --- | --- |
+| リサイズしたら縦横が入れ替わった | `dsize` を `(H, W)` 順で渡した | `cv2.resize` の `dsize` は `(W, H)` 順。`shape` と逆と覚える |
+| 色マスクで赤の半分しか取れない | 赤が色相環の `0/179` をまたぐ | `[0,10]` と `[170,179]` の2マスクを `bitwise_or` で合成 |
+| `inRange` で背景まで白くなる | `S`・`V` の下限が低すぎる | 彩度・明度の下限を上げて低彩度のグレーを除外 |
+| HSV の色域指定が効かない | `H` に 0-360 の角度を入れた | OpenCV の `H` は `0-179`。角度を半分にする |
+| クロップ位置がずれる | スライスを `[x, y]` 順で書いた | スライスは `[y0:y1, x0:x1]`（行=y, 列=x） |
+| 描画した図形の位置がずれる | 座標を `(y, x)` で渡した | `cv2` の描画系は座標が `(x, y)` 順 |
+| スマホ写真が横倒しで処理される | EXIF Orientation を無視した | `ImageOps.exif_transpose` で向きを正規化してから使う |
+| PIL に渡したら赤青が入れ替わった | BGR を RGB として渡した | 境界で `cv2.cvtColor(BGR2RGB)` してから `Image.fromarray` |
+
+この8項目が、第3回でつまずく原因のほぼ全てです。逆に言えば、この8つを自分の言葉で説明でき・回避コードを書けるようになれば、この章のゴールに到達しています。
+
+## 13. まとめ
+
+この章では、画像という配列を目的に合わせて作り替える基本——色空間変換（Gray の次元減・HSV の `H=0-179`）、`inRange` による色マスク（赤の2区間合成）、図形とテキストの描画と検出可視化、`dsize=(W,H)` の罠と補間の使い分け、反転とスライスクロップ、そして成果物としてのアスペクト比保持・正方形整形・EXIF 正規化——を、すべて「自分で再現し回避できる」レベルで扱いました。共通する教訓は「**軸順とスケールの食い違いを、境界ごとに意識的に変換する**」ことです。
+
+ここで作った `preprocess.py` は、以降の検出・分類・セグメンテーションの章で前処理としてそのまま使い回せます。まずは演習を自力で全問 PASS させ、`dsize` の順序・HSV のスケール・EXIF 正規化を手に馴染ませてから次へ進んでください。次回は、この章で作ったマスクや前処理を土台に、フィルタ・エッジ・閾値・モルフォロジー・輪郭抽出・ワーピングへと進みます。
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
+> Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13.0.92（`cv2` 4.13.0）／ Pillow 12.2.0 ／ matplotlib 3.10.9
