@@ -30,6 +30,7 @@ hf = [
     "timm>=1.0",
     "sentencepiece>=0.2",
     "einops>=0.8",
+    "protobuf>=4.0",
 ]
 # ベクトル DB / 類似画像検索（GPU 版は faiss-gpu-cuvs。Linux+NVIDIA 限定・cpu と排他）
 vector = [
@@ -44,6 +45,11 @@ metrics = [
 # データ拡張
 aug = [
     "albumentations>=1.4",
+]
+# 画像生成・編集（拡散モデル）。CPU では少ステップ（SD-Turbo 等）中心。
+diffusion = [
+    "diffusers>=0.31",
+    "accelerate>=1.0",
 ]
 # 開発ツール（uv sync で既定インストールされる）
 dev = [
