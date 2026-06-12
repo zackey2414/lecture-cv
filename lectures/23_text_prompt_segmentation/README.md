@@ -157,6 +157,7 @@ RUN_MASKGEN=1 uv run python lectures/23_text_prompt_segmentation/02_grounded_sam
 | `02_grounded_sam.py` | Grounding DINO → SAM の2段構成。検出箱→マスク・最終 IoU・mask-generation の対比（概念） |
 | `03_referring_iou_eval.py` | CLIPSeg しきい値スイープ（IoU 最大点）＋ Grounded-SAM の box 閾値スイープ（recall トレードオフ） |
 | `mini_project.py` | 章末ミニプロジェクト。3設定（CLIPSeg@0.5 / CLIPSeg@best / Grounded-SAM）を同じシーンで競わせ、IoU 棒グラフ・パネル・JSON で勝敗を出す |
+| `use_case.py` | 実践ユースケース。文で対象を指して **ぼかす/消す(inpaint)/透過切り出し** をする現実の編集ツール（評価ベンチの mini_project とは別物。実画像を `data/` に置けばそのまま実用） |
 | `exercises.py` | TODO 形式の演習9問（易→難。自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
 | `exercises_solutions.py` | 演習の全問模範解答ランナー（採点ロジック・解答とも `exercises.py` を再利用。全 PASS を確認する用） |
 
@@ -178,6 +179,10 @@ uv run python lectures/23_text_prompt_segmentation/03_referring_iou_eval.py
 
 # 章末ミニプロジェクト: 3手法を1枚のベンチで比較（IoU 棒グラフ・パネル・JSON を保存）
 uv run python lectures/23_text_prompt_segmentation/mini_project.py
+
+# 実践ユースケース: 文で対象を指して「ぼかす/消す/透過切り出し」する編集ツール
+uv run python lectures/23_text_prompt_segmentation/use_case.py
+# 対象プロンプトを変える: USECASE_PROMPT="a blue square" を付けて実行
 
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
 uv run python lectures/23_text_prompt_segmentation/exercises.py
@@ -295,6 +300,30 @@ A. CPU では `float16`/`half` が遅い・未対応のことが多いので **`
 - **ハイブリッド**: Grounding DINO の box を CLIPSeg の条件に混ぜる、SAM のマスクで CLIPSeg の確率を後段リファインする、といった組み合わせも有効です。本章のコードは部品を `seg_helpers` に分離してあるので、組み替えの土台にできます。
 
 参考リンク（モデルカード/ドキュメント）: CLIPSeg `CIDAS/clipseg-rd64-refined`、SAM `facebook/sam-vit-base`、Grounding DINO `IDEA-Research/grounding-dino-tiny`（いずれも HuggingFace transformers 同梱）。transformers の `image-segmentation` / `mask-generation` / `zero-shot-object-detection` パイプラインのドキュメントも併読すると、本章のスクリプトが「正準フローのどこを手書きしているか」が見通せます。
+
+## 17. 💡 実践ユースケース集
+
+ここまでは「文 → マスク」とその評価を学びました。最後に、**作ったマスクを“どう使うか”**――参照セグメが現場で価値を生む応用を3つ挙げます。いずれも本章の `clipseg_probs`（`logits→補間→sigmoid`）＋しきい値という同じ部品の上に乗ります。共通の勘所は、**(1) マスクは硬い 0/1 ではなく境界を羽根付き(feather)にしてから合成する**こと、**(2) CLIPSeg の確信度が低い合成画像では閾値で何も選べないことがあるので、上位確率で救済して“必ず何かを選ぶ”フォールバックを持つ**こと、**(3) 加工は元配列を壊さず新配列を返す**こと、の3点です。
+
+- **ことばで匿名化（プライバシー・ぼかし）**: 「文で対象を指してその領域だけぼかす」用途。何に使うか=顔・ナンバープレート・名札・住所看板などを、座標を手で指定せず `"a face"` のような文で選んで一括ぼかし。作り方の要点=`clipseg_probs` の確率マップを羽根付きαにし、`cv2.GaussianBlur` した画像と元画像を `α合成`（マスク内=ぼかし／外=元）。注意=CLIPSeg のマスクは輪郭が粗いので、漏れを避けたい匿名化では**マスクを少し膨張(dilate)**してから使う／確信度が低い対象は閾値を下げる。厳密さが要る本番は Grounded-SAM で境界を締めると安全。
+- **不要物の除去（簡易オブジェクト除去 / inpaint）**: 「文で指した物を消して背景で埋める」用途。何に使うか=写り込んだ通行人・電線・ゴミなどの除去。作り方の要点=2値マスクを `cv2.inpaint(..., INPAINT_TELEA)` の inpaint マスクに渡し、周囲画素から塗り直す（塗り残し防止に dilate）。注意=`cv2.inpaint` は**小さな領域向け**で、大きな穴や複雑背景は不自然になりがち。本格的な除去は拡散モデル(diffusers)のインペイントに差し替える。マスクが対象より小さいと“フチが残る”ので、除去用途では少し広めに取る。
+- **対象の切り出し（背景透過・素材化）**: 「文で指した対象を背景透過 PNG で抜き出す」用途。何に使うか=商品写真の背景除去、ステッカー/素材作り、合成用カットアウト。作り方の要点=羽根付きαを RGBA の**アルファチャンネル**に入れて `Image.fromarray(rgba, "RGBA").save(...)`。注意=境界をきれいに出したいなら CLIPSeg より **SAM の鋭いマスク**が向く（Grounded-SAM の段2を流用）。透過の確認は市松模様に重ねて目視するとよい。
+
+### 動く出発点: `use_case.py`（文で選んで「ぼかす/消す/抜き出す」）
+
+上の3応用を**1本にまとめた最小ツール**が `use_case.py` です。`mini_project.py`（手法を IoU で競わせる評価ベンチ）とは別物で、こちらは**GT も IoU も使わず**、1枚の入力から `blur`（ぼかし）/ `remove`（inpaint 除去）/ `cutout`（透過 PNG）の3成果物を一度に出します。
+
+```bash
+# 実行（合成シーンなら即動く。結果は outputs/23_text_prompt_segmentation/ に保存）
+uv run python lectures/23_text_prompt_segmentation/use_case.py
+
+# 対象プロンプトを変える（既定は prompts.txt の1行目 or 合成シーンの先頭 "a red circle"）
+USECASE_PROMPT="a blue square" uv run python lectures/23_text_prompt_segmentation/use_case.py
+```
+
+- **実データの置き方**: `data/23_text_prompt_segmentation/image.png` を置くとそれを入力に使い、`data/23_text_prompt_segmentation/prompts.txt` の1行目を対象プロンプトにします（`USECASE_PROMPT` で上書き可）。画像が無ければ合成シーンに自動フォールバックし、**ネットもデータも無しで必ず exit 0**。合成画像は確信度が低く閾値に届かないことがあるため、その場合は**上位確率で救済**して必ず何かを選びます（検出/セグメは合成だと反応が弱くても問題ありません。実写を `data/` に置けば、そのまま匿名化/除去/切り出しの実用ツールになります）。
+- **出力**: `use_case_blur.png` / `use_case_removed.png` / `use_case_cutout.png`（背景透過 RGBA）/ `use_case_panel.png`（input・mask・3編集を横並び）/ `use_case_report.json`（プロンプト・閾値・選択画素数・各パラメータ・出力先）。
+- **拡張アイデア**: 閾値・ぼかし強度・inpaint 半径を `argparse` で引数化して CLI 化／マスクを SAM(`seg_helpers.load_sam`) で境界リファインしてから加工（Grounded-SAM 流用で輪郭が鋭くなる）／`remove` を拡散モデルのインペイントに差し替え／`prompts.txt` を複数行にしてバッチ匿名化／動画の各フレームへ適用して「文で指した対象だけモザイク」の動画を作る。
 
 ---
 

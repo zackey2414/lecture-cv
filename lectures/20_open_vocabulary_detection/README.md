@@ -176,6 +176,7 @@ results = processor.post_process_grounded_object_detection(
 | `02_grounding_dino.py` | Grounding DINO のキャプション形式・`box_threshold`/`text_threshold` の効き方・過検出/厳しめの比較（重い場合は概念紹介にフォールバック） |
 | `03_threshold_sweep_eval.py` | GT 付きシーンで閾値スイープ → P/R/F1 → F1 最大点と PR 曲線（OWLv2 vs Grounding DINO） |
 | `mini_project.py` | 章末ミニプロジェクト。OWL-ViT vs OWLv2 を自作 AP@0.5・mAP@[.5:.95]・F1 運用点で厳密比較し、評価レポート（ダッシュボード＋JSON）を生成する総合課題 |
+| `use_case.py` | 実践ユースケース（練習用の出発点）。自由文（`a yellow umbrella` 等）を CLI から渡して任意物体を検出・枠表示する「任意物体ファインダー」。実写を `data/` に置けば実用ツールになる |
 | `exercises.py` | TODO 形式の演習8問（IoU/座標変換/マッチング/PRF/キャプション整形/IoU行列/NMS/AP補間）。自己採点ランナー `grade()` 付き |
 | `exercises_solutions.py` | 演習の模範解答（全 PASS）。採点ロジックは `exercises.grade()` を再利用（重複なし） |
 
@@ -234,6 +235,37 @@ A. ①まず `ovd_helpers.py` を単体実行（モデル DL 不要のスモー�
 - **蒸留・最終章への接続**: OVD で粗く検出 → 良い検出を擬似ラベル化 → 軽量な閉語彙検出器（第18回）へ蒸留、は現場頻出。最終章（第40・41回）の Cluster-CLIP は OWLv2 をベースライン検出器に使う。
 - 参考: HuggingFace `transformers` の zero-shot-object-detection ドキュメント、OWL-ViT／OWLv2／Grounding DINO の各モデルカード、COCO 評価（pycocotools）。
 
+## 💡 実践ユースケース集
+
+ここまでの「テキストで検出 → 閾値で品質を制御 → P/R/F1 で評価」を、現実の小さなアプリへ落とすと何が作れるかを3つ挙げます。1つ目は同梱の `use_case.py`（動く出発点）で、残りは作り方の要点だけ示します。いずれも本章の `detect_owl` / `detect_gdino`（候補ラベル/キャプション → xyxy 絶対座標 box）が中核です。
+
+### ① 任意物体ファインダー（同梱 `use_case.py` — まずこれを動かす）
+
+**何に使うか**: 「この画像に "黄色い傘" は写っている？」のように、その場で決めた自由文で物を探して枠表示する最小ツール。固定クラス検出器では学習し直さないと答えられない問いに、`candidate_labels` を差し替えるだけで答えます。防犯カメラの不審物探し、写真整理の「写っている物探し」の出発点です。`mini_project.py`（評価レポート＝ベンチ寄り）とは別物で、こちらは CLI から自由文を渡して使う**現実の小ツール**として完結しています。
+
+```bash
+# 既定のデモクエリ（合成シーンに有る語＋無い語）で動かす
+uv run python lectures/20_open_vocabulary_detection/use_case.py
+# 自分の探したい物を自由文で渡す（複数可・スペースを含むフレーズは引用符で）
+uv run python lectures/20_open_vocabulary_detection/use_case.py "a red circle" "a yellow umbrella"
+# 検出器を選ぶ: 速さ重視=owlvit / 精度重視=owlv2(既定) / 自由文フレーズ向き=gdino
+OVD_MODEL=owlvit uv run python lectures/20_open_vocabulary_detection/use_case.py
+# しきい値を上書き（小さいほど拾う・過検出も増える）
+OVD_THRESHOLD=0.15 uv run python lectures/20_open_vocabulary_detection/use_case.py "a person"
+```
+
+**`data/` の置き方（実用化のキモ）**: `data/20_open_vocabulary_detection/` に `.png/.jpg` を1枚以上置くと、その先頭画像が検出対象になります（合成シーンは使われなくなります）。合成シーンは色・形の語にはよく反応しますが `umbrella`/`person` のような実世界の語は当然ヒットしません（=「見つからない」を体験する用）。**実写を置けば、自由文で本物の物体を探す実用ツールとして動きます**。結果は `outputs/20_open_vocabulary_detection/use_case_finder.png`（注釈画像）と `use_case_finder.json`（クエリ別の発見数・最高スコア・box）に保存されます。
+
+**拡張アイデア（練習）**: 画像フォルダを総当りして「指定物が写っている画像」を探す画像検索へ／検出 box を SAM に渡して領域マスク化（Grounded-SAM・第23回）／同ラベルの box 数を数えて在庫・人数カウント／動画フレームに回して指定物が現れたフレームだけ通知するアラート化。**注意**: しきい値は固定の正解が無い（§8）。実運用では自分のデータで F1 最大点を測って決め、合成シーンの結果をそのまま実写に当てはめないこと。
+
+### ② 在庫検品・棚卸しチェッカー（OWL で「列挙ラベルの有無・点数」）
+
+**何に使うか**: 棚やコンテナの写真に対して「消火器・ヘルメット・三角コーン…」のように**列挙できる固定ラベル**の有無や点数を自動チェックする検品ツール。語彙が列挙できる用途は OWL-ViT/OWLv2 が素直で、結果も「どのラベルか」が綺麗に付きます。**作り方の要点**: `detect_owl` に検品リストを candidate_labels として渡し、ラベルごとに box 数を数える → 期待数と突き合わせて不足/過剰を判定。スコア閾値は §8 のスイープで品目ごとに較正します。**注意**: 同一物体が複数 box に割れる過検出は計数を狂わせるので、必要なら NMS（演習 ex7・クラス別 `batched_nms`）で重複を畳んでから数えること（OWL は内部で NMS 済みなので二重抑制に注意）。
+
+### ③ 参照表現セグメンテーションの前段（Grounding DINO → SAM）
+
+**何に使うか**: 「左の人が持っているカバン」のような**自然言語の参照表現**で領域を切り出したい場面。早期融合の Grounding DINO は修飾付き・関係表現に強く、その box を SAM に `input_boxes` として渡せば任意領域のマスクが得られます（**Grounded-SAM**、第23回で本格的に扱う）。**作り方の要点**: `detect_gdino` に「小文字＋ピリオド区切り」のキャプションを渡して box を得る（§5）→ box を SAM のプロンプトにする2段構成。**注意**: GDINO はキャプション書式を崩すと不安定で、`box_threshold`/`text_threshold` の2つを調整しないと断片語への過検出が起きます。`use_case.py` を `OVD_MODEL=gdino` で動かすと、この前段（テキスト → box）だけを単体で体感できます。
+
 ## 12. 動かし方
 
 このモジュールは `dl`（torch/torchvision）・`hf`（transformers/timm ほか）グループに依存します。CPU だけで完走し、初回のみ OWL-ViT・OWLv2・Grounding DINO の重みを HuggingFace からダウンロードします（以降はキャッシュから起動）。プロジェクトルートで以下を順に実行してください。
@@ -252,6 +284,11 @@ uv run python lectures/20_open_vocabulary_detection/03_threshold_sweep_eval.py
 
 # 章末ミニプロジェクト（OWL-ViT vs OWLv2 の評価レポート。ダッシュボード＋JSON を保存）
 uv run python lectures/20_open_vocabulary_detection/mini_project.py
+
+# 実践ユースケース: 任意物体ファインダー（自由文で物を探して枠表示する小ツール）
+uv run python lectures/20_open_vocabulary_detection/use_case.py
+uv run python lectures/20_open_vocabulary_detection/use_case.py "a red circle" "a yellow umbrella"
+OVD_MODEL=owlvit uv run python lectures/20_open_vocabulary_detection/use_case.py  # 速さ重視
 
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
 uv run python lectures/20_open_vocabulary_detection/exercises.py

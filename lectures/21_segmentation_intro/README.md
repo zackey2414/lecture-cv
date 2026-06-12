@@ -193,6 +193,7 @@ global_miou = miou_from_global_confusion_matrix(gt, pred)  # 0.7157
 | `02_segformer_pipeline.py` | HF SegFormer を pipeline と手動の2通りで実行。`[{label,mask}]`・`target_sizes=(H,W)`・一致率 |
 | `03_miou_dice_eval.py` | pixel acc/IoU/mIoU/Dice/FWIoU を**自作**し torchmetrics と一致確認。NaN・ignore_index・集計単位 |
 | `mini_project.py` | **章末ミニプロジェクト**。6枚の合成データを global 集計で評価し、accuracy の罠・しきい値最適化・torchmetrics 検算を1枚のダッシュボードに統合 |
+| `use_case.py` | **実践ユースケース**。SegFormer の `sky` マスクで「空の差し替え（単色／別画像）」と「前景の透過切り抜き(PNG)」を行う合成編集ツール |
 | `exercises.py` | TODO 形式の演習10問（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答を同じ採点で確認） |
 | `exercises_solutions.py` | 演習の模範解答（全 PASS）。採点ロジックは `exercises.py` を再利用（重複なし） |
 
@@ -214,6 +215,9 @@ uv run python lectures/21_segmentation_intro/03_miou_dice_eval.py     # 自作 v
 
 # 章末ミニプロジェクト（総合課題: 評価ベンチマークを1枚にまとめる）
 uv run python lectures/21_segmentation_intro/mini_project.py
+
+# 実践ユースケース（空の差し替え＋前景の透過切り抜きツール）
+uv run python lectures/21_segmentation_intro/use_case.py
 
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
 uv run python lectures/21_segmentation_intro/exercises.py
@@ -302,6 +306,35 @@ uv run python lectures/21_segmentation_intro/exercises_solutions.py
 - **境界の評価**：mIoU は領域の重なりしか見ないため、輪郭の精度を測る **Boundary IoU / Boundary F-score** を併用すると、細い構造や境界品質を捉えられます。
 - **学習ループへの組み込み**：`torchmetrics.MeanIoU` を**エポック単位で `update`→`compute`→`reset`** する作法（バッチ毎に compute しない／reset 忘れに注意）。論文値と比べるなら集計を **global** に寄せること。
 - **公式ドキュメント**：torchvision segmentation models（<https://docs.pytorch.org/vision/stable/models.html>）、HF image-segmentation（<https://huggingface.co/docs/transformers/en/tasks/semantic_segmentation>）、torchmetrics segmentation（<https://lightning.ai/docs/torchmetrics/stable/>）。
+
+## 19. 💡 実践ユースケース集
+
+評価指標で足腰を作ったので、ここでは「クラスマップを**編集や自動化に使う**」現実の小さな応用を3つ紹介します。いずれも本章の `out['out']→argmax`／`pipeline('image-segmentation')` の延長線上にあり、マスクを“測る”のではなく“使う”側の発想です。最後の1つは実際に動くツール `use_case.py` として同梱しました。
+
+- **空・背景の差し替え（写真スタジオ定番／本ツール）**：何に使うか＝曇り空を晴天や夕焼けに差し替える、商品写真の背景を白に飛ばす、不動産写真の空を青くするといった“見栄え調整”。作り方の要点＝SegFormer（ADE20K）で `sky` クラスのマスクを取り、境界を**羽化（GaussianBlur でソフトなアルファ化）**してから、別画像／単色とアルファ合成する。注意＝硬いマスクのまま貼ると輪郭がギザつくので必ず羽化する。新しい空の**明るさ・色温度を元写真に合わせる**と継ぎ目が消える（やらないと「貼った感」が出る）。
+- **走行可能領域・占有率モニタ（自動運転／監視の前処理）**：何に使うか＝`road` の面積から「前方が塞がれていないか」、`sky`/`vegetation` の割合から景観の季節変化を定量化する。作り方の要点＝クラスマップから対象クラスの**画素数を数えるだけ**（`np.bincount`）。フレーム間引き＋ LR-ASPP（軽量）で CPU でも実時間に寄せる。注意＝面積は解像度依存なので**割合（占有率）で持つ**。閾値判定は1フレームでなく数フレームの移動平均で安定させる。
+- **領域ブラー／モザイク（プライバシー保護・背景ぼかし）**：何に使うか＝`person` 以外をぼかす“ポートレート風”、看板や `wall` の文字を隠すモザイク、背景だけ暗くして主役を立てる。作り方の要点＝対象マスクを羽化し、`cv2.GaussianBlur`／ダウンサンプルした画像と元画像をアルファ合成する（本ツールの `composite` がそのまま流用できる）。注意＝プライバシー用途では**取りこぼし（未マスク領域）が事故**になるので、マスクを少し膨張（`cv2.dilate`）させて安全側に倒す。
+
+### 動かせる出発点 — `use_case.py`（空・背景の差し替えツール）
+
+`use_case.py` は1つ目の応用を**完結した小ツール**にしたものです（評価する `mini_project.py` とは別物で、こちらは指標を出さず“編集”します）。SegFormer で `sky` マスクを取り、(1) 単色置換、(2) 別画像／自前生成の夕焼けへの置換、(3) **空を抜いた透過 PNG（前景の切り抜き）** を書き出します。境界は羽化して自然に合成します。
+
+```bash
+# 実行（CPU・初回のみ SegFormer 重みをDL。以降はキャッシュから即起動）
+uv run python lectures/21_segmentation_intro/use_case.py
+# 出力: outputs/21_segmentation_intro/use_case_sky_replace.png（入力/空アルファ/色置換/画像置換）
+#       outputs/21_segmentation_intro/use_case_cutout.png（前景のみ・空は透明な RGBA PNG）
+#       outputs/21_segmentation_intro/use_case_sky_replace.json（対象クラス・占有率・使用した空）
+```
+
+**`data/21_segmentation_intro/` の配置法**：
+
+- 入力写真 … `data/21_segmentation_intro/` に `.png/.jpg` を置くと最初の1枚が入力になります（無ければ合成シーンで完走）。
+- 差し替える空 … `data/21_segmentation_intro/replacement/` に `.png/.jpg` を置くと、それを「新しい空」として使います（無ければ夕焼けを自前生成）。
+
+合成シーンでも上部の青空グラデを `sky` として拾えますが、反応が弱いこともあります。その場合でも**必ず `exit 0`** で、空が写った実写を置けばそのまま実用的な空入れ替えになります。SegFormer の重みDLに失敗（オフライン等）しても、上部＋青っぽい画素という素朴なヒューリスティックに切り替えて完走します。
+
+**拡張アイデア**：`TARGET_LABELS` を `"sky"` 以外（`"wall"`/`"building"`/`"grass"`/`"tree"` など ADE20K のクラス名）に変えれば“背景”一般の置き換えツールになります。さらに、差し替え画像の色味を元写真に合わせる color grading、地平線付近のブレンド帯、`data/` を総なめするバッチ CLI 化、第23回の **CLIPSeg で「文（the sky）」によるターゲット指定**へと発展させられます。
 
 ---
 

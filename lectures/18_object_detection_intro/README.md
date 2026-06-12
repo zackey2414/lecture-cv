@@ -203,6 +203,7 @@ uv run python lectures/18_object_detection_intro/01_torchvision_detection.py
 | `02_detr_huggingface.py` | HF DETR の `post_process` と `target_sizes=(H,W)` の罠を可視化 | `02_detr_target_sizes.png` / `02_detr_results.json` | DETR |
 | `03_detection_benchmark.py` | torchvision vs DETR を統一APIで比較し torchmetrics で mAP | `03_benchmark_compare.png` / `03_benchmark.json` | ssd/DETR |
 | `mini_project.py` | **章末課題**: 検出パイプライン × 自作 mAP@0.5 を1本に統合 | `mini_detection_overlay.png` / `mini_pr_curve.png` / `mini_project.json` | ssdlite |
+| `use_case.py` | **実践ユースケース**: 物体・人数カウンター（指定クラスを数えて注記を焼き込む小ツール） | `use_case_count_*.png` / `use_case_overview.png` / `use_case_counts.json` | ssdlite |
 | `exercises.py` | 演習 10 問（IoU〜AP補間）。TODO を埋めて自己採点 | （標準出力の採点表） | なし |
 | `exercises_solutions.py` | 演習の模範解答ランナー（全10問 PASS を確認） | （標準出力の採点表） | なし |
 
@@ -221,6 +222,12 @@ uv run python lectures/18_object_detection_intro/03_detection_benchmark.py
 
 # 章末ミニプロジェクト: 検出 → 後処理 → 可視化 → 自作mAP の検算まで一気通貫
 uv run python lectures/18_object_detection_intro/mini_project.py
+
+# 実践ユースケース: 物体・人数カウンター（指定クラスを数えて画像に注記を焼き込む小ツール）
+uv run python lectures/18_object_detection_intro/use_case.py
+# 数えるクラス・閾値は環境変数で変えられる（例: 人だけを 0.5 以上で数える）
+USE_CASE_CLASSES="person" USE_CASE_SCORE=0.5 \
+  uv run python lectures/18_object_detection_intro/use_case.py
 
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
 uv run python lectures/18_object_detection_intro/exercises.py
@@ -319,6 +326,42 @@ uv run python lectures/18_object_detection_intro/exercises_solutions.py
 - **COCO 公式評価の細部（第19回）**: `pycocotools` の `COCOeval` は `AP / AP50 / AP75`、面積別 `AP_S(<32²)/M/L`、`AR@{1,10,100}` を出します。`areaRng` と `maxDets` の既定を変えると数値が比較不能になる点に注意。自作 mAP との一致確認が第19回の主題です。
 - **モデルの広がり**: RT-DETR v2 / RF-DETR（DETR 系の高速・高精度化）、Ultralytics YOLO11/YOLO26（本講座は依存衝突で実行せず概念のみ）、Faster/Mask R-CNN（2-stage の定番）。検出の先は **オープン語彙検出（第20回: OWL-ViT/OWLv2/Grounding DINO）** と **セグメンテーション（第21〜23回: SegFormer/Mask R-CNN/SAM/CLIPSeg）** へ繋がります。
 - **公式ドキュメント**: torchvision detection models（<https://docs.pytorch.org/vision/stable/models.html>）、torchvision ops（<https://docs.pytorch.org/vision/stable/ops.html>）、transformers object detection（<https://huggingface.co/docs/transformers>）、torchmetrics detection（<https://lightning.ai/docs/torchmetrics/stable/>）、COCO 評価（<https://cocodataset.org/#detection-eval>）。
+
+## 💡 実践ユースケース集
+
+検出は「箱を出す」こと自体より、**箱を“数える・絞る・知らせる”** ところで価値が出ます。本章で組んだ「検出器 → 閾値・NMS → 可視化」という骨格は、ほとんどそのまま現実の小ツールになります。以下に身近な応用を3つ挙げ、最後の1つは実際に動くスクリプト `use_case.py` として同梱しました。
+
+### ① 物体・人数カウンター（同梱 `use_case.py`）
+
+- **何に使うか**: 写真に写った人や車などを「クラスごとに何個あるか」数えて画像に焼き込み、フォルダ全体の合計を集計します。来店人数のざっくり計測、駐車場の在車台数チェック、棚の物品個数の目視補助、イベントの混雑度モニタなどの出発点です。
+- **作り方の要点**: `ssdlite320` で検出 → 共通後処理（score 閾値 ＋ `batched_nms`）→ **指定クラスだけに絞って `count()`** → `draw_bounding_boxes` で箱を描き、その上に PIL で「`person: 3` / `car: 1` / `TOTAL: 4`」の半透明バナーを重ねるだけです。`mini_project.py` が「mAP で良し悪しを**測る**評価ベンチ」なのに対し、こちらは mAP を測らず「数えて注記する**現実の単機能ツール**」に振ってある点が違いです。
+- **注意**: 合成画像では COCO 検出器が反応しにくく、カウントが 0（や `stop sign` の誤検出）になりがちです。これは故障ではなく**ドメインギャップ＝正常**。実写を `data/18_object_detection_intro/` に置けば、そのまま実用カウンタになります。クラス名の規約（`person` であって `people` ではない）と閾値（実写は 0.5 前後）に注意してください。
+
+```bash
+# 既定（person, car を数える）。data/ に画像があれば全部処理、無ければ合成1枚で完走。
+uv run python lectures/18_object_detection_intro/use_case.py
+
+# 実写で実用に: data/<id>/ に写真を置くと自動で全部処理される
+mkdir -p data/18_object_detection_intro
+cp ~/Pictures/*.jpg data/18_object_detection_intro/
+# 数えるクラスと閾値は環境変数で調整（コードを書き換えない）
+USE_CASE_CLASSES="person,car,bus" USE_CASE_SCORE=0.5 \
+  uv run python lectures/18_object_detection_intro/use_case.py
+```
+
+**拡張アイデア**: ① `cv2.VideoCapture` で動画を N フレームおきに切り出し、時系列のカウント推移を CSV/折れ線にする。② ROI（駐車枠・レジ前など）の矩形を決め、その中に箱の中心が入るものだけ数える。③ `TOTAL` がしきい値を超えたら `"CROWDED"` を注記/ログする簡易の混雑アラート。④ 検出器を `fasterrcnn_resnet50_fpn` や RT-DETR(`PekingU/rtdetr_v2_r18vd`) に差し替えて遠景・小物体の人に強くする（CPU では遅くなるトレードオフ）。
+
+### ② 「禁止エリア」侵入・存在チェック（ROI ゲート）
+
+- **何に使うか**: 「立入禁止ゾーンに人がいないか」「搬入口に車が停まっていないか」を、検出ボックスと事前に決めた監視矩形（ROI）の重なりだけで判定する簡易アラート。
+- **作り方の要点**: ①のカウンタを土台に、検出 box と ROI の **IoU もしくは box 中心の内外判定**を足すだけ。`torchvision.ops.box_iou` で ROI との重なりを測り、閾値超えがあれば `ALERT`。可視化は ROI を黄色、侵入 box を赤で描き分けます。
+- **注意**: カメラが固定でないと ROI 座標がズレます。誤報を減らすには「数フレーム連続で侵入」を条件にする（単発のチラつき検出を無視）。夜間・逆光は検出が落ちるので閾値とモデルを実環境で調整します。
+
+### ③ クラス別の自動タグ付け・画像仕分け
+
+- **何に使うか**: 大量の写真を「人が写っている／車が写っている／何も写っていない」へ自動振り分けし、ギャラリーの検索タグやデータセット下ごしらえに使う。
+- **作り方の要点**: 各画像を検出し、**score 閾値を超えるクラスの集合**をそのままタグにする（個数まで要らなければ存在判定だけでよい）。タグを JSON/CSV に書き出し、`shutil.move` でクラス別フォルダへ振り分けます。重い mAP も NMS の厳密さも不要で、`score >= 0.5` の有無だけで実用になります。
+- **注意**: 1枚に複数クラスが共存する（人＋車）ので「単一ラベル分類」ではなく**マルチラベル**として扱うこと。閾値が低いと誤タグ、高いと取りこぼし——運用データで閾値を1度キャリブレーションしてから回します。
 
 ---
 

@@ -129,6 +129,7 @@ assert np.isclose(pq_manual, float(pq), atol=1e-3)
 | `03_sam_prompt_seg.py` | SAM の点/箱プロンプト。`post_process_masks` で原寸化、3マスクから `iou_scores` 最大を選択、GT との真 IoU |
 | `04_maskap_pq_eval.py` | mask AP（`COCOeval` segm + RLE）と PQ=SQ×RQ（自作 numpy ＝ torchmetrics を assert で照合） |
 | `mini_project.py` | **章末ミニプロジェクト**。SAM の点プロンプトで各物体を切り出し、`mask AP@0.5`（自作）と `PQ=SQ×RQ`（自作＝torchmetrics）で採点。同じ予測でも AP と PQ で FP の効き方が違うことを数値で見せる総合課題 |
+| `use_case.py` | **実践ユースケース**。SAM の点プロンプトで指した物体を切り出し、背景を透明にした **RGBA PNG** を書き出す「クリック切り抜きツール」。採点はせず“納品物（透過素材）”を作る現実の小ツール（`mini_project.py` の評価系とは別物） |
 | `exercises.py` | TODO 形式の演習（**全10問**・易→難・自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
 | `exercises_solutions.py` | 演習の完成形（全10問 PASS）。採点ロジックは `exercises.py` 側を再利用（重複なし） |
 
@@ -151,6 +152,9 @@ uv run python lectures/22_instance_panoptic_sam/04_maskap_pq_eval.py       # mas
 
 # 章末ミニプロジェクト（SAM で対話セグメンテーション → mask AP / PQ で採点）
 uv run python lectures/22_instance_panoptic_sam/mini_project.py
+
+# 実践ユースケース（SAM の点プロンプトで物体を切り出し透明背景 PNG を作る小ツール）
+uv run python lectures/22_instance_panoptic_sam/use_case.py
 
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL。それでも exit 0 で落ちない）
 uv run python lectures/22_instance_panoptic_sam/exercises.py
@@ -253,6 +257,45 @@ uv run python lectures/22_instance_panoptic_sam/mini_project.py
 - **PQ の分解読み**: `PQ = SQ × RQ` を things/stuff 別（`PQ^Th` / `PQ^St`）に分けて報告すると、前景と背景のどちらが弱いかが見えます。panopticapi が公式実装、`torchmetrics.detection.PanopticQuality` が手軽な再現実装です。
 - **Grounded-SAM への接続（次章）**: 第23回では Grounding DINO の検出 box を SAM の `input_boxes` に渡し、**テキスト→検出→分割**の2段パイプラインを組みます。本章の「箱プロンプト SAM」と「IoU 評価」がそのまま土台になります。
 - **公式ドキュメント**: torchvision models（<https://docs.pytorch.org/vision/stable/models.html>）／ HF Mask2Former・SAM（<https://huggingface.co/docs/transformers>）／ torchmetrics PanopticQuality（<https://lightning.ai/docs/torchmetrics/stable/>）／ pycocotools（<https://github.com/ppwwyyxx/cocoapi>）。
+
+## 💡 実践ユースケース集
+
+この章の SAM（クラス非依存のプロンプト型セグメンタ）は、そのまま現場の小ツールに化けます。`mini_project.py` が「切り出した結果を **指標で採点する**」のに対し、ここでは「切り出した結果を **そのまま納品物として使う**」応用を3つ挙げます。1つ目は実際に動く `use_case.py` として同梱しました。
+
+### ① クリック切り抜き → 透明背景 PNG（`use_case.py`：動く出発点）
+
+**何に使うか**: 商品写真の背景抜き、資料・スライドに貼る切り抜き素材、アイコン作成。「この物体だけ欲しい」を、SAM の**点プロンプト1点**で解決します。
+
+**作り方の要点**: 画像の一点を“クリック”＝`input_points=[[[x, y]]]` / `input_labels=[[1]]`（1=前景）として SAM に渡し、`post_process_masks` で原寸に戻したベストマスク（`iou_scores` 最大の1枚）を取得。そのマスクを**アルファチャンネル**に流し込み（マスク内 255／外 0）、物体の bbox＋余白でトリミングして `RGBA` の PNG として保存します。透過の確認用に、結果をチェッカー柄へ合成したプレビューも出します。
+
+**注意**: 透過 PNG は `Image.fromarray(rgba, "RGBA")` で保存する（`draw_*` 系は uint8 を要求する点も同じ）。マスクの縁に背景色が薄く残る（“緑のにじみ”）ときはアルファを1〜2px **収縮**するか軽くぼかす。点は必ず物体の**内側**に置く（外すと空マスク→スキップ）。
+
+```bash
+uv run python lectures/22_instance_panoptic_sam/use_case.py
+# → outputs/22_instance_panoptic_sam/use_case_cutout_01.png ...（透明背景の切り抜き・物体ごとに1枚）
+#   outputs/22_instance_panoptic_sam/use_case_preview.png   （入力＋クリック点／マスク／透明合成）
+#   outputs/22_instance_panoptic_sam/use_case_cutouts.json  （座標・面積・bbox 等のメタ）
+```
+
+**`data/22_instance_panoptic_sam/` への配置**: `.png` / `.jpg` を1枚置くと、その先頭画像を入力に使います（無ければ合成シーンで必ず完走）。狙った物体を切りたいときは `use_case.py` の `CLICK_POINTS` に `(x, y)` を列挙すれば、その座標を“クリック”として複数枚まとめて切り出せます。なお SAM はクラス非依存なので、合成図形でも実写でも指した領域をきれいに切れます（実写で本領を発揮させるには SAM 重みの初回 DL が必要）。
+
+**拡張アイデア**: 背景点（`input_labels=0`）を足して切り抜きを精緻化／箱プロンプト（`input_boxes`）でドラッグ枠切り抜き／アルファのフェザー（フチぼかし）／`data/` 内を一括バッチ処理して素材を量産／切り抜きを別背景に合成して合成写真を作る／`argparse` で座標を受け取る簡易 CLI 化。
+
+### ② インスタンス自動マスキング（個人情報・不要物の自動ぼかし）
+
+**何に使うか**: 公開用画像から「人だけ」「ナンバープレートだけ」を検出して塗りつぶす／ぼかす自動処理。
+
+**作り方の要点**: Mask R-CNN（`maskrcnn_resnet50_fpn_v2`、`01_*` 参照）で人や車のインスタンスマスクを取り、`masks (N,1,H,W)` を `squeeze(1) > 0.5` で bool 化。その領域だけ `cv2.GaussianBlur` やモザイクで置換します。SAM と違い**クラス名で対象を選べる**のが利点。
+
+**注意**: 合成図形では COCO クラスに当たらず検出0件になりがち（想定内）。実写を `data/` に置くこと。閾値（`score`）を上げ過ぎると取りこぼし、下げ過ぎると誤マスクが増えます。
+
+### ③ パノプティック前景/背景分離（背景差し替え・空の置換）
+
+**何に使うか**: パノプティックの things（前景）と stuff（背景＝空・道路）を分け、背景だけ別画像へ差し替える（空の置換など）。
+
+**作り方の要点**: Mask2Former（`02_*` 参照）の `post_process_panoptic_segmentation` から `segmentation` と `segments_info` を取り、`isthing` で things/stuff を仕分け。stuff 領域をマスクにして背景合成へ回します。各画素が**ちょうど1つ**の `(category, instance)` を持つパノプティックの性質が、漏れ・重なりのない分離に効きます。
+
+**注意**: things と stuff のカテゴリ系統（COCO panoptic）の id 対応を取り違えない。CPU では `mask2former-swin-tiny` を既定にし、`swin-large` 級は避ける。
 
 ---
 
