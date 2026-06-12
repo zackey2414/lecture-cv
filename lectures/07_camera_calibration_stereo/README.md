@@ -188,6 +188,7 @@ Z = points_3d[:, :, 2]                              # 深度チャンネル
 | `02_undistort.py` | `undistort`／`getOptimalNewCameraMatrix`（alpha・ROI）、`initUndistortRectifyMap`＋`remap`（動画向き） |
 | `03_stereo_sgbm_depth.py` | `StereoSGBM`/`StereoBM` 視差、`stereoRectify` の `Q`、`reprojectImageTo3D`、`findFundamentalMat`（エピポーラ線） |
 | `mini_project.py` | 章末ミニプロジェクト（校正→歪み補正→ステレオ深度→3D 実寸計測を一気通貫で統合・PASS 判定と JSON 出力） |
+| `use_case.py` | 実践ユースケース: **1 枚写真の平面メジャー**（基準チェスボードのホモグラフィで実寸 mm 計測＋`solvePnP` で距離。`data/` に実写があれば優先・無ければ合成で完走） |
 | `exercises.py` | TODO 形式の演習 9 問（自己採点付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
 | `exercises_solutions.py` | 演習 9 問の完全な模範解答（実行すると全 PASS を assert で保証） |
 
@@ -209,6 +210,9 @@ uv run python lectures/07_camera_calibration_stereo/03_stereo_sgbm_depth.py
 
 # 章末ミニプロジェクト（校正→歪み補正→ステレオ深度→3D 計測の統合。図と指標 JSON を出力）
 uv run python lectures/07_camera_calibration_stereo/mini_project.py
+
+# 実践ユースケース（1 枚写真の平面メジャー。基準チェスボードで mm 計測・距離推定）
+uv run python lectures/07_camera_calibration_stereo/use_case.py
 
 # 演習（TODO を実装 → 自己採点。未実装でも FAIL 表示で正常終了する）
 uv run python lectures/07_camera_calibration_stereo/exercises.py
@@ -297,6 +301,55 @@ cat outputs/07_camera_calibration_stereo/mini_project_metrics.json
 - **SGBM のパラメータ調整**: `blockSize`・`P1/P2`（滑らかさ）・`uniquenessRatio`・`speckleWindowSize` は被写体とノイズで最適値が変わります。`disp12MaxDiff` の左右一貫性チェックと併せて、テクスチャの少ないシーンでの破綻を観察すると理解が進みます。
 - **深層単眼深度との併用**: Depth Anything V2（第27回）の相対深度を、本章のステレオや既知サイズ物体で**スケール補正**して絶対距離化する、というハイブリッドも実務で有効です。
 - 参考ドキュメント: OpenCV 公式チュートリアル「Camera Calibration and 3D Reconstruction」 https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html ／ Zhang, Z. (2000) "A Flexible New Technique for Camera Calibration"（チェスボード校正の原典）／ Hirschmüller, H. (2008) "Stereo Processing by Semiglobal Matching and Mutual Information"（SGBM の原典）。
+
+## 💡 実践ユースケース集
+
+この章の「カメラを `K, dist` で表す → 校正する → 平面射影（ホモグラフィ）/ `solvePnP` で幾何を解く」というスキルは、そのまま**現実の計測・採寸・位置合わせ**の道具になります。ここでは実アプリに直結する応用を 3 つ挙げ、最後の 1 つは動く出発点 `use_case.py` として同梱しています。
+
+### 1. 写真からの実寸採寸（基準物スケール）— `use_case.py`
+
+**何に使うか**: 定規を当てずに、1 枚の写真から机上の部品・傷・葉・料理などの**実寸(mm)**を測る。EC の商品採寸、現場の簡易計測、検査の寸法チェックなど。
+
+**作り方の要点**: 被写体と**同一平面**に「マス幅が既知のチェスボード（または A4 用紙）」を一緒に写す → 盤の内側角は『画像画素』と『盤平面の mm 座標』の対応点になる → 平面どうしなので `cv2.findHomography` で画像→mm 平面の射影 `H` が一発で求まる → 測りたい 2 点を `cv2.perspectiveTransform` で mm 平面へ写し、その距離が実寸。校正済み `K, dist` があれば前段で `undistort` して端の精度を上げ、`cv2.solvePnP` でカメラ〜面の**おおよその距離**も出せます。**ホモグラフィによる mm 計測は K が無くても成立する**のが強み（K は歪み補正と距離推定にだけ効く）。
+
+**注意**: 被写体と基準物が**同一平面に乗っている**ことが前提（厚みや傾きがあると誤差になる）。盤が画面に収まり・マス数は**内側角**で指定し・十分なコントラストを確保すること。広角ほど周辺歪みが効くので、できれば自前カメラを校正して `calib.npz` を用意し `undistort` してから測る。
+
+実行と `data/` 配置:
+
+```bash
+# そのまま（合成シーン: 既知サイズの対象物つきなので誤差まで検証できる）
+uv run python lectures/07_camera_calibration_stereo/use_case.py
+
+# 実写で測る: data/07_camera_calibration_stereo/ に「基準チェスボードを写し込んだ写真」を置く
+#   例 data/07_camera_calibration_stereo/measure.jpg
+# 盤のマス幅(mm)や内側角数、自前校正結果は環境変数で渡せる
+CHESSBOARD_SQUARE_MM=25 CHESSBOARD_COLS=9 CHESSBOARD_ROWS=6 \
+  CALIB_NPZ=outputs/07_camera_calibration_stereo/calib.npz \
+  uv run python lectures/07_camera_calibration_stereo/use_case.py
+
+# 2 点クリックで任意の寸法を測る GUI（DISPLAY 有りのデスクトップのみ。headless では自動スキップ）
+MEASURE_GUI=1 uv run python lectures/07_camera_calibration_stereo/use_case.py
+```
+
+結果は `outputs/07_camera_calibration_stereo/` に `use_case_measured.png`（検出＋mm ラベル付きの計測線）・`use_case_summary.png`・`use_case_metrics.json`（計測値と誤差）で保存されます。`mini_project.py`（2 眼ステレオの 3D 計測）に対し、本ツールは**単眼＋平面拘束の実寸計測**という別アプローチで、2 台もステレオも要りません。
+
+**拡張アイデア**: 基準を `cv2.aruco` の ArUco/ChArUco マーカに変えて一部が隠れても基準を取れるようにする／A4 用紙(210×297mm)の四隅を基準点にする／`warpPerspective` で**鳥瞰図**を作り画素↔mm を一定スケールにする／物体検出と組んで自動採寸する。
+
+### 2. AR マーカ・物体姿勢推定（`solvePnP` / ArUco）
+
+**何に使うか**: 校正済みカメラと既知の 3D-2D 対応から物体（またはカメラ）の姿勢 `(rvec, tvec)` を求め、CG を実写に重ねる AR、ロボットアームのピッキング、マーカ位置決めに使う。
+
+**作り方の要点**: 既知サイズのマーカ（ArUco）や 3D 点を持つ対象を検出し `cv2.solvePnP`（本章 `use_case.py` の距離推定と同じ API）で姿勢を解く → `cv2.projectPoints` で 3D モデルを画像へ重畳。本章の `projectPoints`（3D→2D の順問題）の**逆問題**にあたり、`K, dist` の校正品質がそのまま重畳のズレに直結します。
+
+**注意**: 対応点が同一平面だけだと姿勢が不安定になりやすいので、可能なら非平面の対応や複数マーカを使う。`distCoeffs` に校正で得た歪みを必ず渡す（省くと姿勢がずれる）。
+
+### 3. ステレオ深度カメラによる近接物の距離計測
+
+**何に使うか**: 2 眼カメラ（USB ステレオや自作の左右 2 台）で、目の前の人・障害物・部品までの**絶対距離(m)**を測る。ロボットの衝突回避、簡易 3D スキャン、入退場の距離トリガなど。
+
+**作り方の要点**: 実 2 台は `cv2.stereoCalibrate` で相対姿勢 `(R, T)` を求め、`stereoRectify`→`initUndistortRectifyMap`→`remap` で**平行化**してから `StereoSGBM` で視差を計算し、`Z = f·baseline/d` と `reprojectImageTo3D` で 3D 化（`mini_project.py` の Stage C/D がこの最小核）。基準サイズの物体で視差→距離の妥当性を検証します。
+
+**注意**: 視差はテクスチャの無い面・鏡面・繰り返し模様で破綻するので `cv2.ximgproc` の WLS フィルタで後処理する。`numDisparities` は**最大視差を見込んで 16 の倍数**で設定し、必ず平行化を済ませてから視差を取ること。
 
 ---
 

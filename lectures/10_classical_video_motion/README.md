@@ -215,6 +215,7 @@ camshift はもともと**顔・手の追跡**（肌色ヒストグラムで顔�
 | `03_optical_flow_farneback.py` | `calcOpticalFlowFarneback`、HSV 配色・矢印可視化、既知シフトでの終点誤差 EPE、カラーホイール凡例 |
 | `04_meanshift_camshift.py` | 色相ヒストグラム＋`calcBackProject`、`meanShift`（固定窓）と `CamShift`（サイズ・回転追従）の対比 |
 | `mini_project.py` | 章末ミニプロジェクト（背景差分→疎フロー→密フロー→色追跡を1ループに統合した総合動き解析。動画＋まとめ図＋JSON を出力） |
+| `use_case.py` | 実践ユースケース: 動き検知録画ツール（背景差分で動いた区間だけをイベントに区切り、クリップとして切り出し保存。`data/10_classical_video_motion/` に動画を置けば実映像で動く） |
 | `exercises.py` | TODO 形式の演習 9 問（自己採点付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
 | `exercises_solutions.py` | 演習 9 問の完全な模範解答（実行すると全 PASS を assert で保証） |
 
@@ -240,6 +241,9 @@ uv run python lectures/10_classical_video_motion/04_meanshift_camshift.py
 
 # 章末ミニプロジェクト（4手法を統合した総合動き解析。動画・まとめ図・指標JSONを出力）
 uv run python lectures/10_classical_video_motion/mini_project.py
+
+# 実践ユースケース: 動き検知録画ツール（動いた区間だけをクリップに切り出して保存）
+uv run python lectures/10_classical_video_motion/use_case.py
 
 # 演習（TODO を実装 → 自己採点。未実装でも FAIL 表示で正常終了する）
 uv run python lectures/10_classical_video_motion/exercises.py
@@ -285,6 +289,37 @@ uv run python lectures/10_classical_video_motion/exercises_solutions.py
 uv run python lectures/10_classical_video_motion/mini_project.py
 cat outputs/10_classical_video_motion/mini_project_metrics.json
 ```
+
+## 💡 実践ユースケース集
+
+本章の古典的な動き解析は「学習なし・CPU・即動く」が武器で、固定カメラの映像から動きを取り出す**現実の小ツール**にそのまま化けます。ここでは代表的な 3 つの応用を、作り方の要点と注意点つきで紹介します。最後の 1 つは実際に動く `use_case.py` として同梱しています。
+
+### ① 動き検知録画（モーションレコーダ）— `use_case.py`（同梱・すぐ動く）
+
+- **何に使うか**: 監視カメラ・玄関カメラ・トラップカメラで定番の機能。映像をずっと録りっぱなしにせず、**動きのあった区間だけ**を自動でクリップに切り出して保存します。容量と後で見る手間を大幅に削減できます。
+- **作り方の要点**: 背景差分（MOG2）で各フレームの**前景画素率＝動きスコア**を測り、しきい値を超えた区間を 1 イベントに束ねます。実機同様に**プリロール**（検出の少し前から録る＝頭切れ防止）・**ポストロール／クールダウン**（動きが止まっても数フレーム録り続け、近接イベントを 1 本に統合）を入れ、短すぎるチラつきは捨てます。各イベントを `cv2.VideoWriter`（`mp4v`）でクリップ化します。
+- **注意**: 背景差分は**固定カメラ・背景静止**が前提です。手ぶれ・木の揺れ・急な照明変化があると全面が「動き」と判定されやすいので、`MOTION_THRESH` を上げる／関心領域（ROI）に限定する／`history`・`varThreshold` を調整します。
+- **実行と確認**:
+
+```bash
+uv run python lectures/10_classical_video_motion/use_case.py
+cat outputs/10_classical_video_motion/use_case_events.json
+```
+
+- **実データの置き方**: `data/10_classical_video_motion/` に**動画**（`*.mp4` / `*.avi` / `*.mov` / `*.mkv`）か**連番画像**（`*.png` / `*.jpg`）を置くと、それを実入力として使います（例: `data/10_classical_video_motion/hallway.mp4`）。**無ければ合成シーン**（静止 → 物体が横切る → 静止、を 2 回）で必ず完走します（`exit 0`）。出力は `outputs/10_classical_video_motion/` に、イベントごとの `use_case_event{k}.mp4`、代表フレーム一覧 `use_case_event_montage.png`、動き量の折れ線＋録画区間を帯で示した `use_case_motion_timeline.png`、イベント表 `use_case_events.json`（録画区間・ピーク動き量・**ストレージ節約率**）が保存されます。
+- **拡張アイデア**: しきい値を「前景画素率」から「**最大ブロブ面積**」や「動体の個数」に変えて誤検知を減らす／ROI マスクでドア付近だけ監視する／イベント発生時に通知やサムネイル生成を足して簡易セキュリティ通知へ／背景差分を YOLO 等の検出器に差し替えて「**人が映った時だけ録画**」に高度化／`cv2.VideoCapture(0)` のライブループ＋リングバッファで実カメラの常時監視録画にする。
+
+### ② 通行量・滞留カウント（人流/交通の計測）
+
+- **何に使うか**: 店舗の入店者数、横断歩道や道路の通行量、棚前の滞留時間などの**簡易計測**。
+- **作り方の要点**: 背景差分で動体ブロブを外接矩形にし、画面に引いた**仮想ライン**を中心点が横切ったら方向別にカウントします。色や見た目が特徴的な対象なら `CamShift`、複数を区別したいなら中心点の近接対応で簡易追跡 ID を振ると、同一物体の二重カウントを防げます（本格的な多物体追跡は第28回 ByteTrack/DeepSORT へ）。
+- **注意**: 影を前景に含めると面積が膨らんで誤カウントします。`detectShadows=True` の影（127）を閾値で落とし、`MORPH_OPEN/CLOSE` で整えること。混雑して物体が重なると 1 ブロブに融合するため、密な場面は検出器ベースに切り替えます。
+
+### ③ 動画ダイジェスト／無音区間スキップ（早送りプレビュー）
+
+- **何に使うか**: 長時間の監視映像やドラレコから、**動きのあるフレームだけ**を抜き出して短いダイジェスト動画やコンタクトシート（要約サムネイル）を作り、確認時間を短縮します。
+- **作り方の要点**: ①と同じ動きスコアを使い、しきい値超えのフレームだけを `VideoWriter` に書き出せば「動いた所だけの早送り版」になります。ピーク動きのフレームを各イベントから 1 枚抜けば一覧サムネイルにもできます（`use_case.py` のモンタージュがその最小例）。
+- **注意**: フレーム間引きでカクつくので、前後に数フレームの余白（プリ/ポストロール）を残すと見やすくなります。スコアの絶対値はシーンの明るさ・解像度で変わるため、しきい値は映像ごとに調整するか、移動平均からの相対変化で判定します。
 
 ## ✅ 到達チェックリスト
 

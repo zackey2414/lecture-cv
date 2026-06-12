@@ -164,6 +164,7 @@ while good < target_good:
 | `03_threaded_capture.py` | producer/consumer スレッド分離、maxsize=1＋put_nowait ドロップ、齢の比較、(任意)multiprocessing |
 | `04_rtsp_youtube_stream.py` | 再接続ループ＋指数バックオフ、RTSP低遅延設定、yt-dlp 解決、CV_CAM/CV_RTSP/CV_YOUTUBE ガード |
 | `mini_project.py` | **章末ミニプロジェクト**: 背景差分→CPU最適化→スレッド分離+ドロップ→プロファイルを1本に統合したリアルタイム動体検出ストリーム |
+| `use_case.py` | **実践ユースケース**: 背景差分＋イベント状態機械（デバウンス/クールダウン）で動体を検知し、スナップショット＋アラートログ(CSV/JSONL)を出す防犯カメラ風ミニDVR（実映像優先・合成フォールバック） |
 | `exercises.py` | TODO 形式の演習10問（易→難。自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
 | `exercises_solutions.py` | 演習の完全な模範解答（実行すると全10問 PASS。採点ロジックは `exercises.py` を再利用） |
 
@@ -185,6 +186,9 @@ uv run python lectures/11_realtime_stream/04_rtsp_youtube_stream.py
 
 # 章末ミニプロジェクト: この回の学びを統合したリアルタイム動体検出ストリーム
 uv run python lectures/11_realtime_stream/mini_project.py
+
+# 実践ユースケース: 防犯カメラ風『動体検知アラート録画』ツール（ミニDVR）
+uv run python lectures/11_realtime_stream/use_case.py
 
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL）。全10問・易→難
 uv run python lectures/11_realtime_stream/exercises.py
@@ -298,6 +302,43 @@ cat outputs/11_realtime_stream/mini_project_metrics.json
 - **yt-dlp の運用**: ライブ配信URLの解決（`yt-dlp -g`）はサイト仕様変更で**頻繁に壊れる**ため、バージョン固定のまま放置せず定期更新が前提です。Docker でホストのWebカメラを使うには `--device=/dev/video0` が要ります。
 - **本番パイプラインの実例**: Cluster-CLIP の `stream/capture.py`（`put_nowait` による即ドロップ）と `profiler.py`（ステージ別 p50/p99）は、本章の骨格をそのまま実運用に拡張したものです。より体系的なプロファイリングは第34回で深掘りします。
 - 参考ドキュメント: OpenCV `VideoCapture` https://docs.opencv.org/4.x/d8/dfe/classcv_1_1VideoCapture.html ／ 背景差分チュートリアル https://docs.opencv.org/4.x/d1/dc5/tutorial_background_subtraction.html ／ PyAV https://pyav.org/docs/stable/ ／ Python `queue`・`multiprocessing` 標準ライブラリ。
+
+## 💡 実践ユースケース集
+
+本章の「背景差分による動体検出」と「ストリームを止めずに処理し続ける」骨格は、実務でそのまま“監視・記録系”の小ツールになります。ここでは現実の応用を3つ挙げ、最後の1つは実際に動く `use_case.py` として用意しました。ミニプロジェクトが**性能（レイテンシ/スループット/ドロップ率）の数値検証**を主役にしていたのに対し、ここでは「**検出結果を業務的に使い切る（記録・通知）**」側に主眼を置きます。
+
+- **動体検知アラート録画（防犯・見守り）**: 固定カメラの映像から動きのあった区間だけをイベントとして記録するミニDVR。**作り方の要点** = ①MOG2 で前景マスク→影127除去→モルフォロジ掃除→輪郭で外接矩形、②「数枚連続で動いたら開始（デバウンス）／数枚連続で止まったら終了（クールダウン）」の**状態機械**で“1イベント”にまとめる、③イベントごとに代表フレームを保存しログに残す。**注意** = 背景差分は warm-up 中（序盤）に誤検知だらけになるので最初の数十枚はアラート対象から外す。屋外は木の揺れ・照明変化で誤発報しやすいので `MIN_AREA`（最小面積）と監視ROIで足切りする。
+- **通行・入退室カウント（リテール/人流）**: 出入口に仮想ラインを引き、動体の重心がラインを跨いだら ＋1 する人流カウンタ。**作り方の要点** = 背景差分で得た外接矩形の重心を**第28回の追跡（ID付与）**で前後フレームに対応付け、ラインの通過方向で in/out を判定。**注意** = 背景差分は「動いた画素」しか分からず人/車の区別はできないので、種類が要るなら検出器（第18回〜）を、混雑で物体がくっつくなら追跡を足す。フレームスキップしすぎると速い通過を取りこぼす。
+- **微速変化の監視（点検・タイムラプス異常検知）**: 工場ラインや棚など「本来は動かないはずの場所」が動いたら知らせる番人。**作り方の要点** = `history` を長めにして背景を“ゆっくり”学習させ、しきい値超えの前景が出たら静止画＋時刻を記録。**注意** = ゆっくりした変化は背景に吸収されて検出されないことがある（背景差分の宿命）。長時間変化を見たいなら基準フレームとの差分や定期スナップショット比較を併用する。
+
+### 🔧 動かす: `use_case.py`（防犯カメラ風 動体検知アラート録画ツール）
+
+`use_case.py` は上記1つ目を**そのまま動く出発点**にしたものです。固定カメラの映像を監視し、動体が現れた区間を1つの**アラートイベント**としてまとめ、(1) イベントごとに検出枠つきの**スナップショット画像**、(2) **アラートログ（CSV / JSON Lines）**、(3) 動き量の**タイムライン図**を出力します。デバウンス（短いノイズで誤発報しない）とクールダウン（細切れ発報を抑える）を入れた**状態機械**が肝で、ミニプロジェクト（性能プロファイル）とは別の“記録に使い切る”側のツールです。
+
+```bash
+# 既定: 合成監視映像（静止背景を“侵入者”が3回横切る）で完走。ネット/カメラ/GPU 不要
+uv run python lectures/11_realtime_stream/use_case.py
+
+# 出力を確認
+ls outputs/11_realtime_stream/use_case_snapshots/        # alert_0001.png ... 検出枠つきスナップ
+cat outputs/11_realtime_stream/use_case_alerts.csv       # event_id, start_time_s, duration_s, peak_area ...
+cat outputs/11_realtime_stream/use_case_alerts.jsonl     # 1行1イベントの JSON（プログラム連携向け）
+```
+
+**実データの置き方（実映像優先・無ければ合成）**: 監視したい動画を `data/11_realtime_stream/` に置くと、合成の代わりにそれを使います（対応拡張子 `.mp4 / .mov / .avi / .mkv / .webm`、複数あれば名前順で先頭）。特定ファイルを直接指定するなら環境変数で渡せます。
+
+```bash
+mkdir -p data/11_realtime_stream
+cp /path/to/front_door.mp4 data/11_realtime_stream/      # ここに置くだけで実映像が入力になる
+uv run python lectures/11_realtime_stream/use_case.py
+
+USECASE_VIDEO=/abs/path/clip.mp4 \
+  uv run python lectures/11_realtime_stream/use_case.py   # 任意ファイルを直接指定
+USECASE_MAX_FRAMES=300 \
+  uv run python lectures/11_realtime_stream/use_case.py   # 長い動画は処理枚数を制限して素早く試す
+```
+
+**拡張アイデア**: ①イベント発火時に Slack/Discord Webhook・メール・MQTT へ**通知**を飛ばす、②フレーム番号→秒の代わりに `datetime.now()` で**実時刻**をログに残す、③**監視ROIマスク**で画面の一部だけ見て屋外の揺れを無視する、④スナップショットの代わりに `collections.deque` のリングバッファ＋ `cv2.VideoWriter` でイベント前後の**プリロール動画**を切り出す、⑤検出枠を第18回以降の物体検出に通して**人が来た時だけ**アラートにする、⑥本章の第3〜5節（スレッド/プロセス分離＋ドロップ）と組み合わせて RTSP/ライブ入力で**低遅延の本番監視アプリ**に育てる。
 
 ---
 

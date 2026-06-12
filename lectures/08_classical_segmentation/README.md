@@ -135,6 +135,7 @@ PSNR と SSIM は `numpy`/`cv2` だけで自作しています（PSNR は平均�
 | `02_grabcut.py` | **完成物**。`grabCut(GC_INIT_WITH_RECT)` で前景抽出、矩形3通り（good/loose/clip）の IoU/Dice 比較、`GC_INIT_WITH_MASK` でなすり書き改善 |
 | `03_inpaint_classic.py` | `cv2.inpaint`（TELEA/NS）で傷消し・大穴埋め。元画像との PSNR/SSIM を自前実装で計算し古典の限界を定量化 |
 | `mini_project.py` | **章末ミニプロジェクト**。1 つの合成シーンに対し「前景抽出(GrabCut+IoU/Dice)→計数(Watershed)→清掃(inpaint+PSNR/SSIM)」を統合し、工程図・まとめ図・指標 JSON を出力 |
+| `use_case.py` | **実践ユースケース**。GrabCut で被写体を切り出し、背景を「透明 PNG／白スタジオ／別背景／ぼかし」に差し替える "remove.bg" 風の背景除去ツール（実データ優先・合成フォールバック）|
 | `exercises.py` | TODO 形式の演習9問（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答に差し替え）|
 | `exercises_solutions.py` | 演習9問の完全な模範解答（実行すると全 PASS を assert で保証。採点ロジックは exercises 側を再利用）|
 
@@ -155,6 +156,11 @@ uv run python lectures/08_classical_segmentation/03_inpaint_classic.py
 
 # 章末ミニプロジェクト（統合課題。工程図・まとめ図・指標 JSON を出力）
 uv run python lectures/08_classical_segmentation/mini_project.py
+
+# 実践ユースケース（背景除去ツール。透過 PNG / 背景差し替えを出力）
+uv run python lectures/08_classical_segmentation/use_case.py
+# 被写体が中央にないときは矩形をドラッグ選択（GUI 環境のみ。CI/SSH では自動矩形）
+USE_CASE_INTERACTIVE=1 uv run python lectures/08_classical_segmentation/use_case.py
 
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL）
 uv run python lectures/08_classical_segmentation/exercises.py
@@ -262,6 +268,45 @@ cat outputs/08_classical_segmentation/mini_project_metrics.json
 - **深層への橋渡し**: GrabCut の「矩形・なすり書きで指示」は **SAM（第20・22回）** のボックス/点プロンプトの古典版、`cv2.inpaint` の限界は **LaMa（第29回）** の動機です。本章で古典のベースライン値（IoU・PSNR）を取っておくと、深層との比較が「数値の議論」になります。
 - **評価指標の発展**: IoU/Dice は領域の重なりだけを見ますが、境界の正確さを測る **Boundary IoU** や **Hausdorff 距離**、多クラスの **mIoU**（第21回）へ拡張できます。PSNR/SSIM の先には知覚指標 **LPIPS**（第32回 IQA）があります。
 - 参考ドキュメント: OpenCV 公式チュートリアル「Image Segmentation with Watershed Algorithm」 https://docs.opencv.org/4.x/d3/db4/tutorial_py_watershed.html ／「Interactive Foreground Extraction using GrabCut」 https://docs.opencv.org/4.x/d8/d83/tutorial_py_grabcut.html ／「Image Inpainting」 https://docs.opencv.org/4.x/df/d3d/tutorial_py_inpainting.html 。
+
+## 💡 実践ユースケース集
+
+ここまでの 3 手法（Watershed / GrabCut / 古典 inpaint）は、組み合わせると「身の回りの画像をどうにかする小ツール」がいくつも作れます。ミニプロジェクトが**精度を測るベンチ**だったのに対し、ここでは**指標を出さず実際に役立つ道具**として古典手法を使う発想を 3 つ紹介します。最後の 1 つは、すぐ動かせる `use_case.py` として同梱しています。
+
+### 1. ワンクリック背景除去ツール（`use_case.py` 同梱・動かせる出発点）
+
+- **何に使うか**: EC の商品写真やプロフィール画像から被写体だけを切り抜き、背景を**透明 PNG**にしたり、**白スタジオ・別の背景画像・ぼかし（ポートレート風）**に差し替える、いわゆる "remove.bg" 風のツールです。学習済みモデル不要・CPU で完走します。
+- **作り方の要点**: 被写体を囲む矩形を初期値に `grabCut(GC_INIT_WITH_RECT)` で前景マスクを取り、`connectedComponentsWithStats` で**最大連結成分だけ残す**→`floodFill` で**内部の穴を埋める**→`GaussianBlur` で**境界を羽化**してソフトなアルファにします。あとはアルファ合成（`alpha*前景 + (1-alpha)*背景`）で背景を好きに差し替え、`alpha` をそのまま RGBA の A チャンネルにすれば透過 PNG が完成します。
+- **注意**: GrabCut は内部 `kmeans` の乱数で**毎回わずかに結果が変わり**ます。被写体が画面中央にあるほど自動矩形（縁を確実な背景とみなす内側矩形）でうまく切れますが、中央に無い・複数被写体のときは矩形指定が必要です。背景と被写体の色が近いと取りこぼし／拾いすぎが増えるので、その場合は `GC_INIT_WITH_MASK` のなすり書きで詰めます。
+
+実行とデータ配置:
+
+```bash
+# 既定（合成シーン＝赤いマグカップ）で動作確認。outputs/ に透過 PNG などが出る
+uv run python lectures/08_classical_segmentation/use_case.py
+
+# 自分の写真で使う: 入力画像と差し替え背景を data/ に置くだけ
+#   data/08_classical_segmentation/<被写体写真>.jpg        … 入力（最初の1枚を使用）
+#   data/08_classical_segmentation/background/<背景>.jpg   … 差し替え背景（任意）
+uv run python lectures/08_classical_segmentation/use_case.py
+
+# 被写体が中央にないとき: Tkinter のドラッグで矩形を指定（GUI 環境のみ。無ければ自動矩形）
+USE_CASE_INTERACTIVE=1 uv run python lectures/08_classical_segmentation/use_case.py
+```
+
+出力は `outputs/08_classical_segmentation/use_case_cutout.png`（背景透過 RGBA）、`use_case_panel.png`（入力＋矩形／アルファ／切り抜き／新背景の一覧）、`use_case_white_bg.png`・`use_case_bokeh.png`、`use_case_bg_removal.json`（前景占有率などのログ）です。**拡張アイデア**: ① Canny＋輪郭で「一番大きい物体の外接矩形」を自動検出して矩形を不要にする、② なすり書きで対話修正を足す、③ 切り抜きにドロップシャドウを合成して出品用の影付き画像にする、④ `data/` を総なめするバッチ CLI 化、⑤ 矩形プロンプト部分を深層 SAM（第20・22回）に差し替えて切り抜き品質を比較する。
+
+### 2. スキャン書類・名刺の傷／透かし消し（古典 inpaint）
+
+- **何に使うか**: スキャンや写真に写り込んだ**細い折れ線の傷・ホコリ・日付スタンプ・薄い透かし文字**を消して、見栄えの良いクリーンな画像に整えます。`03_inpaint_classic.py` の手法をそのまま実務に転用できます。
+- **作り方の要点**: 消したい箇所を**単一チャンネル uint8（0/255）のマスク**で指定し、`cv2.inpaint(img, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)` を当てるだけ。マスクは、透かしが特定の色なら `cv2.inRange` で、傷が暗い線なら閾値処理＋`dilate`（線を少し太らせて確実に覆う）で半自動生成できます。
+- **注意**: 古典 inpaint は**周囲の色を引き伸ばして埋める**ため、細い欠損には強い一方、**文字や模様のある大きな領域は苦手**（のっぺりボケる）です。マスクは欠損より**気持ち大きめ**に取らないと縁に汚れが残ります。大穴や物体除去で構造まで復元したいときは深層 LaMa（第29回）へ。
+
+### 3. 接触した粒・部品・細胞の自動カウント（Watershed）
+
+- **何に使うか**: 顕微鏡画像の細胞、トレー上の錠剤やネジ、コインなど、**くっついて触れ合った物体を 1 個ずつに分離して数える**カウンタです。単純な二値化＋連結成分では接触物体が融合して**少なく数えられて**しまう問題を解決します。
+- **作り方の要点**: Otsu 二値化 →`MORPH_OPEN` でノイズ除去 →`distanceTransform` で各前景画素の「芯までの距離」を出し、`0.5*dist.max()` 付近の閾値でピーク（＝確実な前景の種）を取り出す →`connectedComponents` でマーカ化（**背景を 1 にずらし unknown を 0**）→ `watershed` で分離。`connectedComponentsWithStats` の面積で小さすぎる種を間引くと誤検出が減ります。
+- **注意**: 距離変換の閾値係数に**極端に敏感**で、高すぎると小さい物体の種が消えて数え落とし、低すぎると谷が埋まって融合します。`dist.max()` は最大の物体に支配されるため、大小が混在する画像では物体ごとに係数を変える／面積で正規化するなどの工夫が要ります。
 
 ---
 

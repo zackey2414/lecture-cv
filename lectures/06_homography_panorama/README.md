@@ -261,6 +261,47 @@ A. OpenCV は BGR、matplotlib は RGB です。`cv2.cvtColor(img, cv2.COLOR_BGR
 - **次章への接続**: ホモグラフィは「平面」を結ぶ変換でした。第7回のカメラキャリブレーション／ステレオでは、平面に限らない**一般の 3 次元**幾何（基本行列・基礎行列・エピポーラ拘束）へ進みます。本章の「対応点 → ロバスト推定 → 行列」の型がそのまま土台になります。
 - 参考: OpenCV 公式チュートリアル [Feature Matching + Homography](https://docs.opencv.org/4.x/d1/de0/tutorial_py_feature_homography.html) ／ [High level stitching API (Stitcher class)](https://docs.opencv.org/4.x/d8/d19/tutorial_stitcher.html) ／ [`findHomography` リファレンス](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html)。
 
+## 💡 実践ユースケース集
+
+この章の「対応点 → ホモグラフィ → warp → 合成」は、教材を離れた現実の小ツールにそのまま化けます。ここでは代表的な 3 つの応用を、**何に使うか / 作り方の要点 / 注意**の 3 点セットで紹介します。1 つ目は実際に動く出発点 `use_case.py` として同梱しているので、手を動かしながら自分の道具へ育ててください。
+
+### A. パノラマ作成ツール（同梱・`use_case.py`）
+
+- **何に使うか**: スマホやカメラでその場で首を振って撮った「左→右に少しずつ重なる複数枚」を、1 枚の横長パノラマに自動で貼り合わせる。旅行写真・部屋の全景・ホワイトボードの横長撮影などをつなぐ実用ツール。
+- **作り方の要点**: 隣り合うペアごとに ORB マッチ → `findHomography(RANSAC)` で「i → i-1」のホモグラフィを推定し、行列を掛け合わせて全画像を先頭フレームへそろえ、四隅からキャンバスを決めてフェザー合成する（＝本章 2〜8 節そのもの）。本ツールは手作りパイプライン（`cv_helpers.build_panorama`）を本筋にしつつ、難しい写真では `cv2.Stitcher`（自動・露出補正/マルチバンド合成つき）へ自動フォールバックして「できるだけ絵を出し切る」設計です。
+- **注意**: 重なりが足りない（隣どうし 30% 未満）と対応点が取れず破綻します。並び順は「ファイル名の昇順 = 左→右」と解釈するので、`01_`, `02_`, … と番号を付けてください。スマホ写真は EXIF の向き情報で横倒しに読まれることがあるので、`ImageOps.exif_transpose` で正してから渡すと安定します。
+- **実行とデータ配置**:
+
+  ```bash
+  # 既定（data/06_homography_panorama/ を読む。無ければ合成 3 視点で必ず完走＝exit 0）
+  uv run python lectures/06_homography_panorama/use_case.py
+
+  # 自分の写真で: data/06_homography_panorama/ に 01_left.jpg 02_mid.jpg 03_right.jpg … と
+  #              「左→右へ重なる順」で置く（フォルダは初回実行時に自動作成される）
+  uv run python lectures/06_homography_panorama/use_case.py --ratio 0.8 --max-width 1280
+
+  # 難しめの写真は最初から自動合成で / ローカル GUI ならプレビュー（headless では自動スキップ）
+  uv run python lectures/06_homography_panorama/use_case.py --stitcher
+  uv run python lectures/06_homography_panorama/use_case.py --show
+  ```
+
+  出力は `outputs/06_homography_panorama/use_case_panorama.png`（完成パノラマ）と `use_case_overview.png`（入力サムネ＋完成図）。
+
+- **`mini_project.py` との違い**: ミニプロジェクトは学びを採点・検証する**合成データ専用の総合課題**（4枚パノラマ＋平面物体のまっすぐ化＋SSIM＋JSON レポート）。`use_case.py` は**自分の実データを 1 つの成果物に変える現実の小ツール**で、入力フォルダ・比率テストしきい値・縮小幅などを引数で運用できます。
+- **拡張アイデア**: 総当たりで隣接ペアのインライア数を測って「フォルダに入れる順番を気にしない自動順序推定」へ / 重なり領域の平均輝度を合わせる露出補正 / 合成後の黒余白を `boundingRect` で自動トリミング / `Stitcher_PANORAMA`（円筒・球面投影）に寄せて広角・360 度に対応。
+
+### B. スマホ書類スキャナ（台形補正・まっすぐ化）
+
+- **何に使うか**: 斜めから撮った書類・レシート・名刺・ホワイトボードを、正面から撮ったように「まっすぐ」に補正してスキャン風の画像にする。市販のスキャナアプリの中核がこれです。
+- **作り方の要点**: 書類の 4 隅を見つけ（`Canny` → `findContours` → `approxPolyDP` で 4 点の四辺形を探す、または平面テンプレートとのマッチング）、その四辺形を「正面の長方形」へ写す `getPerspectiveTransform` を作り、`warpPerspective` で引き戻す。本章 5 節の「四隅を `perspectiveTransform`」と、ミニプロジェクト [D] の「逆ホモグラフィ `inv(H)` で rectify」がそのまま土台です。仕上げに第4回の適応的しきい値（`adaptiveThreshold`）を掛けると白黒文書になります。
+- **注意**: 4 隅の検出が肝で、背景に書類と似た直線（机の縁など）が多いと誤検出します。四角形の面積が画面の一定割合以上・凸四角形であること、といったフィルタを入れて頑健にします。射影が浅い（ほぼ真横）と復元画像が大きく引き伸ばされて画質が落ちます。
+
+### C. 平面物体検出 → 簡易 AR / 看板差し替え
+
+- **何に使うか**: 雑然としたシーンの中からポスター・本の表紙・ロゴ看板などの**平面物体**を見つけて枠を描く、あるいはその枠に別の画像（広告・CG・翻訳テキスト）を貼り替える（AR・自動ローカライズの基礎）。
+- **作り方の要点**: 探したい平面をテンプレートとして、シーンに対し特徴点マッチング → `findHomography` で「テンプレート → シーン」の `H` を推定。テンプレートの四隅を `perspectiveTransform` で写せば、シーン内で物体が占める**傾いた四辺形**が得られます（本章 5 節・`01_homography_ransac.py` の `[7]`）。差し替えは、貼りたい画像をその四辺形へ `warpPerspective` してマスク合成するだけです。
+- **注意**: 背景に物体と同じ文字・模様が多いと RANSAC が**少数の偽の合意**に乗り、四辺形が 1 点に潰れます。インライア数に**下限**（例: 15 以上）を設け、満たさなければ「検出失敗」として扱うのが定石です。テンプレート側は特徴の豊富な平面（のっぺりした単色は不可）に限ります。
+
 ## 動かし方
 
 すべて CPU・ネット非依存・追加依存なしで動きます（サンプル画像は各スクリプトが `numpy`/`cv2` で合成生成します）。結果はすべて `outputs/06_homography_panorama/` に画像・JSON として保存され、画面表示はしません（headless 安全）。
@@ -274,6 +315,7 @@ A. OpenCV は BGR、matplotlib は RGB です。`cv2.cvtColor(img, cv2.COLOR_BGR
 | `02_panorama_manual.py` | 手作りパノラマ（warp・キャンバス・シーム/フェザー・3枚つなぎ） | `02_*.png` |
 | `03_stitcher_compare.py` | `cv2.Stitcher` との比較（自動合成・重なり領域 SSIM） | `03_*.png` |
 | `mini_project.py` | **章末ミニプロジェクト**（4枚パノラマ + 平面物体のまっすぐ化 + 品質レポート） | `mp_*.png` / `mp_report.json` |
+| `use_case.py` | **実践ユースケース**：手持ち写真をつなぐパノラマ作成ツール（実データ優先・合成フォールバック） | `use_case_panorama.png` / `use_case_overview.png` |
 | `exercises.py` | 演習 8 問（TODO を実装 → 自己採点。未実装でも FAIL 表示で正常終了） | （標準出力） |
 | `exercises_solutions.py` | 演習の模範解答（採点ロジックを共有して全問 PASS する完成形） | （標準出力） |
 
@@ -289,6 +331,10 @@ uv run python lectures/06_homography_panorama/03_stitcher_compare.py
 
 # 4) 章末ミニプロジェクト（統合課題：4枚パノラマ + 書類のまっすぐ化 + JSON レポート）
 uv run python lectures/06_homography_panorama/mini_project.py
+
+# 5) 実践ユースケース：手持ち写真をつなぐパノラマ作成ツール（実データ優先・合成フォールバック）
+uv run python lectures/06_homography_panorama/use_case.py
+# 自分の写真で試す: data/06_homography_panorama/ に 01_.., 02_.. と左→右の重なり写真を置く
 
 # 演習（TODO を実装 → 自己採点。未実装でも FAIL 表示で正常終了する）
 uv run python lectures/06_homography_panorama/exercises.py

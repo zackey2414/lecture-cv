@@ -196,6 +196,36 @@ uv run python lectures/43_color_spaces_and_adjustments/mini_project.py
 - **色以外の per-pixel 情報**: alpha（RGBA 合成）、depth（深度マップ／第27回）、勾配（エッジ／第4回）も「`(H,W,C)` を軸で操作する」同じ枠組みで扱えます。
 - 公式ドキュメント: [OpenCV Color Conversions](https://docs.opencv.org/4.x/de/d25/imgproc_color_conversions.html) ／ [Changing Colorspaces](https://docs.opencv.org/4.x/df/d9d/tutorial_py_colorspaces.html) ／ [Histogram Equalization / CLAHE](https://docs.opencv.org/4.x/d5/daf/tutorial_py_histogram_equalization.html)
 
+## 💡 実践ユースケース集
+
+ここまでの道具（WB・ガンマ・CLAHE・彩度・inRange・ΔE）は、そのまま現実の小ツールになります。代表例を3つ挙げます。最初の1つは実行できる出発点（`use_case.py`）です。
+
+### 1. ワンクリック写真自動補正ツール（`use_case.py`・実行可能）
+
+- **何に使うか**: スマホ・ドラレコ・古いアルバムなど「色かぶり・暗い・眠い・くすんだ」写真を、人手調整なしでフォルダごと一括で見られる状態に直す。
+- **作り方の要点**: 補正の流れはミニプロジェクトと同じ **WB→ガンマ→CLAHE→彩度** ですが、決定的に違うのは **正解画像が無い前提で、補正量を画像自身の統計から自動推定する**こと。自動ガンマは平均輝度を目標(0.5)へ寄せる `gamma = log(mean)/log(target)`、自動彩度は `target_S / 現在のmean_S` を倍率にし、いずれも暴走しないよう範囲をクリップします。1枚ではなく **フォルダ単位のバッチ**で回し、補正後画像と before/after モンタージュを保存します。
+- **注意**: 正解が無いので評価は ΔE ではなく **自己統計**（`mean_Y` が中庸へ寄ったか、`std_Y`／`mean_S` が回復したか）で見ます。色かぶり写真は WB が水増し彩度を正すため `mean_S` が下がることもあり、これは正常。gray-world は1色が支配的なシーンで破綻する点も `mini_project.py` と同じく要注意です。
+
+```bash
+# 実写真を data/43_color_spaces_and_adjustments/ に置くとそれを自動補正（無ければ合成3枚でデモ）
+uv run python lectures/43_color_spaces_and_adjustments/use_case.py
+```
+
+- **`data/` の置き方**: プロジェクト直下に `data/43_color_spaces_and_adjustments/` を作り、`.jpg`/`.png` などを入れるだけ（日本語・空白パスも自前デコードで読めます）。
+- **拡張アイデア**: WB を white-patch／Shades-of-Gray に差し替え比較、自動ガンマを中央値や暗部パーセンタイル基準に、彩度を肌色領域だけ控えめにする選択的彩度、`argparse` で入力フォルダ・目標輝度・clipLimit を CLI 化、補正レシピ（ガンマ・彩度倍率）を JSON ログ出力。
+
+### 2. EC・フリマ出品写真の色／明るさ自動そろえ
+
+- **何に使うか**: 別々の照明で撮った商品写真の「白背景が灰色・黄ばみ・露出バラつき」を整え、一覧で見たときの統一感を出す。返品理由になりがちな「実物と色が違う」を減らす前処理。
+- **作り方の要点**: gray-world か white-patch でホワイトバランス→白背景が白に近づくよう露出（ガンマ）を合わせる→輝度(L)だけ CLAHE で軽く立てる。色再現が命なので **彩度は盛らず控えめ**にし、グレーカードを写し込めるなら其処を基準にすると更に安定します。
+- **注意**: 商品色の正確さが目的なので「映え」狙いの過補正は禁物。彩度を上げすぎると別色に見え、`equalizeHist` を BGR 全chに掛けると色が破綻します（必ず輝度chのみ）。
+
+### 3. 暗所・色かぶり映像の視認性改善（防犯／ドラレコ／内視鏡のフレーム補正）
+
+- **何に使うか**: 夜間の防犯カメラや水中・内視鏡など「暗くてコントラストが低い」映像を、各フレームに同じ補正を掛けて見やすくする。動体検出・OCR・人物確認の前段としても効く。
+- **作り方の要点**: 1フレーム＝1枚の画像として `use_case.py` の補正関数を流用し、`cv2.VideoCapture` で読んだ各フレームに適用→`VideoWriter` で書き戻す。リアルタイム性が要るなら **CLAHE と WB は数フレームに1回**だけ係数を更新し、間のフレームは同じ係数を使い回すと軽くなります。
+- **注意**: フレームごとに係数を作り直すと明るさがチラつく（フリッカ）ので、係数は時間方向に平滑化（EMA）する。CLAHE の `clipLimit` を上げ過ぎるとノイズまで増幅されます。headless 運用では `imshow` を使わずファイル／動画に保存して確認します。
+
 ## ▶ 動かし方
 
 ```bash
@@ -217,7 +247,10 @@ uv run python lectures/43_color_spaces_and_adjustments/05_hsv_lab_segmentation.p
 # 6) 章末ミニプロジェクト（補正パイプライン + 評価 + 抽出）
 uv run python lectures/43_color_spaces_and_adjustments/mini_project.py
 
-# 7) 演習（自己採点。SHOW_SOLUTION=1 で模範解答の挙動を確認）
+# 7) 実践ユースケース（ワンクリック写真自動補正・バッチ。data/ に実写真があれば優先）
+uv run python lectures/43_color_spaces_and_adjustments/use_case.py
+
+# 8) 演習（自己採点。SHOW_SOLUTION=1 で模範解答の挙動を確認）
 uv run python lectures/43_color_spaces_and_adjustments/exercises.py
 uv run python lectures/43_color_spaces_and_adjustments/exercises_solutions.py
 ```

@@ -157,6 +157,7 @@ top1, top5, mf1, conf = acc1(logits, y), acc5(logits, y), f1(logits, y), cm(logi
 | `02_resnet_vit_manual.py` | processor+model 手書き（CNN vs ViT）、埋め込み取り出し（penultimate/CLS/forward_features）、コサイン類似度 |
 | `03_transfer_finetune.py` | 凍結＋ヘッド付け替えで転移学習、特徴キャッシュ、top-1/top-5・混同行列・macro-F1 で評価 |
 | `mini_project.py` | 章末ミニプロジェクト：3バックボーン横並びベンチ（凍結特徴→線形プローブ／重心分類／近傍検索）。比較図・混同行列・検索図・JSON を保存 |
+| `use_case.py` | 実践ユースケース：**フォルダ＝クラス**の少数枚から自前分類器を学習・**.pt 保存**・推論する小ツール（凍結特徴＋線形プローブ）。`data/` に画像があれば実データ、無ければ合成で完走 |
 | `exercises.py` | TODO形式の演習9問（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
 | `exercises_solutions.py` | 演習の完全な模範解答（実行すると全9問 PASS。採点は `exercises.py` 側を再利用） |
 
@@ -177,6 +178,9 @@ uv run python lectures/13_classification_transfer_learning/03_transfer_finetune.
 
 # 章末ミニプロジェクト（3バックボーン横並びベンチ。CPU で十数秒）
 uv run python lectures/13_classification_transfer_learning/mini_project.py
+
+# 実践ユースケース（フォルダ＝クラスで自前分類器を学習・保存・推論。data/ が空でも合成で完走）
+uv run python lectures/13_classification_transfer_learning/use_case.py
 
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL でも exit 0）
 uv run python lectures/13_classification_transfer_learning/exercises.py
@@ -285,6 +289,45 @@ cat outputs/13_classification_transfer_learning/mini_project_metrics.json
 - **より新しい/軽量なバックボーン**: timm には `mobilenetv3_small_100`・`efficientnet_b0`・`vit_tiny_patch16_224`・ConvNeXt 系など CPU 向けの選択肢が豊富です。`timm.list_models(pretrained=True)` で探し、同じパイプラインに差し替えて比較できます。
 - **次回以降への接続**: ここで得た「埋め込みを取り出す」「コサイン類似度で測る」「凍結＋ヘッド学習」は、第14回（評価指標）・第15回（メトリック学習）・第16回（CLIP ゼロショット）・第17回（FAISS 検索）へ直結します。
 - 参考ドキュメント: HuggingFace transformers「Image classification」 https://huggingface.co/docs/transformers/tasks/image_classification ／ torchvision models https://pytorch.org/vision/stable/models.html ／ timm https://huggingface.co/docs/timm/index ／ He et al. (2015) "Deep Residual Learning"（ResNet）／ Dosovitskiy et al. (2020) "An Image is Worth 16x16 Words"（ViT）。
+
+## 💡 実践ユースケース集
+
+本章の「凍結特徴 + 線形プローブ」は、教材を超えて**現場でそのまま使える少データ分類の定石**です。事前学習バックボーンが既に汎用的な視覚特徴を持っているので、最後の `nn.Linear` 1 枚を数十枚で学習するだけで、あなた固有のカテゴリに適応できます。ここでは現実の応用を 3 つ挙げ、最後の 1 つを動く出発点 `use_case.py` として用意しました。
+
+### ① 自分のカテゴリで画像分類器（`use_case.py` — 動く出発点）
+
+- **何に使うか**: 「自社製品の良品/不良品」「現場写真のシーン仕分け」「手元の素材を数カテゴリに自動タグ付け」など、**自分で定義した少数クラス**を少数枚から分類したいとき。Teachable-Machine 的なツールの最小実装です。
+- **作り方の要点**: `data/13_classification_transfer_learning/<クラス名>/` にクラスごとのフォルダを作り画像を入れる（**フォルダ名＝クラス名**）→ 凍結 ResNet-18 で全画像を 512 次元特徴に変換 → その上の `nn.Linear` だけを学習 → 学習済みヘッド＋クラス名を `use_case_classifier.pt` として保存 → 保存物を読み直して新規画像を推論（`softmax` の最大値を信頼度として表示）。
+- **注意**: 実データが無い（クラスが 2 つ未満）ときは合成図形で必ず完走します（exit 0）。クラスは 2 つ以上・各 3〜5 枚もあれば動きますが、**枚数が極端に少ない/クラス間が似すぎる**と精度は伸びません。図のタイトルは ASCII 化してあるので、**日本語フォルダ名でも豆腐(□)になりません**（コンソール出力は日本語のまま表示）。
+
+実行コマンドと拡張は次の通りです。
+
+```bash
+# 合成データで動作確認（data/ が空でもOK。CPUで数十秒、初回のみResNet-18重みをDL）
+uv run python lectures/13_classification_transfer_learning/use_case.py
+
+# 自分のデータで使う: クラスごとのフォルダに画像を置いてから再実行
+#   data/13_classification_transfer_learning/
+#     ├── cat/ img1.jpg img2.png ...   ← フォルダ名がクラス名
+#     ├── dog/ ...
+#     └── _inbox/ unknown1.jpg ...     ← (任意) ラベル無しの「分類したい画像」置き場
+uv run python lectures/13_classification_transfer_learning/use_case.py
+cat outputs/13_classification_transfer_learning/use_case_metrics.json
+```
+
+**拡張アイデア**: ①クラスを増やす＝フォルダを足すだけ（コード変更不要）／②`BACKBONE` を timm の `mobilenetv3_small_100` などに差し替えて速度・精度を比較／③学習画像に `torchvision.transforms.v2` の回転・色ジッタを足して頑健化／④`softmax` 信頼度が低い入力は `"unknown"` を返す「オープンセット」化／⑤保存した `.pt` を読み込み新クラスを足して線形層だけ再学習する増分学習／⑥`load_classifier()` + `predict()` を FastAPI から呼んで分類 API 化。
+
+### ② 学習不要の最近傍分類（重心 / k-NN で即タグ付け）
+
+- **何に使うか**: 線形ヘッドすら学習したくない・**1 クラス数枚しか集まらない**ような超少データのとき。各クラスの特徴の平均（重心）を作り、新画像はコサイン類似が最大の重心へ割り当てます。
+- **作り方の要点**: `use_case.py` の `extract_features` で各クラスの埋め込みを集め、L2 正規化して平均＝重心を作る → クエリ特徴との内積（コサイン類似）が最大のクラスを予測。`mini_project.py` の `nearest_centroid_accuracy` がそのまま雛形になります。
+- **注意**: コサイン類似の前に**必ず L2 正規化**します。重心法はクラス内のばらつきが大きいと崩れやすいので、その場合は重心ではなく全サンプルとの k-NN に切り替えます。
+
+### ③ 画像検索・重複/近傍さがし（埋め込みインデックス）
+
+- **何に使うか**: 「この画像に似たものを手持ちから探す」「ほぼ重複した写真を見つける」など、分類ではなく**類似検索**が欲しいとき。素材管理・モデレーション・データ整理で多用します。
+- **作り方の要点**: 全画像を凍結特徴に変換して保存（インデックス化）→ クエリ画像の特徴とコサイン類似度で上位 K 件を返す。`mini_project.py` の検索デモがそのまま出発点で、規模が大きくなったら第17回の FAISS に置き換えます。
+- **注意**: バックボーンと前処理は**インデックス作成時と検索時で必ず同一**にします（揃っていないと特徴空間がズレて検索が無意味になります）。次元数とメモリ量はバックボーンで決まる（ResNet-18 は 512 次元）ので、大規模では軽量モデルや次元圧縮を検討します。
 
 ---
 

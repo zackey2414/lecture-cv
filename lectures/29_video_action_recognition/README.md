@@ -194,6 +194,26 @@ uv run python lectures/29_video_action_recognition/mini_project.py
 - **姿勢ベースの行動認識（概念）**: 第27回の人体キーポイント列を入力に **ST-GCN** 等で行動を当てる系統もある（外見に依存せず軽い）。MediaPipe Pose で骨格列を作る発想は概念として接続できる（本講座では `mediapipe` は導入衝突回避のため任意・ガードのみ）。
 - **公式ドキュメント**: [torchvision video models](https://docs.pytorch.org/vision/stable/models.html#video-classification) / [R3D_18_Weights](https://docs.pytorch.org/vision/stable/models/video_resnet.html) / [VideoMAE (transformers)](https://huggingface.co/docs/transformers/model_doc/videomae) / [video-classification pipeline](https://huggingface.co/docs/transformers/main_classes/pipelines) / [Kinetics-400](https://github.com/cvdfoundation/kinetics-dataset)。
 
+## 💡 実践ユースケース集
+
+本章で身につけた「クリップ → 行動クラス → top-k」を、現実の道具に落とすと何ができるかを 3 つ挙げます。最後の 1 つは実際に動く `use_case.py` として同梱しています。
+
+- **動画ライブラリの自動タグ付け（=同梱の `use_case.py`）**: 何に使うか＝溜まった動画フォルダを横断し、各動画に行動ラベル(上位 N)を自動で振って、あとからタグで検索・集計できる**カタログ**にする（アセット管理・ざっくり分類・"この棚はどんな行動が多いか" の俯瞰）。作り方の要点＝フォルダを舐めて 1 本ずつ `cv2.VideoCapture` でデコード → 等間隔サンプリング → 専用正規化 → `r3d_18` → `top-k` を JSON/CSV に書き出す。注意＝タグは「クリップ全体に 1 つの行動」という前提なので、複数行動が混ざる長尺は時間窓に区切ってから掛ける。
+- **アップロード動画の事前モデレーション／ルーティング**: 何に使うか＝投稿動画に行動タグを付け、特定カテゴリ（例: 危険行為・スポーツ）を**自動振り分け**や人手レビューのキューイングに回す。作り方の要点＝`top-1` 確率にしきい値を設け、「自信あり=自動処理 / 低信頼=人へ」の二段構え（human-in-the-loop）にする。注意＝Kinetics-400 のクラス語彙に無い行動は当然出ないので、自前カテゴリには転移学習か後段のルール対応が要る。
+- **長尺動画のハイライト／チャプタ抽出**: 何に使うか＝1 本の長い動画をスライディング窓で区切って各窓を行動認識し、行動が切り替わる境目を**チャプタ**に、特定行動の窓を**ハイライト**として切り出す。作り方の要点＝`strided_indices` で窓ごとにサンプリング → 窓系列の `top-1` を時間方向に並べ、連続区間をまとめる。注意＝窓長(clip_len)と窓ずらし幅で粒度と計算量が変わるため、第2節のサンプリング理論がそのまま効いてくる。
+
+### 同梱 `use_case.py` の使い方
+
+```bash
+# 動画フォルダ → 上位Nタグのカタログ(JSON/CSV)＋サムネ一覧＋タグ頻度図 を生成
+uv run python lectures/29_video_action_recognition/use_case.py
+```
+
+- **実データの置き方**: `data/29_video_action_recognition/` に手持ちの動画（`.mp4` / `.avi` / `.mov` / `.mkv` / `.webm`）を置くと、それを優先してタグ付けします。1 本も無ければ合成「行動クリップ」を数本 mp4 に書き出し、実動画と同じ `cv2.VideoCapture` 経路でデコードしてタグ付けするので、ネットもデータも無しで `exit 0`（合成クリップに本物の Kinetics ラベルは無いため、付くタグは「例示」です。実写を置くとタグが意味を持ちます）。
+- **出力**（`outputs/29_video_action_recognition/`）: `use_case_tags.json`（動画→上位Nタグのカタログ）／ `use_case_tags.csv`（1 行=1 動画の検索しやすい表）／ `use_case_gallery.png`（代表フレーム＋主タグのサムネ一覧）／ `use_case_tagfreq.png`（ライブラリ全体の主タグ頻度）。実行末尾では、最頻タグの語でカタログを横断検索するデモも走ります（タグ付けの実利＝「あとから探せる」を体感）。
+- **`mini_project.py` との違い**: ミニプロジェクトは合成データセットで `clip_len`/`frame_rate` を掃引し「前処理を崩すと予測がどれだけ壊れるか」を pseudo-GT 基準で**定量化する学習用**パイプライン。`use_case.py` は学習の話を脇に置き、**現実のフォルダ**を入力に「検索できる成果物（カタログ）」を作る**実アプリの出発点**です。
+- **拡張アイデア**: (1) `top-1` 確率にしきい値を設けて低信頼タグを捨てる、(2) 1 動画から時間窓を複数取って logits を平均する multi-clip TTA で頑健化、(3) `H.load_videomae()` に差し替えて精度を上げる（重い）、(4) `use_case_tags.csv` を pandas/SQLite に読み込んでタグ検索・集計 UI を作る、(5) 主タグごとに代表フレームを切り出してプレビューを量産。
+
 ## ▶ 動かし方
 
 このモジュールは `dl`（torch/torchvision）・`hf`（transformers ほか）に依存します。r3d_18・VideoMAE はいずれも CPU だけで完走します（初回のみ重みをダウンロード、以降はキャッシュから即起動）。`pipeline('video-classification')` 用の `av`（PyAV）は**任意**（未導入でも全スクリプトが exit 0）です。プロジェクトルートで以下を順に実行してください。
@@ -210,6 +230,7 @@ uv run python lectures/29_video_action_recognition/01_videomae_action.py    # Vi
 uv run python lectures/29_video_action_recognition/02_r3d18_action.py       # r3d_18(3D CNN)＋手書き/公式前処理＋cv2 I/O
 uv run python lectures/29_video_action_recognition/03_action_topk_eval.py   # top-1/top-5＋前処理を壊す実験＋混同行列
 uv run python lectures/29_video_action_recognition/mini_project.py          # 章末: mp4→抽出→推論→評価 の統合
+uv run python lectures/29_video_action_recognition/use_case.py              # 実践: 動画フォルダ→上位Nタグの自動カタログ(JSON/CSV)
 
 # 演習: まず TODO を自分で埋める（最初は全 FAIL だが exit 0）
 uv run python lectures/29_video_action_recognition/exercises.py
@@ -233,6 +254,7 @@ uv run python lectures/29_video_action_recognition/exercises_solutions.py
 | `02_r3d18_action.py` | r3d_18(3D CNN) で行動認識。手書き前処理 vs `weights.transforms()`、正規化あり/なし比較、cv2.VideoCapture I/O |
 | `03_action_topk_eval.py` | clip-level top-1/top-5 を pseudo-GT 基準で測り、前処理(正規化/サンプリング)を壊すと崩れることを定量化＋混同行列 |
 | `mini_project.py` | 章末統合: mp4→cv2抽出→サンプリング掃引(clip_len/frame_rate)→r3d_18→top-k→レポート。VideoMAE 突き合わせ（任意） |
+| `use_case.py` | 実践ユースケース: 動画フォルダを舐めて r3d_18 で上位 N タグを自動付与し、検索できるタグ・カタログ(JSON/CSV)＋サムネ一覧を出力する小ツール |
 | `exercises.py` | TODO 形式の演習8問（自己採点ランナー付き・純計算・モデル DL 不要） |
 | `exercises_solutions.py` | 演習の模範解答（実行すると全 PASS） |
 
