@@ -20,9 +20,8 @@
 
 ---
 
-## 本編
 
-### 1. 直感 — 「答え」ではなく「埋め込み空間」を移す
+## 1. 直感 — 「答え」ではなく「埋め込み空間」を移す
 
 38 章の知識蒸留は、teacher が出す**クラス確率（ソフトターゲット）**を student に真似させた。CLIP のような VLM（Vision-Language Model）には固定のクラスが無い。代わりに CLIP が持っているのは、**画像とテキストを同じ向きに並べた共有埋め込み空間**そのものだ。だから VLM 蒸留のゴールは「正解ラベルを当てる」ことではなく、**teacher が描いた埋め込み空間の幾何（どの画像がどのテキストの近くに来るか）を、小さな student に丸ごと移植する**ことになる。
 
@@ -30,7 +29,7 @@
 
 本章のトイ実験では、teacher として `openai/clip-vit-base-patch32`（224px 入力・ViT-B/32・埋め込み 512 次元）を使い、student として 64px 入力の小さな CNN（約 16 万パラメータ）を使う。student は「安い小さな画像」から「teacher の 512 次元埋め込み」を予測する関数を学ぶ。入力解像度もモデルサイズも段違いに小さいのに、埋め込み空間は再現できる——これが蒸留の威力だ。
 
-### 2. 理論 — L2 正規化・logit_scale・3 種類の蒸留信号
+## 2. 理論 — L2 正規化・logit_scale・3 種類の蒸留信号
 
 CLIP の類似度計算は必ず次の正準形を取る。画像埋め込み `i` とテキスト埋め込み `t` を**それぞれ L2 正規化**し（`F.normalize`）、内積を取り、学習で得た**温度パラメータ `logit_scale`**（の `exp`）を掛ける。
 
@@ -43,7 +42,7 @@ probs  = softmax(logits, dim=class)                       # CLIP は softmax（�
 
 teacher から student へ移す信号には大きく 3 つの粒度がある。**(a) 埋め込み回帰**: student の埋め込みを teacher の埋め込みそのものに `1 - cos`（＋補助の MSE）で寄せる。最も直接的で安定。**(b) 親和性（類似度行列）蒸留**: teacher の画像-テキスト類似度行列を softmax してソフトターゲットにし、student の行列を `KL` で合わせる。38 章の Hinton 蒸留を「クラス確率」ではなく「画像×テキストの確率」に置き換えたもので、TinyCLIP が使う形。**(c) 対照蒸留（contrastive distillation）**: バッチ内の画像-テキスト対応を InfoNCE で学びつつ teacher の類似度も模倣する、実データの大規模学習で使う形。本章は CPU トイなので (a) を主役に、(b) を `03` で実装し、(c) は概念として触れる。
 
-### 3. 正準 API — transformers の teacher と open_clip の効率 CLIP
+## 3. 正準 API — transformers の teacher と open_clip の効率 CLIP
 
 teacher 側（transformers v5）の正準フローは次の通り。`CLIPModel` をロードし、`get_image_features` / `get_text_features` で埋め込みを取り、**自分で `F.normalize` してから** `logit_scale.exp()` を掛ける。
 
@@ -77,7 +76,7 @@ with torch.inference_mode():
     txt = F.normalize(model.encode_text(tokenizer(["a dog", "a cat"])), dim=-1)
 ```
 
-### 4. 実装をひとつずつ
+## 4. 実装をひとつずつ
 
 **`01_teacher_similarity_matrix.py` — 正準フローの確認。** まず teacher だけで「encode → L2 正規化 → `logit_scale` → 類似度行列」を完走する。生埋め込みのノルムがバラバラ（約 10〜12）で、正規化すると全部 1.0 になることを数値で見せ、画像-テキスト確率行列をヒートマップに保存する。合成 3 クラス（赤い丸・緑の四角・青い三角）で teacher のゼロショット精度は 1.000 になる。
 
@@ -87,7 +86,7 @@ with torch.inference_mode():
 
 **`04_open_clip_mobileclip.py` — 効率 CLIP と参考実装接続。** `list_pretrained()` で MobileCLIP/TinyCLIP のキーを列挙し、アーキを**オフラインで（`pretrained=None`）構築**してパラメータ数と CPU レイテンシを比較する。事前学習重みのロードは `try/except` でガードし、ネットが無ければ概念に切り替える。最後に効率CLIP の TorchScript 配布形（例: MobileCLIP の `.ts`、約 600MB）に触れ、実運用での `load_clip_model()` 相当（`force_quick_gelu=True` で効率 CLIP を読み、CenterCrop を排した独自前処理で dense 特徴を取り出す）と、本章の自前 student が**「L2 正規化 + `logit_scale` で温度付与」という同じ約束を共有**していることを確認する。
 
-### 5. 落とし穴（このモジュールで必ず踏む）
+## 5. 落とし穴（このモジュールで必ず踏む）
 
 最頻の事故は**スケールずれ**だ。teacher と student で「正規化したか」「`logit_scale` を掛けたか」が食い違うと、同じ画像でも類似度の数値が桁で変わり、KL も MSE も意味をなさない。`03` の出力（正しい行列は範囲 [20, 33]、正規化忘れは [13, 21]、`logit_scale` 忘れは [0.2, 0.3]）を必ず自分の目で見ておくこと。次に多いのが **teacher を凍結し忘れる**事故で、`eval()` を呼ばないと BatchNorm/Dropout が動いて教師信号が毎回揺れ、optimizer に teacher のパラメータを渡すと誤って teacher 側を更新してしまう。
 
@@ -95,7 +94,7 @@ with torch.inference_mode():
 
 最後に**用語の混同**。「**知識蒸留（model distillation）**」は teacher→student へ知識を移すこと。「**dataset distillation**」は学習データを少数の合成画像へ凝縮する全く別の研究。MobileCLIP の「**dataset reinforcement（DataCompDR）**」は、teacher の埋め込みや合成キャプションを**事前計算してデータセットに焼き込む**ことで小モデルを強くする手法で、これも別物だ。MobileCLIP の論文の主張は「アーキより**データ（強化）が効く**」である点を押さえる。
 
-### 6. 実務の使い分け
+## 6. 実務の使い分け
 
 **まず既製の蒸留済みモデルを試す。** 自分で蒸留する前に、`open_clip` の MobileCLIP-S0/S1/S2 や TinyCLIP が要件を満たさないか確認する。これらは大規模データで蒸留済みで、ゼロから蒸留するより圧倒的に強い。`list_pretrained()` でキーを確認し、CPU/エッジのレイテンシ要件に合うものを選ぶ。
 

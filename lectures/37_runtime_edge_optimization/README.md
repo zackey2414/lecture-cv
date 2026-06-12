@@ -19,9 +19,8 @@
 
 ---
 
-## 本編
 
-### 1. ランタイムの地図 — なぜ「出口」を選ぶのか
+## 1. ランタイムの地図 — なぜ「出口」を選ぶのか
 
 学習が終わったモデルは、そのまま `model(x)` で動かす(eager 実行)のが一番手軽です。しかし eager は1演算ずつ Python を経由し、メモリ往復も多く、配布には Python とソースコードが要ります。本番やエッジでは「Python 非依存」「グラフ最適化済み」「ターゲットのハードに最適化済み」のランタイムへ**変換して**載せ替えるのが定石です。これが「出口(deployment target)を選ぶ」ということです。
 
@@ -29,7 +28,7 @@
 
 この章の実習環境はCPUのみ(MacBook を含む想定)なので、**確実に動く**ランタイム=eager / TorchScript / ONNX Runtime を主役にして横並びベンチを組みます。OpenVINO・CoreML・LiteRT・TensorRT は重い/プラットフォーム依存なので、import をガードして「導入済みなら実演・未導入なら概念紹介」に徹します(`04_edge_runtimes_concept.py`)。
 
-### 2. TorchScript — trace と script(直感 → 理論 → 正準API)
+## 2. TorchScript — trace と script(直感 → 理論 → 正準API)
 
 **直感**: TorchScript は PyTorch モデルを「Python が無くても実行できる中間表現」に固める仕組みです。固めた `.pt` は `torch.jit.load` でロードでき、C++(LibTorch)やサーバ配布でそのまま動きます。捕まえ方は2通り。`torch.jit.trace` は**実際に1回 forward を走らせて通った道を記録**し、`torch.jit.script` は**ソースコードを解析して制御フローごとグラフ化**します。
 
@@ -45,7 +44,7 @@ reloaded = torch.jit.load("model.pt")                # 元コード不要でロ�
 # scripted = torch.jit.script(model)                 # 分岐を保持したいとき
 ```
 
-### 3. torch.compile — Inductor の仕組みと現実(直感 → 落とし穴)
+## 3. torch.compile — Inductor の仕組みと現実(直感 → 落とし穴)
 
 **直感**: `torch.compile(model)` は PyTorch 2 の目玉で、モデルを書き換えずに1行で高速化を狙えます。中身は2段で、**TorchDynamo** が Python バイトコードをフックして計算グラフを切り出し(捕捉)、**Inductor** がそのグラフを最適化して**CPU では C++/OpenMP カーネルを生成**(GPU では Triton カーネル)します。複数の演算を1カーネルに**融合**してメモリ往復を減らすのが速さの源です。
 
@@ -53,7 +52,7 @@ reloaded = torch.jit.load("model.pt")                # 元コード不要でロ�
 
 実務では「`torch.compile` は使えれば効くが、デプロイ経路の必須にはしない」と捉えるのが安全です。確実に効かせたいなら、次に説明する ONNX Runtime のほうが移植性・再現性で勝ります。
 
-### 4. ONNX Runtime を「ランタイム」として使う(正準API → 実装)
+## 4. ONNX Runtime を「ランタイム」として使う(正準API → 実装)
 
 36章では ONNX を「交換フォーマット」として学びましたが、本章では**実行ランタイム**として横並びベンチに組み込みます。ポイントは3つ。**①エクスポートは安定経路で**: torch 2.9+ では `torch.onnx.export` の既定が dynamo 経路(`onnxscript` 必須)になりましたが、本講座は onnxscript 非依存で確実に動かすため `dynamo=False`(legacy 経路)+ `opset_version=17` を使います。`dynamic_axes` でバッチ次元を可変にすると、レイテンシ(batch=1)とスループット(batch=N)を**同じモデル**で測れます。**②セッション最適化**: `SessionOptions` で `graph_optimization_level = ORT_ENABLE_ALL`(演算子融合・定数畳み込み)を有効化し、`intra_op_num_threads` を実機に合わせて固定します。**③int8 動的量子化**: `quantize_dynamic(..., weight_type=QuantType.QUInt8)` で重みを int8 化します(CPU は U8X8 経路のため QUInt8)。
 
@@ -70,19 +69,19 @@ y = sess.run(None, {"input": x_numpy})[0]
 
 実測(resnet18 / CPU / 4スレッド固定、`03_runtime_bench.py`)では、**ONNX Runtime fp32 が eager の約 1.7〜2.0倍**で最速、bf16 autocast が約 1.2倍でスループットが伸び、TorchScript はほぼ等速(配布形としての価値が主)という典型的な並びになります。
 
-### 5. 量子化の「実効速度の罠」をランタイム視点で再確認
+## 5. 量子化の「実効速度の罠」をランタイム視点で再確認
 
 35章で「非構造化 pruning はマスクを掛けるだけで実速度は縮まない」という罠を学びました。ランタイム視点では、**int8 動的量子化にも似た罠**があります。`03_runtime_bench.py` の実測では、ONNX int8 動的量子化は**サイズが約 1/4(46.7MB → 11.7MB)に確実に縮む**一方で、レイテンシは eager の **0.6〜0.85倍(=むしろ遅い)** になりました。理由は、動的量子化が **Linear/MatMul 主体(Transformer など)で効きやすく**、resnet18 のような **Conv 主体の CNN では quant/dequant のオーバーヘッドが利得を食う**ためです。
 
 ここから得る教訓は2つ。第一に「**サイズが縮む≠速くなる**」を常に分けて測ること。エッジでメモリ/配布サイズが制約なら int8 は大正解ですが、レイテンシが制約なら CNN では効かないことがあります。第二に「**手法は題材に依存する**」こと。同じ int8 でも、Transformer 系なら速度も伸び、CNN なら静的PTQ(activation もキャリブレーションして固定)のほうが効きます。だからこそ「精度・速度・サイズを毎回実測する」習慣が決定的に重要です。
 
-### 6. エッジ/プラットフォーム別ランタイム(任意ガードで概念)
+## 6. エッジ/プラットフォーム別ランタイム(任意ガードで概念)
 
 `04_edge_runtimes_concept.py` は4つのエッジ系ランタイムを、import ガード付きで整理します。**OpenVINO**(`uv add --group edge openvino nncf`)は Intel CPU 最適(AMD x86 でも動作)で、`ov.convert_model` → `ov.compile_model('CPU')` の2行で推論でき、NNCF の `nncf.quantize` で PTQ(INT8)まで載せられます。**CPU実習の主力**で、Intel機では ONNX Runtime と並ぶ第一候補です。**CoreML**(`coremltools`)は Mac/iOS 向けで、`ct.convert(traced, ...)` → `.mlpackage` 保存。**変換は Linux でも通ることがあるが、予測実行は macOS 必須**という非対称に注意します。**LiteRT**(`litert-torch`、旧 `ai-edge-torch` から改名)は PyTorch → `.tflite` でモバイル向け。**TensorRT**(`torch-tensorrt`)は NVIDIA GPU 専用で**CPU では実行不可**のため、本講座では概念・図解・netron 可視化に留めます。
 
 どのランタイムも「ONNX/TorchScript を中間ハブにして変換 → 変換後に数値一致を検証」という基本線は同じです。`netron`(`uv add --group viz netron`)で `.onnx` を可視化すると、融合された層・shape・量子化ノードを目で確認でき、デバッグの強力な相棒になります。スクリプトは可視化用に `resnet18_for_netron.onnx` を書き出すので、未導入でも <https://netron.app> にドラッグ&ドロップすれば層構造を読めます。
 
-### 7. 手法選択の意思決定順序(実務の使い分け)
+## 7. 手法選択の意思決定順序(実務の使い分け)
 
 最適化は「全部盛り」ではなく**順番**が命です。コストが低く壊れにくい手から試し、各段階で必ず計測して、**目標に届いたら止める**。やみくもに量子化や pruning から入ると、精度を壊した割に速くならない事故が起きます。推奨順序は次のとおりです。
 

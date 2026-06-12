@@ -13,15 +13,14 @@
 
 ---
 
-## 本編
 
-### 0. 直感 — なぜ「環境構築」にまるごと1回を割くのか
+## 0. 直感 — なぜ「環境構築」にまるごと1回を割くのか
 
 機械学習・CV のプロジェクトで、初学者が最初に溶かす時間の大半は「環境」です。`torch` が CUDA 版で 2GB ダウンロードされて固まる、`cv2.imshow` が Docker でプロセスごと落ちる、別の PC では動くのに自分の Mac では動かない、モデルが毎回ダウンロードし直される——これらは**コードの問題ではなく環境の問題**で、放置すると学習の本筋に入る前に消耗します。
 
 本講座の方針は明快です。**環境差を一箇所（`device.py` と `pyproject.toml`）に閉じ込め、各回のスクリプトは環境に依存しない形で書く**。そして「CPU・合成データ・ネット不要」を基本に据えることで、GPU が無くても・サンプル画像が無くても・オフラインでも、全教材が完走するようにします。この回で作る土台が、以降 42 回分すべての足場になります。
 
-### 1. uv の依存グループ運用 — `[project.dependencies]` と `[dependency-groups]`
+## 1. uv の依存グループ運用 — `[project.dependencies]` と `[dependency-groups]`
 
 本講座のパッケージ管理は **uv**（Rust 製の高速なパッケージマネージャ）に統一しています。uv は `pyproject.toml` を唯一の真実とし、解決結果を `uv.lock` に固定するので、**誰の環境でも同じバージョンが再現**されます。そのうえで、依存は次の 2 階層に分けて管理します。
 
@@ -37,7 +36,7 @@ uv add --group hf accelerate # グループに新パッケージを足す（pypr
 
 `03_dependency_groups.py` は、実際に `pyproject.toml` を `tomllib`（Python 標準）で読み、本体依存・各グループ・後述の PyTorch インデックスを一覧表示します。「いまどのグループに何が入っているか」を**コードで確認できる**のがポイントです。
 
-### 2. PyTorch を CPU で入れる — `[[tool.uv.index]]` と `[tool.uv.sources]`
+## 2. PyTorch を CPU で入れる — `[[tool.uv.index]]` と `[tool.uv.sources]`
 
 PyTorch の罠は、**PyPI 既定の `torch` が Linux では CUDA 版**で、GPU が無くても巨大な CUDA ランタイム（数 GB）を引いてしまうことです。本講座は CPU 前提なので、これを避けて**CPU ホイール**を明示的に引きます。uv ではこれを宣言的に書けます（`pyproject.toml` に設定済み）。
 
@@ -56,7 +55,7 @@ torchvision = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 
 ポイントは `explicit = true` と `marker` の 2 つです。まず `explicit=true` は、「この index は名指しされたパッケージ（torch/torchvision）にだけ使い、他の普通のパッケージは PyPI から引く」という意味です。一方 `marker = "platform_system == 'Linux'"` は、「Linux のときだけ CPU index を使う」という条件であり、**macOS は PyPI 既定のまま**にします（mac の wheel は CPU と Apple Silicon の **MPS** を両方含むため、そちらが正解だからです）。なお、GPU を使いたい場合だけ、この URL を `cu126` などの CUDA index に差し替えます。
 
-### 3. device 自動判定 — `cpu` / `mps` / `cuda` を 1 行で
+## 3. device 自動判定 — `cpu` / `mps` / `cuda` を 1 行で
 
 環境が違えば、使えるアクセラレータも違います。とはいえ、その判定ロジックを各スクリプトで毎回書くのは無駄なので、**判定を `device.py` 一箇所に閉じ込め**ます。優先順位は**速い順に `cuda > mps > cpu`** とし、そのうえで `cpu` は最後の砦として常に選べるようにします。
 
@@ -72,7 +71,7 @@ x = x.to(device)
 
 **MPS の保険**: Apple Silicon の MPS は「多くの演算は速いが、一部は未対応」が現実です。未対応演算で `NotImplementedError` を出して止まらないよう、`PYTORCH_ENABLE_MPS_FALLBACK=1` を立てておくと、その演算だけ CPU に逃がせます。`device.py` は `mps` を選んだとき自動でこれを有効にします。
 
-### 4. CPU スレッド調整 — `torch.set_num_threads` と `OMP_NUM_THREADS` を揃える
+## 4. CPU スレッド調整 — `torch.set_num_threads` と `OMP_NUM_THREADS` を揃える
 
 CPU 推論の速度は**スレッド数**に大きく左右されます。重要なのは、torch とその下で動く OpenMP（numpy/cv2 が使う）の**スレッド数を揃える**こと。片方だけ設定すると、両者が別々にスレッドを立てて物理コア数を超える「**オーバーサブスクライブ**」が起き、かえって遅くなります。
 
@@ -84,7 +83,7 @@ os.environ["OMP_NUM_THREADS"] = "4"  # OpenMP(numpy/cv2) のスレッド ← 同
 
 `device.py` の `configure_threads()` がこの両方を 1 回で揃えます。`02_threads_and_cache.py` では、スレッド数を 1→2→4→全コアと変えて行列積の時間を**実測**し、「増やせば必ず速くなるわけではない（小さい行列・メモリ帯域で頭打ち）」ことを目で確認します。**推測するな、測れ**——これは第34回の推論プロファイリングにそのまま繋がる態度です。
 
-### 5. HuggingFace キャッシュ — `HF_HOME` と `HF_HUB_OFFLINE`
+## 5. HuggingFace キャッシュ — `HF_HOME` と `HF_HUB_OFFLINE`
 
 `transformers` などで事前学習モデルを使うと、重みは初回に **`HF_HOME`** が指す場所（既定 `~/.cache/huggingface`）へダウンロードされます。ここを意識的に管理すると、2 つの嬉しさがあります。
 
@@ -98,7 +97,7 @@ export HF_HUB_OFFLINE=1           # キャッシュ済みだけで動かす（�
 
 `device.py` の `hf_home()` がこの場所を返し、`02_threads_and_cache.py` が現在値を表示します。本講座の画像基礎トラックは HF を使わないので、ここは「深層トラックに入ったときの備え」として理解しておけば十分です。
 
-### 6. opencv の排他 — `headless` と `full` はどちらか一方
+## 6. opencv の排他 — `headless` と `full` はどちらか一方
 
 OpenCV の Python パッケージには 2 種類あり、**同じ `cv2` 名前空間を共有するため同居させてはいけません**。
 
@@ -109,11 +108,11 @@ OpenCV の Python パッケージには 2 種類あり、**同じ `cv2` 名前�
 
 本講座は headless を既定にし、`albumentations` 等との衝突も避けています。**結果は画面に出さず `outputs/` に保存して確認する**のが方針なので、`imshow` が無くても困りません。`03_dependency_groups.py` の `detect_opencv_variant()` は、インストール済みパッケージのメタデータから variant（headless/full/conflict/none）を判定し、両方入っている危険な状態を検出します。
 
-### 7. Docker — `python:3.12-slim + libgl1/ffmpeg`
+## 7. Docker — `python:3.12-slim + libgl1/ffmpeg`
 
 配布・再現の最終形が Docker です。`python:3.12-slim` をベースに、**OpenCV(headless) が動的リンクで必要とする `libgl1` / `libglib2.0-0`** と、**動画 I/O 用の `ffmpeg`** だけを足し、uv で依存を再現インストールします。同梱の `Dockerfile`（参考実装）は、依存定義を先にコピーしてレイヤキャッシュを効かせ、`HF_HOME=/cache/hf` をボリューム化して再 DL を防ぐ構成です。既定コマンドは「環境まるごと検証」ミニプロジェクトで、ビルド直後に健全性を確認できます。
 
-### 8. このモジュールの構成（スクリプト一覧）
+## 8. このモジュールの構成（スクリプト一覧）
 
 各スクリプトは単一責務で、上から順に読めば理解が積み上がります。すべて CPU・合成データ・ネット不要で完走し、図/JSON は `outputs/00_setup/` に保存します。
 
