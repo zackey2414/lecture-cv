@@ -134,9 +134,11 @@ PSNR と SSIM は `numpy`/`cv2` だけで自作しています（PSNR は平均�
 | `01_watershed.py` | `distanceTransform`→`connectedComponents`→`watershed` で接触硬貨を分離。単純連結成分（4個）と Watershed（6個）を対比 |
 | `02_grabcut.py` | **完成物**。`grabCut(GC_INIT_WITH_RECT)` で前景抽出、矩形3通り（good/loose/clip）の IoU/Dice 比較、`GC_INIT_WITH_MASK` でなすり書き改善 |
 | `03_inpaint_classic.py` | `cv2.inpaint`（TELEA/NS）で傷消し・大穴埋め。元画像との PSNR/SSIM を自前実装で計算し古典の限界を定量化 |
-| `exercises.py` | TODO 形式の演習6問（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答）|
+| `mini_project.py` | **章末ミニプロジェクト**。1 つの合成シーンに対し「前景抽出(GrabCut+IoU/Dice)→計数(Watershed)→清掃(inpaint+PSNR/SSIM)」を統合し、工程図・まとめ図・指標 JSON を出力 |
+| `exercises.py` | TODO 形式の演習9問（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答に差し替え）|
+| `exercises_solutions.py` | 演習9問の完全な模範解答（実行すると全 PASS を assert で保証。採点ロジックは exercises 側を再利用）|
 
-表の通り、`02_grabcut.py` が deliverable の中核（矩形指定の切り出しツール＋IoU/Dice 評価）で、`01` が接触物体分離、`03` が復元と評価に対応します。まず 01 から順に動かし、各 `outputs/08_*.png` を開きながら本文を読み返すと理解が定着します。
+表の通り、`02_grabcut.py` が deliverable の中核（矩形指定の切り出しツール＋IoU/Dice 評価）で、`01` が接触物体分離、`03` が復元と評価に対応します。そして `mini_project.py` がこの 3 つを 1 本のシーンへ束ねた統合課題です。まず 01 から順に動かし、各 `outputs/08_*.png` を開きながら本文を読み返すと理解が定着します。
 
 ## 10. 動かし方
 
@@ -151,10 +153,15 @@ uv run python lectures/08_classical_segmentation/01_watershed.py
 uv run python lectures/08_classical_segmentation/02_grabcut.py
 uv run python lectures/08_classical_segmentation/03_inpaint_classic.py
 
+# 章末ミニプロジェクト（統合課題。工程図・まとめ図・指標 JSON を出力）
+uv run python lectures/08_classical_segmentation/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL）
 uv run python lectures/08_classical_segmentation/exercises.py
 # どうしても分からない時だけ、模範解答の挙動を見る
 SHOW_SOLUTION=1 uv run python lectures/08_classical_segmentation/exercises.py
+# 完全な模範解答（全 9 問 PASS を確認）
+uv run python lectures/08_classical_segmentation/exercises_solutions.py
 ```
 
 実行後は `outputs/08_classical_segmentation/` に生成された PNG を画像ビューアで開いてください。とくに `01_watershed_pipeline.png`（接触物体の分離6工程）、`01_distance_transform.png`（距離マップの芯ピーク）、`02_grabcut_pipeline.png`（矩形3通りの結果）、`02_grabcut_scores.png`（IoU/Dice 比較）、`03_inpaint_pipeline.png`（傷消しと大穴）、`03_inpaint_psnr.png`（PSNR 比較）を解説と照らし合わせると、各手法の役割と限界が腑に落ちます。
@@ -182,10 +189,83 @@ SHOW_SOLUTION=1 uv run python lectures/08_classical_segmentation/exercises.py
 
 この章では、距離変換とマーカ制御 Watershed（接触物体の分離）→ GrabCut（矩形指定の半自動前景抽出となすり書き改善）→ IoU/Dice 評価（混同行列から自作）→ 古典 inpaint（傷消し・大穴と PSNR/SSIM 評価）、という古典セグメンテーション・復元の一連を、すべて「自分で組んで・なぜそうするか説明できる・数値で測れる」レベルで扱いました。とくに「Watershed はマーカの `+1` とカラー画像」「GrabCut は矩形が物体を囲む・モデルは `(1,65) float64`」「古典 inpaint は細い傷に強く大穴に弱い」の3点は、知っているだけで無駄なデバッグを確実に減らせます。
 
-そして本章の通奏低音は「古典手法は初期化とパラメータに敏感で、人手の事前知識が結果を左右する」という体感でした。この敏感さを数値で味わったことが、後半の SAM（第20・22回）や LaMa（第29回）の「頑健さ」を正しく評価する目を養います。まずは演習6問を自力で全問 PASS させ、距離変換のマーカ作り・GrabCut の前景抽出・IoU/Dice・古典 inpaint を手に馴染ませてから次のトラック（第9回 動画I/O）へ進んでください。
+そして本章の通奏低音は「古典手法は初期化とパラメータに敏感で、人手の事前知識が結果を左右する」という体感でした。この敏感さを数値で味わったことが、後半の SAM（第20・22回）や LaMa（第29回）の「頑健さ」を正しく評価する目を養います。まずは演習9問を自力で全問 PASS させ、距離変換のマーカ作り・GrabCut の前景抽出・IoU/Dice・古典 inpaint を手に馴染ませてから次のトラック（第9回 動画I/O）へ進んでください。
+
+---
+
+## 🛠 章末ミニプロジェクト — シーンを切り出し・数え・清掃する統合パイプライン
+
+ここまでの 3 手法（Watershed / GrabCut / 古典 inpaint）と 2 系統の評価指標（IoU・Dice と PSNR・SSIM）を、**1 つの合成シーンに対する 1 本のワークフロー**へ統合する総合課題です。`mini_project.py` を実行すると、「机の上に触れ合った硬貨の山と不要なシミが写ったシーン」を題材に、次の 3 段が一気に走ります。
+
+1. **① 前景抽出（GrabCut）**: 硬貨群を囲む矩形を与えて `grabCut(GC_INIT_WITH_RECT)` で前景を切り出し、硬貨領域の真マスクとの **IoU / Dice**（混同行列から自作）で精度を測る。
+2. **② 計数（Watershed）**: Otsu 二値化 → `distanceTransform` → マーカ制御 `watershed` で接触した硬貨を 1 枚ずつに分離して数え、**単純連結成分（融合して少なく出る）と対比**する。
+3. **③ 清掃（古典 inpaint）**: シミのマスクで `cv2.inpaint`（TELEA / NS）を当てて汚れを消し、シミの無いキレイな参照画像との **PSNR / SSIM** で「どこまで直せたか」を数値化する。
+
+この課題は「撮影画像から対象を切り出し・個数を数え・汚れを修復する」という、製造ラインの部品検査や顕微鏡画像の細胞計数の最小核です。硬貨を実物の部品/細胞に、シミを実写の汚れに差し替えれば、そのまま検査・修復の雛形になります。`digit` 始まりの 01〜03 は import できないため、PSNR/SSIM やパネル合成などはミニプロジェクト内に**自己完結**で書いてあります（外部データ・ネット・GPU 不要）。
+
+**到達の目安**: 付属パラメータでは GrabCut の IoU≒1.00（背景が硬貨と色分離しているので隙間を拾わない）、Watershed が真値どおり **6 枚**へ分離（単純連結成分は 4）、inpaint がシミ除去で PSNR を大きく回復し、総合判定 `all_ok=True` になります。出力は `outputs/08_classical_segmentation/` に保存されます。
+
+| 生成物 | 内容 |
+| --- | --- |
+| `mini_project_grabcut.png` | 入力＋矩形・真マスク・GrabCut 前景（IoU）・切り出しの 4 枚 |
+| `mini_project_watershed.png` | 入力・Watershed 境界（赤）・色分け分離結果（枚数）の 3 枚 |
+| `mini_project_inpaint.png` | 破損（シミ）・シミマスク・TELEA 復元（PSNR）・キレイな参照の 4 枚 |
+| `mini_project_summary.png` | 切り出し・計数・修復・参照・IoU/Dice 棒グラフを 1 枚に並べたまとめ図 |
+| `mini_project_metrics.json` | IoU/Dice・混同行列・naive/watershed 枚数・PSNR/SSIM・総合判定の数値ログ |
+
+```bash
+uv run python lectures/08_classical_segmentation/mini_project.py
+cat outputs/08_classical_segmentation/mini_project_metrics.json
+```
+
+発展課題として、(a) シミを硬貨の上に重ねると inpaint の PSNR がどう落ちるか、(b) GrabCut の矩形を画面いっぱいに広げると IoU がどう崩れるか、(c) 距離変換のしきい値係数（既定 0.5）を 0.3／0.7 に変えると計数がどう変わるか、を自分で試して数値の動きを観察してみてください。「敏感さ」を自分の手で再現できることが、この課題の真のゴールです。
+
+## ✅ 到達チェックリスト
+
+この章を終えたら、次が**できる／説明できる**ことを確認してください。
+
+- [ ] `cv2.distanceTransform` が「各前景画素から最寄り背景までの距離」であり、その**ピークが物体の芯**になることを説明できる。
+- [ ] 接触物体を、距離変換のしきい値（`0.5 * dist.max()` など）で `sure_fg` を作って**別々の種**に分離できる。
+- [ ] Watershed のマーカ作法（`connectedComponents` の結果に **`+1`** で背景を 1 にずらし、`unknown` を 0 にする）を理由とともに書ける。
+- [ ] `cv2.watershed` が**3 チャンネルのカラー画像**を要求し、`markers` を **in-place** で書き換え境界に **-1** を入れることを説明できる。
+- [ ] 単純連結成分が接触物体を**融合**してしまうのに対し、Watershed が**正しく分離**できる理由を距離マップで説明できる。
+- [ ] `grabCut(GC_INIT_WITH_RECT)` を、`bgdModel`/`fgdModel` を `np.zeros((1,65), np.float64)` で渡して実行し、出力 4 値（`GC_BGD`/`GC_FGD`/`GC_PR_BGD`/`GC_PR_FGD`）から前景マスクを作れる。
+- [ ] 矩形の置き方（good/loose/clip）で **IoU が大きく変わる**こと、矩形が物体を切ると **FN が永続化**することを説明できる。
+- [ ] `GC_INIT_WITH_MASK` ＋ なすり書き（`GC_FGD`/`GC_BGD`）で loose の失敗を**対話的に修正**できる。
+- [ ] 混同行列（TP/FP/FN）から **IoU = TP/(TP+FP+FN)** と **Dice = 2TP/(2TP+FP+FN)** を自作し、つねに **Dice ≧ IoU** になる理由を言える。
+- [ ] `cv2.inpaint`（TELEA/NS）が**細い傷には強く大穴には弱い**ことを、PSNR/SSIM の数値で示せる。
+- [ ] PSNR（`10*log10(255^2/MSE)`）を自前で実装でき、引き算前に **float へキャスト**してオーバーフローを避ける理由を説明できる。
+- [ ] ミニプロジェクトを実行し、前景抽出→計数→清掃の各段を**それぞれの指標**で評価できる。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+実装中に詰まったら、まずここを見てください（第11節の症状別チェックリストと併せて参照）。多くの不具合はこの数個の原因に集約されます。
+
+- **Q. `cv2.watershed` が `error`（チャンネル数）で落ちる。** A. グレースケール（2 次元）を渡しています。watershed は **3 チャンネルのカラー画像**が必須です。`cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)` で 3ch にしてから渡します。
+- **Q. Watershed で背景まで 1 物体に巻き込まれる／全部つながる。** A. マーカの **`+1` を忘れ**、背景と `unknown` がどちらも 0 になっています。`markers = markers + 1` で背景を 1 にずらし、`markers[unknown==255] = 0` で未確定だけを 0 にします。
+- **Q. 接触物体が分離されず融合したまま。** A. 距離しきい値が**低すぎ**て谷（物体の境目）が埋まっています。`0.5 * dist.max()` 付近まで上げ、前段で `MORPH_OPEN` をかけます。逆に**高すぎる**と小さい物体の芯が消えて検出漏れになります（`dist.max()` は大きい物体に支配される点に注意）。
+- **Q. `cv2.grabCut` が `error`（モデル）で落ちる。** A. `bgdModel`/`fgdModel` の形・dtype 違いです。必ず `np.zeros((1, 65), np.float64)` で渡します（中身は触らない）。
+- **Q. GrabCut で前景に余計な背景が大量に混ざる（FP が多い）。** A. 矩形が**広すぎ**て、矩形内の背景が前景化しています。矩形は物体にタイトに合わせるか、背景の色分布を一様に近づける／`GC_INIT_WITH_MASK` で「ここは確実に背景」を教えます。本章ミニプロジェクトが背景をほぼ一様にしているのはこのためです。
+- **Q. GrabCut で物体の一部が必ず欠ける（FN）。** A. 矩形が物体を**切って**います。矩形の外は「確実に背景」と確定し二度と前景になれません。矩形は**物体全体を少し大きめに**囲みます。
+- **Q. GrabCut の結果が実行ごとに変わる。** A. 内部 `kmeans` の乱数による仕様です。厳密一致でなく **IoU 等のしきい値**で評価し、安定させたいなら `iterCount` を増やします（本章の演習採点も IoU しきい値で判定）。
+- **Q. `cv2.inpaint` が `error` になる。** A. mask が 3ch だったり float です。mask は**単一チャンネル uint8（0/255）**で、`>0` が修復対象です。
+- **Q. PSNR が異常な値（負やゼロ割れ）になる。** A. 引き算前に **`astype(np.float64)`** していない＝uint8 のまま引いて桁あふれしています。`mse==0`（完全一致）は `inf` を返す分岐も入れます。
+- **Q. 大穴の inpaint がのっぺりボケる。** A. 古典 inpaint は周囲色の引き伸ばしなので**構造のある大穴は苦手**（仕様の限界）。構造復元が要るなら深層 LaMa（第29回）へ進みます。
+- **Q. matplotlib 保存でエラー/フリーズ、または色が反転する。** A. `pyplot` を import する**前**に `matplotlib.use("Agg")` を呼びます。カラーを `plt.imshow` する時は **BGR→RGB**（`cv2.cvtColor(img, cv2.COLOR_BGR2RGB)`）を忘れずに。
+
+## 🚀 発展トピック・参考
+
+- **`connectedComponentsWithStats`**: 連結成分ごとの面積・外接矩形・重心を一度に得られる拡張版。Watershed の前後で「小さすぎる種を面積で間引く」「各硬貨の中心に番号を振る」といった後処理に便利です。
+- **マーカの作り方いろいろ**: 本章は距離変換ピークでマーカを作りましたが、`cv2.cornerHarris` の極大点、ユーザのクリック、`peak_local_max` 相当の局所最大など、マーカ源を変えると過剰分割／不足分割の度合いが変わります。マーカ品質＝Watershed 品質です。
+- **対話的 GrabCut**: 実運用ではユーザが前景/背景ブラシでなすり書きを足す GUI を作ります。本章の `GC_INIT_WITH_MASK` がその心臓部で、`GC_FGD`/`GC_BGD`（確定）と `GC_PR_FGD`/`GC_PR_BGD`（推定）の使い分けがそのまま「ブラシの強さ」になります。
+- **しきい値・前処理の自動化**: 距離変換の係数や Otsu の閾値を画像ごとに自動調整する（例: 種の個数が想定範囲に入る最小係数を探索）と、敏感さをある程度吸収できます。古典手法を「使える道具」にする実務テクです。
+- **深層への橋渡し**: GrabCut の「矩形・なすり書きで指示」は **SAM（第20・22回）** のボックス/点プロンプトの古典版、`cv2.inpaint` の限界は **LaMa（第29回）** の動機です。本章で古典のベースライン値（IoU・PSNR）を取っておくと、深層との比較が「数値の議論」になります。
+- **評価指標の発展**: IoU/Dice は領域の重なりだけを見ますが、境界の正確さを測る **Boundary IoU** や **Hausdorff 距離**、多クラスの **mIoU**（第21回）へ拡張できます。PSNR/SSIM の先には知覚指標 **LPIPS**（第32回 IQA）があります。
+- 参考ドキュメント: OpenCV 公式チュートリアル「Image Segmentation with Watershed Algorithm」 https://docs.opencv.org/4.x/d3/db4/tutorial_py_watershed.html ／「Interactive Foreground Extraction using GrabCut」 https://docs.opencv.org/4.x/d8/d83/tutorial_py_grabcut.html ／「Image Inpainting」 https://docs.opencv.org/4.x/df/d3d/tutorial_py_inpainting.html 。
 
 ---
 
 > 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
-> Python 3.12 ／ numpy 2.4（2.4.6）／ opencv-python-headless 4.13（`cv2` 4.13.0）／ Pillow 12.2（12.2.0）／ matplotlib 3.10（3.10.9）。
+> Python 3.12 ／ numpy 2.4（2.4.6）／ opencv-python-headless 4.13（`cv2` 4.13.0.92）／ Pillow 12.2（12.2.0）／ matplotlib 3.10（3.10.9）。
 > すべて CPU のみ・ネット非依存で動作します（`cv2.imshow` は使わず、結果は `outputs/08_classical_segmentation/` に保存）。
+> 版表記: opencv-python-headless 4.13 / Pillow 12.2 / numpy 2.4 / matplotlib 3.10（2026-06）。

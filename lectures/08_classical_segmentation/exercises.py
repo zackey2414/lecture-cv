@@ -99,6 +99,46 @@ def ex6_inpaint_telea(broken: np.ndarray, mask: np.ndarray) -> np.ndarray:
     raise NotImplementedError
 
 
+def ex7_count_regions(markers: np.ndarray) -> int:
+    """演習7: watershed 後の markers 配列から物体数を数える（int で返す）。
+
+    watershed は markers を「背景=1 / 境界=-1 / 各物体=2,3,...」に書き換える。
+    np.unique で出てくるラベルから -1（境界）と 1（背景）を除いた個数が物体数。
+    （markers をそのまま受け取り、ラベル集合の大きさを返すだけ）
+    """
+    # TODO: labels = set(np.unique(markers).tolist()); -1 と 1 を除いて len を返す
+    raise NotImplementedError
+
+
+def ex8_psnr(a: np.ndarray, b: np.ndarray) -> float:
+    """演習8: 2 枚の uint8 画像の PSNR[dB] を返す（復元の評価指標）。
+
+    手順: 平均二乗誤差 mse = mean((a-b)^2) を float64 で計算し、
+    mse==0 なら float('inf')、それ以外は 10*log10(255^2 / mse) を返す。
+    （float に必ずキャストしてから引き算する＝uint8 のままだと桁あふれする）
+    """
+    # TODO: mse = np.mean((a.astype(np.float64)-b.astype(np.float64))**2)
+    #       return inf if mse==0 else 10*log10(255**2/mse)
+    raise NotImplementedError
+
+
+def ex9_count_watershed(binary: np.ndarray, color: np.ndarray) -> int:
+    """演習9（統合）: 二値画像とカラー原画から接触物体を数える完成パイプライン。
+
+    ex1（sure_fg）と ex2（マーカ）を含む一連を自前で組んで物体数を返す:
+      1. cv2.morphologyEx(MORPH_OPEN, iters=2) でノイズ除去 → opening
+      2. sure_bg = cv2.dilate(opening, 3x3, iterations=3)
+      3. dist = distanceTransform(opening) → 0.5*max でしきい値 → sure_fg(uint8)
+      4. unknown = cv2.subtract(sure_bg, sure_fg)
+      5. connectedComponents(sure_fg)+1、unknown==255 を 0 にしてマーカ作成
+      6. cv2.watershed(color, markers) を実行（color は 3ch カラーが必須）
+      7. markers のラベルから -1 と 1 を除いた個数を返す
+    （watershed はグレーでなく 3ch カラーを要求する点に注意）
+    """
+    # TODO: 上の 1〜7 を実装し、分離後の物体数(int)を返す
+    raise NotImplementedError
+
+
 # =====================================================================
 # サンプル生成（採点用。乱数シード固定で毎回同じ入力）
 # =====================================================================
@@ -159,6 +199,39 @@ def _sample_broken() -> tuple[np.ndarray, np.ndarray]:
     return broken, mask
 
 
+def _sample_markers() -> np.ndarray:
+    """ex7 用の watershed 風 markers 配列（背景=1 / 境界=-1 / 物体=2,3,4）。"""
+    m = np.ones((60, 90), np.int32)   # 背景 = 1
+    m[6:26, 6:26] = 2                 # 物体A
+    m[6:26, 36:56] = 3                # 物体B
+    m[34:54, 6:26] = 4                # 物体C
+    m[:, 0] = -1                      # 境界画素（左端）
+    return m                          # 物体は 3 個（2,3,4）
+
+
+def _sample_psnr_pair() -> tuple[np.ndarray, np.ndarray]:
+    """ex8 用の 2 枚の画像（b は a に小さなノイズを足したもの）。"""
+    rng = np.random.default_rng(7)
+    a = rng.integers(0, 256, (50, 60, 3), dtype=np.uint8)
+    noise = rng.integers(-10, 11, a.shape)
+    b = np.clip(a.astype(np.int16) + noise, 0, 255).astype(np.uint8)
+    return a, b
+
+
+def _sample_count_scene() -> tuple[np.ndarray, np.ndarray]:
+    """ex9 用に、横一列で触れ合う 3 円の (二値画像0/255, カラー原画) を作る。"""
+    h, w = 160, 260
+    rng = np.random.default_rng(4)
+    img = np.full((h, w, 3), 25, np.uint8)  # 暗い背景
+    for cx, cy, r in [(65, 80, 38), (135, 80, 38), (205, 80, 38)]:  # 隣と軽く接触
+        color = tuple(int(c) for c in rng.integers(170, 240, size=3))
+        cv2.circle(img, (cx, cy), r, color, -1)
+    img = np.clip(img.astype(np.float32) + rng.normal(0, 4, img.shape), 0, 255).astype(np.uint8)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return binary, img
+
+
 # =====================================================================
 # 模範解答
 # =====================================================================
@@ -206,6 +279,35 @@ def _sol_ex6(broken, mask):
     return cv2.inpaint(broken, mask, 3, cv2.INPAINT_TELEA)
 
 
+def _sol_ex7(markers):
+    labels = set(np.unique(markers).tolist())
+    labels.discard(-1)  # 境界
+    labels.discard(1)   # 背景
+    return len(labels)
+
+
+def _sol_ex8(a, b):
+    mse = np.mean((a.astype(np.float64) - b.astype(np.float64)) ** 2)
+    if mse == 0:
+        return float("inf")
+    return float(10.0 * np.log10((255.0**2) / mse))
+
+
+def _sol_ex9(binary, color):
+    kernel = np.ones((3, 3), np.uint8)
+    opening = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=2)
+    sure_bg = cv2.dilate(opening, kernel, iterations=3)
+    dist = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
+    _, sure_fg = cv2.threshold(dist, DIST_FACTOR * dist.max(), 255, cv2.THRESH_BINARY)
+    sure_fg = sure_fg.astype(np.uint8)
+    unknown = cv2.subtract(sure_bg, sure_fg)
+    _, markers = cv2.connectedComponents(sure_fg)
+    markers = markers + 1
+    markers[unknown == 255] = 0
+    cv2.watershed(color, markers)
+    return _sol_ex7(markers)
+
+
 def _install_solutions() -> None:
     g = globals()
     g["ex1_sure_foreground"] = _sol_ex1
@@ -214,6 +316,9 @@ def _install_solutions() -> None:
     g["ex4_iou"] = _sol_ex4
     g["ex5_dice"] = _sol_ex5
     g["ex6_inpaint_telea"] = _sol_ex6
+    g["ex7_count_regions"] = _sol_ex7
+    g["ex8_psnr"] = _sol_ex8
+    g["ex9_count_watershed"] = _sol_ex9
 
 
 # =====================================================================
@@ -231,6 +336,9 @@ def _grade() -> None:
     scene, truth_scene, rect = _sample_scene()
     pred_m, truth_m = _sample_masks()
     broken, mask = _sample_broken()
+    markers_sample = _sample_markers()
+    psnr_a, psnr_b = _sample_psnr_pair()
+    count_binary, count_color = _sample_count_scene()
     results: list[tuple[str, bool, str]] = []
 
     def check(name: str, fn) -> None:
@@ -266,6 +374,18 @@ def _grade() -> None:
     check("ex6_inpaint_telea", lambda: (
         np.array_equal(ex6_inpaint_telea(broken, mask), _sol_ex6(broken, mask)),
         "cv2.inpaint(TELEA) で傷消し",
+    ))
+    check("ex7_count_regions", lambda: (
+        int(ex7_count_regions(markers_sample)) == _sol_ex7(markers_sample),
+        "markers から物体数（-1/1 を除外）",
+    ))
+    check("ex8_psnr", lambda: (
+        abs(float(ex8_psnr(psnr_a, psnr_b)) - _sol_ex8(psnr_a, psnr_b)) < 1e-6,
+        "PSNR = 10*log10(255^2/MSE)",
+    ))
+    check("ex9_count_watershed", lambda: (
+        int(ex9_count_watershed(count_binary, count_color)) == _sol_ex9(count_binary, count_color),
+        "二値+原画→watershed で接触物体を計数",
     ))
 
     print("=== 採点結果 ===")

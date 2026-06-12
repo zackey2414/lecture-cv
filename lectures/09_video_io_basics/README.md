@@ -154,6 +154,81 @@ headless での確認手段は主に3つです。**(1) `cv2.imwrite` で代表�
 
 この表の項目が、本章で時間を取られる原因のほぼ全てです。逆にこれらを自分で説明でき・回避コードを書けるようになれば、この章のゴールに到達しています。
 
+---
+
+## 🛠 章末ミニプロジェクト — 「動体ハイライト」動画パイプライン
+
+ここまでの全要素を **1本のパイプライン**に束ねる総合課題が `mini_project.py` です。テーマは「合成動画を読み込み、**連続フレーム差分**で動いた画素を見つけて赤くハイライトし、結果を動画に再書き出しして、計測値をレポートにまとめる」こと。第10回（背景差分・オプティカルフロー）の最も素朴な前段——**フレーム差分による動体検出**——を、本章の I/O 技能だけで自力実装します。`mini_project.py` は他のスクリプト（`01_`〜`03_`）を一切 import せず、**1ファイルで自己完結**しています（出力先の解決だけ `cv_helpers.output_dir` を借用）。
+
+このミニプロジェクトが踏む流れは、本章の節がそのまま順番に効いてきます。
+
+1. **合成（素材づくり）**: 「左→右に動くオレンジの円」と「右→左に動く緑の四角」＋フレーム番号テキストを `numpy`/`cv2` で 72 枚生成し、`VideoWriter`（`mp4v`→`MJPG`→連番PNG のフォールバック）でソース動画に書き出す（第1・6節）。
+2. **メタデータ確認**: 書いた動画を開き直し、`cap.get(CAP_PROP_*)` で FPS・総数・幅高さ・FOURCC を取り、FOURCC を4文字へデコードして「長さ（秒）＝総数÷FPS」まで出す（第4節）。要求 `mp4v` がコンテナ側で `FMP4` 等に正規化される実例も観察できます。
+3. **本体処理**: 正準ループ（`isOpened`→`while read`→`ret` 判定→`release`）で1フレームずつ読み、`cvtColor` でグレー化、**1つ前のフレームとの `cv2.absdiff` が閾値超え**の画素を動体マスクとして赤く塗り、`VideoWriter` で再書き出し。同時に `perf_counter`＋`deque` で**処理FPSの移動平均**を、フレームごとの**動体画素数**を集計する（第2・3・7節）。
+4. **シーク確認**: `POS_FRAMES` で先頭・1/4・中央・3/4・終端へ飛び、原フレームのモンタージュを保存（第5節）。
+5. **レポート化**: 「処理FPS vs ソースFPS」と「動体画素数の推移」の2段グラフ（`mini_project_report.png`）と、メタデータ・処理統計・出力一覧を収めた `mini_project_report.json` を書き出す。
+
+実行（`outputs/09_video_io_basics/` に成果物が出ます）:
+
+```bash
+uv run python lectures/09_video_io_basics/mini_project.py
+```
+
+主な出力は `mini_project_source.mp4`（合成ソース）・`mini_project_processed.mp4`（動体ハイライト結果）・`mini_project_seek_montage.png`（シーク確認）・`mini_project_report.png`（FPSと動体のグラフ）・`mini_project_report.json`（数値レポート）・`mini_project_thumb_***.png`（間引きサムネ）です。**処理FPSがソースFPS(24)をはるか上回り、動く2物体のところだけ赤く染まる**ことを目と数値の両方で確かめてください。これが第10回以降の動体解析の出発点になります。
+
+## 📜 スクリプト一覧
+
+| ファイル | 役割 | 主な出力 |
+| --- | --- | --- |
+| `cv_helpers.py` | 共通ヘルパ（出力先・合成フレーム生成・動画書き出し・FOURCCデコード）。単体実行でスモークテスト | `helper_smoke.*` |
+| `01_videocapture_loop.py` | VideoCapture 正準ループ＋フレーム基本操作＋BGR/RGB | `01_first_frame.png` / `01_gray.png` / `01_resized_half.png` / `01_roi_center.png` / `01_bgr_vs_rgb.png` |
+| `02_capprops_seek.py` | メタデータ取得（CAP_PROP・FOURCCデコード）と POS_FRAMES シーク | `02_seek_grid.png` |
+| `03_videowriter.py` | VideoWriter 書き出し＋処理FPS計測（基本の完成物） | `03_thumb_***.png` / `03_fps_plot.png` / `03_processed.mp4` |
+| `mini_project.py` | 章末ミニプロジェクト（動体ハイライト統合パイプライン＋JSONレポート） | `mini_project_*.{mp4,png,json}` |
+| `exercises.py` | 演習9問（TODO＋自己採点。未実装でも exit 0） | 採点用 `ex_grade.*` |
+| `exercises_solutions.py` | 演習の模範解答（実行で全PASS。採点ロジックは exercises を再利用） | — |
+
+## ✅ 到達チェックリスト
+
+次のすべてを「何も見ずに書ける／理由を説明できる」ようになっていれば、本章は合格です。
+
+- [ ] `cv2.VideoCapture` を開き、`isOpened()` を確認し、`while`＋`ret` 判定で読み、`release()` する**正準ループ**を空で書ける。
+- [ ] ループの終了条件を**総フレーム数ではなく `ret`** にする理由（ライブでは総数が当てにならない）を説明できる。
+- [ ] `read()` が返す `frame` が `(H,W,3)` `uint8` の **BGR** 配列だと分かり、`cvtColor`/`resize`（`dsize=(W,H)`）/ROI スライス（`[y0:y1,x0:x1]`）を正しく使える。
+- [ ] matplotlib/Pillow に渡す前に **`BGR→RGB`** を挟む必要性を説明でき、忘れると赤青が反転することを再現できる。
+- [ ] `cap.get(CAP_PROP_*)` が **float** を返すこと、整数が欲しい値は `int()` で丸めることを理解している。
+- [ ] **FOURCC の 32bit 整数を4文字へデコード**でき、要求名と記録名が違い得る（`mp4v`→`FMP4`）ことを知っている。
+- [ ] `POS_FRAMES` でのシークが**ファイルの特権**で、ライブでは使えないことを説明できる。
+- [ ] `cv2.VideoWriter` を `(FOURCC, FPS, (W,H))` で作り、**`isOpened()` 検証**と**フレームサイズ整合**、ダメなら**連番PNGフォールバック**まで書ける。
+- [ ] **ソースFPS と 処理FPS は別物**だと説明でき、`perf_counter`＋`deque` で処理FPSの移動平均を計測できる。
+- [ ] `imshow`/`waitKey` を使わず、**`imwrite`/`VideoWriter`/matplotlib(Agg)** で headless 安全に結果を残せる。
+- [ ] `mini_project.py` を実行し、出力（ハイライト動画・FPSグラフ・JSON）の意味を自分の言葉で説明できる。
+- [ ] `exercises.py` を**全問 PASS**させた（`exercises_solutions.py` で答え合わせ済み）。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+第9節の「症状→原因→対処」表に加えて、実装中に効くデバッグの勘所をまとめます。
+
+- **Q. `read()` が最初から `ret=False`。動画は確かにあるのに。** A. まず `cap.isOpened()` を print。`False` ならパス/コーデックの問題、`True` なのに読めないならコーデック未対応の可能性。`int(cap.get(cv2.CAP_PROP_FRAME_COUNT))` と `fourcc` も print して、そもそも何が開いているか可視化する。非ASCIIパスは `np.fromfile`＋`cv2.imdecode` を検討。
+- **Q. 書き出した動画が 0 バイト／再生できない。** A. ほぼ `VideoWriter.isOpened()` が `False`。①FOURCCとコンテナ拡張子の整合（`mp4v`↔`.mp4`、`MJPG`↔`.avi`）、②`write()` するフレームの `(W,H)` が出力サイズと一致しているか、を疑う。`frame.shape[:2][::-1]` で `(W,H)` を出力サイズと比べてデバッグ。最終手段は連番PNG。
+- **Q. 動画にフレームが入っているのに `CAP_PROP_FRAME_COUNT` がズレる（±1）。** A. コンテナ/コーデックの都合でメタ上の総数は近似値になり得る。だから採点も `±1` を許容しており、**正確に数えたいなら `ret` ループで実カウント**する（`ex1`）。
+- **Q. 処理FPS が「数千fps」と出るが本当？** A. 合成フレームへの縮小/差分は非常に軽いので妥当。重い処理（深層モデル等）を挟むと一気に下がる。処理FPS は「**この処理の重さ**」の指標であって、ソースFPS（素材の属性）とは無関係です。
+- **Q. matplotlib で保存した図の色がおかしい。** A. `BGR` のまま `imshow` に渡している。`cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)` を挟む。グレー画像は `cmap="gray"` を付ける。
+- **Q. `cv2.error: ... function 'imshow'` で落ちる。** A. headless 版に `imshow`/`waitKey` は存在しない。表示は諦めて `imwrite`/`VideoWriter`/Agg 保存に統一する（本章は全スクリプトがこの方針）。
+- **デバッグの定石**: 動画I/Oの不具合は「①開けたか（`isOpened`）②読めたか（`ret`）③サイズは合っているか（`shape` と `(W,H)`）④色順は合っているか（BGR/RGB）」の4点を順に print すれば、ほぼ切り分けられます。外部ツールが使える環境なら `ffprobe <file>` でコンテナ/コーデック/解像度/総数を一次情報として確認するのも早道です。
+
+## 🚀 発展トピック・参考
+
+本章は「ファイルとして合成動画を読み書きする」ところまで。ここから先は次回以降で深掘りします。
+
+- **第10回 古典的動画処理**: 本章のフレーム差分を、`createBackgroundSubtractorMOG2`/`KNN` による背景差分や、Lucas-Kanade / Farneback の**オプティカルフロー**へ発展させる。ミニプロジェクトの「動体マスク」がそのまま入口になります。
+- **第11回 リアルタイム/ストリーム処理**: 実時間に追いつかせる定石（`cv2.resize(INTER_AREA)` での早期縮小・**Nフレームに1回だけ重い処理**・`cap.grab()`/`cap.retrieve()` での読み飛ばし）、`threading`＋`queue.Queue(maxsize=1)` の **producer/consumer でフレームをドロップ**して遅延蓄積を防ぐ構成、CPUバウンドは `multiprocessing` で分離、という現場の作法へ。
+- **Webカメラ/RTSP**: `cv2.VideoCapture(0)`（OSごとのバックエンド: Linux=V4L2 / macOS=AVFOUNDATION / Windows=DSHOW・MSMF）、RTSP は `cv2.CAP_FFMPEG`＋環境変数 `OPENCV_FFMPEG_CAPTURE_OPTIONS=rtsp_transport;tcp`、低遅延化に `CAP_PROP_BUFFERSIZE=1`。ライブ配信URLの解決には `yt-dlp`。
+- **精密なコーデック/タイムスタンプ制御**: OpenCV で扱いにくい領域は **PyAV（`av.open`→`container.decode`→`frame.to_ndarray`、wheel に FFmpeg 同梱で system 不要）**や `imageio[ffmpeg]`、`subprocess` での `ffmpeg`/`ffprobe` 連携へ。`H264('avc1')` はライセンス次第で使えないことがあるため、移植性重視なら `mp4v`/`XVID` を既定にする。
+- **公式ドキュメント**: [VideoCapture](https://docs.opencv.org/4.x/d8/dfe/classcv_1_1VideoCapture.html) ／ [VideoWriter](https://docs.opencv.org/4.x/dd/d9e/classcv_1_1VideoWriter.html) ／ [opencv-python の配布形態](https://github.com/opencv/opencv-python)（full と headless の違い）。
+
+---
+
 ## 動かし方
 
 すべて CPU・ネット非依存・カメラ不要・追加依存なしで動きます（サンプル動画は各スクリプトが `numpy`/`cv2` で合成生成します）。リポジトリのルートで以下を順に実行してください。結果はすべて `outputs/09_video_io_basics/` に画像・動画として保存され、画面表示はしません（headless 安全）。
@@ -165,13 +240,18 @@ uv run python lectures/09_video_io_basics/01_videocapture_loop.py
 # 2) メタデータ取得（CAP_PROP・FOURCC デコード）と POS_FRAMES シーク
 uv run python lectures/09_video_io_basics/02_capprops_seek.py
 
-# 3) VideoWriter 書き出し + 処理FPS計測（この回の完成物）
+# 3) VideoWriter 書き出し + 処理FPS計測（基本の完成物）
 uv run python lectures/09_video_io_basics/03_videowriter.py
 
-# 演習（TODO を実装 → 自己採点。未実装でも FAIL 表示で正常終了する）
+# 4) 章末ミニプロジェクト（動体ハイライト統合パイプライン＋JSONレポート）
+uv run python lectures/09_video_io_basics/mini_project.py
+
+# 演習（TODO を実装 → 自己採点。未実装でも FAIL 表示で正常終了する。全9問）
 uv run python lectures/09_video_io_basics/exercises.py
 # 行き詰まったら模範解答で挙動を確認（まずは自力で！）
 SHOW_SOLUTION=1 uv run python lectures/09_video_io_basics/exercises.py
+# 模範解答だけを直接実行して全PASSを確認することもできる
+uv run python lectures/09_video_io_basics/exercises_solutions.py
 ```
 
 実行後は `outputs/09_video_io_basics/` の成果物を順に開いて、本文の確認ポイントと照らし合わせてください。特に `01_bgr_vs_rgb.png`（BGR/RGB の崩れ）、`02_seek_grid.png`（シーク先の円の位置とフレーム番号の一致）、`03_fps_plot.png`（処理FPS が ソースFPS を上回る様子）、`03_processed.mp4`（再書き出しした縮小動画）を見ると、各節の内容が一気に腑に落ちます。`cv_helpers.py` を単体で実行すると、合成動画の「書き出し→読み戻し」が一周するスモークテストになります。
@@ -184,5 +264,5 @@ SHOW_SOLUTION=1 uv run python lectures/09_video_io_basics/exercises.py
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
-> Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13.0.92（`cv2` 4.13.0、VideoCapture/VideoWriter は FFmpeg 同梱・本体機能で contrib 不要）／ Pillow 12.2.0 ／ matplotlib 3.10.x（Agg バックエンドで画面非依存に保存）
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
+> Python 3.12 ／ numpy 2.4 ／ opencv-python-headless 4.13（`cv2` 4.13.0、VideoCapture/VideoWriter は FFmpeg 同梱・本体機能で contrib 不要）／ Pillow 12.2 ／ matplotlib 3.10（Agg バックエンドで画面非依存に保存）

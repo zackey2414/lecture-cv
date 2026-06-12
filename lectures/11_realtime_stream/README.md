@@ -163,7 +163,9 @@ while good < target_good:
 | `02_frameskip_grab_retrieve.py` | 早期縮小(INTER_AREA)・フレームスキップ・grab/retrieve を実測比較（消化レート/p50/p99） |
 | `03_threaded_capture.py` | producer/consumer スレッド分離、maxsize=1＋put_nowait ドロップ、齢の比較、(任意)multiprocessing |
 | `04_rtsp_youtube_stream.py` | 再接続ループ＋指数バックオフ、RTSP低遅延設定、yt-dlp 解決、CV_CAM/CV_RTSP/CV_YOUTUBE ガード |
-| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `mini_project.py` | **章末ミニプロジェクト**: 背景差分→CPU最適化→スレッド分離+ドロップ→プロファイルを1本に統合したリアルタイム動体検出ストリーム |
+| `exercises.py` | TODO 形式の演習10問（易→難。自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `exercises_solutions.py` | 演習の完全な模範解答（実行すると全10問 PASS。採点ロジックは `exercises.py` を再利用） |
 
 表の通り、`stream_helpers.py` だけは「読み物」ではなく「再利用する道具」です。中身も厚くコメントしてあるので、最初に一読してから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。とりわけ `synthetic_frames`（静止背景＋動く円＋ノイズ）が、背景差分・最適化・スレッド・再接続のすべての練習台になっている点に注目してください。
 
@@ -181,10 +183,15 @@ uv run python lectures/11_realtime_stream/02_frameskip_grab_retrieve.py
 uv run python lectures/11_realtime_stream/03_threaded_capture.py
 uv run python lectures/11_realtime_stream/04_rtsp_youtube_stream.py
 
-# 演習: まずは TODO を自分で埋める（最初は全部 FAIL）
+# 章末ミニプロジェクト: この回の学びを統合したリアルタイム動体検出ストリーム
+uv run python lectures/11_realtime_stream/mini_project.py
+
+# 演習: まずは TODO を自分で埋める（最初は全部 FAIL）。全10問・易→難
 uv run python lectures/11_realtime_stream/exercises.py
 # どうしても分からない時だけ、模範解答の挙動を見る
 SHOW_SOLUTION=1 uv run python lectures/11_realtime_stream/exercises.py
+# 完全な模範解答（実行すると全10問 PASS）
+uv run python lectures/11_realtime_stream/exercises_solutions.py
 
 # （任意）プロセス分離(GIL回避)のデモも試す
 CV_MP=1 uv run python lectures/11_realtime_stream/03_threaded_capture.py
@@ -222,5 +229,77 @@ CV_YOUTUBE=https://...  uv run python lectures/11_realtime_stream/04_rtsp_youtub
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
+## 🛠 章末ミニプロジェクト — CPUだけで成立させるリアルタイム動体検出ストリーム
+
+ここまでの部品（背景差分・CPU最適化・スレッド分離＋ドロップ・性能プロファイル）を **1 本のストリームアプリ**に統合する総合課題です。`mini_project.py` を実行すると、合成フレーム（静止背景の上を円が動く）を入力に、次の 4 ステージが順に走ります。
+
+1. **STAGE 1 — 動体検出パイプライン**: 早期 `resize(INTER_AREA)` → `MOG2` 背景差分 → モルフォロジ掃除（影127除去＋open/close）→ 輪郭→外接矩形、という検出の一連を回し、十分に学習済みのフレームを `[入力 | 掃除後マスク | 検出枠]` の 3 枚パネルで保存する。
+2. **STAGE 2 — CPU 最適化（同期・決定的）**: 「原寸・毎フレーム」と「早期縮小＋3枚に1回」を同じ入力で回し、**ストリーム消化レート [frames/s]** と検出段レイテンシ（p50/p99）を比較する。縮小＋スキップで不要な重い検出を省けるぶん、消化レートが上がることを数値で確認する。
+3. **STAGE 3 — スレッド分離＋フレームドロップ**: 一定間隔でフレームを供給する producer スレッドに対し、「**無制限キュー（捨てない）**」と「**`maxsize=1` ＋ `put_nowait`（最新だけ）**」の 2 つの consumer 戦略を走らせ、各フレームの**齢（age＝生成→処理の遅れ）**とドロップ率を比較する。consumer は実際に背景差分検出を行い、下流の重い推論コストも模擬する。
+4. **STAGE 4 — プロファイル出力**: p50/p99 レイテンシ・処理FPS(EMA)・ドロップ率を JSON とまとめ図に書き出す。
+
+この課題は「固定/移動カメラの映像から動体を低遅延で検出し続ける」という、防犯・監視・入退室カウントなどの最小核です。入力を Webカメラ・動画ファイル・RTSP・ライブ配信に差し替えれば、同じ骨格（取得と処理を分け、キューでつなぎ、満杯なら落とす）がそのまま実運用で効きます。これは最終章（第40・41回）の Cluster-CLIP ストリームパイプラインへ直結する部品でもあります。
+
+**到達の目安**: STAGE2 で「縮小＋スキップ」の消化レートが「原寸・毎フレーム」を上回ること。STAGE3 で**無制限キューの齢が右肩上がりに増える**一方、**ドロップ版の齢はほぼ一定に保たれる**（その代わり一定割合のフレームを捨てる）こと。出力は `outputs/11_realtime_stream/` に以下が保存されます。
+
+| 生成物 | 内容 |
+| --- | --- |
+| `mini_project_detection.png` | 背景差分の検出サンプル（入力／掃除後マスク／検出枠 の3枚パネル） |
+| `mini_project_cpu_opt.png` | 原寸毎フレーム vs 縮小＋スキップ の消化レート棒グラフ |
+| `mini_project_latency.png` | 無制限キュー（右肩上がり）vs ドロップ（横ばい）の齢の折れ線 |
+| `mini_project_summary.png` | 上記＋数値サマリを 1 枚に並べたまとめ図 |
+| `mini_project_metrics.json` | 検出数・消化レート・p50/p99・平均齢・ドロップ率・処理FPS(EMA) の数値ログ |
+
+```bash
+uv run python lectures/11_realtime_stream/mini_project.py
+cat outputs/11_realtime_stream/mini_project_metrics.json
+```
+
+## ✅ 到達チェックリスト
+
+この章を終えたら、次が**できる／説明できる**ことを確認してください。
+
+- [ ] **ソースFPS と処理FPS** の違いを説明し、`処理FPS ≥ ソースFPS` でないとレイテンシが蓄積する、という不等式を言える。
+- [ ] `cv2.createBackgroundSubtractorMOG2/KNN` の `apply()` で前景マスクを作り、**warm-up（序盤は前景だらけ）と影(127)** という2つの癖を説明できる。
+- [ ] 生マスクを **`threshold(>200)`→`MORPH_OPEN`→`MORPH_CLOSE`** で掃除し、`findContours`（4系は**2つ返し**）＋`contourArea`＋`boundingRect` で動体の外接矩形を取れる。
+- [ ] **早期縮小（`INTER_AREA`）・フレームスキップ・grab/retrieve** の3定石を、それぞれ「何を省くのか」とともに説明し、消化レートの変化を実測で示せる。
+- [ ] `cap.grab()` が**安価（デコードしない）**で `cap.retrieve()` が**デコードする**こと、両者の使い分け（古いフレームの安価な読み飛ばし）を説明できる。
+- [ ] producer/consumer のスレッド分離が効くのは **`read()` が I/O 待ちで GIL を解放するから**だと説明できる。
+- [ ] `queue.Queue(maxsize=1)` ＋ `put_nowait`／`queue.Full` で**満杯時に新フレームを捨てる**ドロップを自力で書き、「齢を一定に保つ代わりにドロップ率が上がる」交換を数値で示せる。
+- [ ] **CPUバウンド処理は GIL のためスレッドでは並列化しない**こと、その場合は `multiprocessing`（`spawn` 明示・配列は pickle コピー）で分離する、と判断できる。
+- [ ] RTSP の低遅延設定（**`OPENCV_FFMPEG_CAPTURE_OPTIONS=rtsp_transport;tcp` は作る前に設定**・`CAP_FFMPEG`・`CAP_PROP_BUFFERSIZE=1`）を書ける。
+- [ ] **再接続ループ＋指数バックオフ**を書き、「ライブ入力に総数は当てにできない」「連続失敗が閾値を超えたら諦める」を実装できる。
+- [ ] **p50/p99・EMA・ドロップ率**で律速段を特定し、「測ってから直す」を実践できる。ミニプロジェクトを実行し、2つの比較図を自分の言葉で説明できる。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+実装中に詰まったら、まずここを見てください（第10節の症状別チェックリストと併せて参照）。多くの不具合は次の数個の原因に集約されます。
+
+- **Q. スレッド分離したのに全く速くならない。** A. ボトルネックが **CPUバウンドな計算**なら、GIL のためスレッドでは並列化しません。スレッドが効くのは `read()`/デコードのような **I/O 待ち**だけ。計算が重いなら `multiprocessing` でプロセス分離します（ただし配列の pickle コピー代に注意し、渡す前に縮小する）。
+- **Q. `put_nowait` でドロップしているのに表示がどんどん遅れる。** A. キューの `maxsize` が大きすぎる（実質ドロップしていない）か、**ドロップしているのは入口だけで内部バッファ（`CAP_PROP_BUFFERSIZE`）が溜めている**可能性。カメラ/RTSP では `BUFFERSIZE=1`、または `grab()` で溜まったフレームを安価に読み飛ばしてから `retrieve()` します。
+- **Q. 背景差分の序盤が画面まっ白（全部前景）。** A. **warm-up** です。最初の数十フレームは背景が未学習なので前景だらけになります。`history` ぶんのフレームを流して学習が進んでから結果を使う、もしくは序盤を捨てます。
+- **Q. 前景マスクに灰色(127)が混じる／影が物体として検出される。** A. `detectShadows=True` のとき影は **127** で返ります。`threshold(raw, 200, 255, THRESH_BINARY)` で 255 だけ残して 2 値化してから後段に渡します。
+- **Q. `findContours` が `ValueError: too many values to unpack` で落ちる。** A. OpenCV **3 系向けの 3 つ返し**サンプルです。4 系は `contours, hierarchy = cv2.findContours(...)` の**2つ返し**です。
+- **Q. `cv2.VideoWriter` で動画を書いたのに 0 バイト／壊れている。** A. **出力サイズ (W,H) が write するフレームと 1px でも違う**と、エラーも出ずに壊れます。`write` 前に `resize` でサイズを合わせ、`writer.isOpened()` を必ず確認。移植性重視なら `mp4v`(.mp4) か `XVID`(.avi)。
+- **Q. `cv2.imshow` を呼んだらフリーズ／プロセスごと落ちた。** A. headless 環境（Docker/CI/`opencv-python-headless`）には GUI バックエンドがありません。本章のように `imwrite`／`VideoWriter`／`imencode`(MJPEG配信) で確認します。ローカルで見たいときだけ `opencv-python`(GUI版) に差し替え（両者は排他）。
+- **Q. RTSP 接続がカクつく／フレームが壊れる。** A. UDP のパケロスです。`OPENCV_FFMPEG_CAPTURE_OPTIONS=rtsp_transport;tcp` を **`VideoCapture` を作る前に**設定し、`cv2.CAP_FFMPEG` を明示、`CAP_PROP_BUFFERSIZE=1` で溜め込みを防ぎます。
+- **Q. ライブ入力で `for i in range(total)` が終わらない／途中で壊れる。** A. `CAP_PROP_FRAME_COUNT` はライブで **0/不正値**になり得ます。総数に頼らず `ret` 判定だけで回し、終了は「目標枚数」か「連続失敗の give-up」で決めます。
+- **Q. 再接続ループが無限に回り続ける。** A. **切断とストリーム終端を区別していない**からです。連続失敗回数が閾値を超えたら「ストリーム断」と判断して諦め（give-up）、指数バックオフ（上限つき）で再接続の連打も避けます。
+- **Q. `multiprocessing` が mac/Windows で `RuntimeError`／子プロセスが暴走。** A. `mp.get_context("spawn")` を明示し、エントリを `if __name__ == "__main__":` で守ります。`daemon=True` ＋ 後始末の `terminate()` でハングも防ぎます。
+- **Q. matplotlib の図で日本語が豆腐(□)になる／色が反転する。** A. 図中の文字は **ASCII** にします（本章はそうしている）。色は cv2 が **BGR**、matplotlib/PIL は RGB なので `cv2.cvtColor(img, COLOR_BGR2RGB)` を挟みます。
+
+## 🚀 発展トピック・参考
+
+- **「古い方を捨てる」ドロップ**: 本章は `put_nowait` で**新しい方を捨てる**実装ですが、最新追従を最優先するなら「一度 `get` してから `put`」で**古い方を捨てる**流派もあります。`queue.Queue` ではなく `collections.deque(maxlen=1)` を使うと、満杯時に自動で最古要素が押し出されるので簡潔に書けます。
+- **共有メモリでコピーを省く**: `multiprocessing` で大きな numpy 配列を高頻度に渡すと pickle 化がボトルネックになります。`multiprocessing.shared_memory.SharedMemory` やリングバッファでゼロコピー受け渡しにすると効きます（本番ストリームの定石）。
+- **PyAV / imageio で精密なデコード**: OpenCV で扱いにくいタイムスタンプ・ピクセルフォーマット制御は `av`（FFmpeg 同梱・system 不要）の `av.open → container.decode → frame.to_ndarray` が向きます。`imageio[ffmpeg]` は RGB フレームを手軽にイテレートできます。
+- **ハードウェアデコード（任意・上級）**: PyPI の `opencv-python(-headless)` は **CUDA 無効ビルド**で `cv2.cuda.*` は使えません。HWデコード（Mac=VideoToolbox / NVIDIA=NVDEC）は FFmpeg/PyAV 経由で使えますが、本章のソフトウェアデコード経路は全環境で動きます。実時間性はGPUより「**解像度を下げる・スキップ・スレッド/プロセス分離**」で決まります。
+- **vidgear / GStreamer**: `vidgear`（0.3.5）は OpenCV/FFmpeg 上にスレッド化キャプチャや配信を被せたラッパで、再接続・低遅延の定型を肩代わりしてくれます。より低レベルに詰めるなら GStreamer パイプライン（`appsink`）を `cv2.VideoCapture` の backend に使う構成もあります。
+- **yt-dlp の運用**: ライブ配信URLの解決（`yt-dlp -g`）はサイト仕様変更で**頻繁に壊れる**ため、バージョン固定のまま放置せず定期更新が前提です。Docker でホストのWebカメラを使うには `--device=/dev/video0` が要ります。
+- **本番パイプラインの実例**: Cluster-CLIP の `stream/capture.py`（`put_nowait` による即ドロップ）と `profiler.py`（ステージ別 p50/p99）は、本章の骨格をそのまま実運用に拡張したものです。より体系的なプロファイリングは第34回で深掘りします。
+- 参考ドキュメント: OpenCV `VideoCapture` https://docs.opencv.org/4.x/d8/dfe/classcv_1_1VideoCapture.html ／ 背景差分チュートリアル https://docs.opencv.org/4.x/d1/dc5/tutorial_background_subtraction.html ／ PyAV https://pyav.org/docs/stable/ ／ Python `queue`・`multiprocessing` 標準ライブラリ。
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
 > Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13.0.92（`cv2` 4.13.0）／ Pillow 12.2.0 ／ matplotlib 3.10.9 ／（任意）av 17.1.0・yt-dlp は実ライブ接続時のみ

@@ -203,9 +203,24 @@ camshift はもともと**顔・手の追跡**（肌色ヒストグラムで顔�
 
 この表の項目が、本章で時間を取られる原因のほぼ全てです。逆にこれらを自分で説明でき・回避コードを書けるようになれば、この章のゴールに到達しています。
 
+## スクリプト一覧
+
+このモジュールは次のファイルで構成されます。`cv_helpers.py` だけは「読み物」ではなく「合成データを作る道具」で、すべてのスクリプト・演習・ミニプロジェクトが共有します。最初に一読しておくと、各スクリプトがどんな映像を相手にしているかが腑に落ちます。
+
+| ファイル | 扱う内容 |
+| --- | --- |
+| `cv_helpers.py` | 合成データ生成（静止背景・動く物体の連番フレーム・既知シフトのペア・緑円の初期窓）、フロー HSV 可視化、EPE、出力先管理 |
+| `01_frame_diff_bgsub.py` | フレーム差分／静止背景差分／MOG2・KNN 背景差分、形態学、輪郭→外接矩形、影分離 |
+| `02_optical_flow_lk.py` | `goodFeaturesToTrack`＋`calcOpticalFlowPyrLK`、`status` の取り出し、軌跡描画、動/静の切り分け |
+| `03_optical_flow_farneback.py` | `calcOpticalFlowFarneback`、HSV 配色・矢印可視化、既知シフトでの終点誤差 EPE、カラーホイール凡例 |
+| `04_meanshift_camshift.py` | 色相ヒストグラム＋`calcBackProject`、`meanShift`（固定窓）と `CamShift`（サイズ・回転追従）の対比 |
+| `mini_project.py` | 章末ミニプロジェクト（背景差分→疎フロー→密フロー→色追跡を1ループに統合した総合動き解析。動画＋まとめ図＋JSON を出力） |
+| `exercises.py` | TODO 形式の演習 9 問（自己採点付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
+| `exercises_solutions.py` | 演習 9 問の完全な模範解答（実行すると全 PASS を assert で保証） |
+
 ## 動かし方
 
-すべて CPU・ネット非依存・カメラ不要・追加依存なしで動きます（サンプルの連番フレームは各スクリプトが `numpy`/`cv2` で合成生成します）。リポジトリのルートで以下を順に実行してください。結果はすべて `outputs/10_classical_video_motion/` に画像として保存され、画面表示はしません（headless 安全）。
+すべて CPU・ネット非依存・カメラ不要・追加依存なしで動きます（サンプルの連番フレームは各スクリプトが `numpy`/`cv2` で合成生成します）。リポジトリのルートで以下を順に実行してください。結果はすべて `outputs/10_classical_video_motion/` に画像・動画・JSON として保存され、画面表示はしません（headless 安全）。
 
 ```bash
 # 0) 共通ヘルパ単体（合成フレーム生成・各APIのスモークテスト）
@@ -223,10 +238,15 @@ uv run python lectures/10_classical_video_motion/03_optical_flow_farneback.py
 # 4) meanshift / camshift（色ヒストグラム追跡・サイズ追従）
 uv run python lectures/10_classical_video_motion/04_meanshift_camshift.py
 
+# 章末ミニプロジェクト（4手法を統合した総合動き解析。動画・まとめ図・指標JSONを出力）
+uv run python lectures/10_classical_video_motion/mini_project.py
+
 # 演習（TODO を実装 → 自己採点。未実装でも FAIL 表示で正常終了する）
 uv run python lectures/10_classical_video_motion/exercises.py
 # 行き詰まったら模範解答で挙動を確認（まずは自力で！）
 SHOW_SOLUTION=1 uv run python lectures/10_classical_video_motion/exercises.py
+# 完全な模範解答（全 9 問 PASS を assert で確認）
+uv run python lectures/10_classical_video_motion/exercises_solutions.py
 ```
 
 実行後は `outputs/10_classical_video_motion/` の画像を順に開いて、本文の確認ポイントと照らし合わせてください。特に `01_framediff_mask.png`→`01_mog2_boxes.png`（縁だけ→頑健な動体検出へ）、`02_lk_tracks.png`（動く点だけ長い軌跡）、`03_farneback_hsv.png`↔`03_flow_color_wheel.png`（色＝向きの読み方）、`04_meanshift_trace.png`↔`04_camshift_snapshots.png`（窓サイズ固定 vs 追従）を見比べると、各節の内容が一気に腑に落ちます。
@@ -239,5 +259,76 @@ SHOW_SOLUTION=1 uv run python lectures/10_classical_video_motion/exercises.py
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
-> Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13.0.92（`cv2` 4.13.0、背景差分 MOG2/KNN・オプティカルフロー・meanShift/CamShift はすべて本体同梱・contrib 不要）／ Pillow 12.2.0 ／ matplotlib 3.10.x（Agg バックエンドで保存）
+## 🛠 章末ミニプロジェクト — 合成動画の総合「動き解析レポート」
+
+ここまでの四本柱（**背景差分・疎フロー LK・密フロー Farnebäck・色追跡 CamShift**）を、**1 本のパイプライン**に統合する総合課題です。`mini_project.py` を実行すると、合成した連番フレームに対して次が一気に走ります。これは「読み物」ではなく**完成形**——実運用では `make_motion_frames()` を実カメラの `VideoCapture` ループに差し替えれば、そのまま「固定カメラの動体検出＋追跡」のひな形になります。
+
+1. **背景差分（MOG2）**: 各フレームを `apply` して背景モデルを育てつつ前景マスクを得て、影（127）を落とし、形態学で整え、輪郭→外接矩形で**動体を緑枠**にする。
+2. **疎フロー（LK）**: 1 枚目で選んだ角を全フレーム `calcOpticalFlowPyrLK` で追跡し、`status==1` の点だけ残して**軌跡**を描き、現フレームの点を**青点**で重ねる。
+3. **密フロー（Farnebäck）**: 既知シフトのペアで**終点誤差 EPE** を測り（合成なので真値が分かる）、シーンのフローを **HSV 配色**で可視化する。
+4. **色追跡（CamShift）**: 緑円の色ヒストグラムを作り、`calcBackProject` の確率マップ上で**回転矩形（黄枠）**を追従させ、**窓面積の成長率**を数値化する（半径が増えるので 1.0 超になる）。
+5. **統合可視化＋計測**: 各フレームに「動体枠＋LK 点＋追跡窓」を重ねた**動画**を `VideoWriter`（`mp4v`）で書き出し、`time.perf_counter` と移動平均で**処理 FPS**（ソース FPS とは別物）を測る。
+
+`digit` 始まりの 01〜04 は import できないため、各アルゴリズムの核心は `mini_project.py` 内に**自己完結**で実装しています（合成データ生成と可視化部品だけ `cv_helpers` から借用）。
+
+**到達の目安**: 既知シフト `(6, 3)` の EPE がほぼ 0（合成を正しく復元）、CamShift の窓成長率が概ね 2 倍以上（円の拡大に追従）、背景差分が動く 2 物体を概ね拾うこと。出力は `outputs/10_classical_video_motion/` に以下が保存されます。
+
+| 生成物 | 内容 |
+| --- | --- |
+| `mini_project_overlay.mp4` | 全フレームに動体枠＋LK 点＋CamShift 窓＋処理FPS を重ねた統合動画（`VideoWriter` が開けない環境では連番 PNG にフォールバック） |
+| `mini_project_overlay_key*.png` | 要所（最初・中間・最後）のフレームを静止画でも保存 |
+| `mini_project_flow_hsv.png` | シーンの密フローを HSV 配色で可視化した 1 枚 |
+| `mini_project_summary.png` | 前景マスク・LK 軌跡・密フロー・統合オーバレイを 2×2 で並べたまとめ図 |
+| `mini_project_metrics.json` | 動体数・追跡点数・EPE・窓成長率・処理 FPS の数値ログ |
+
+```bash
+uv run python lectures/10_classical_video_motion/mini_project.py
+cat outputs/10_classical_video_motion/mini_project_metrics.json
+```
+
+## ✅ 到達チェックリスト
+
+この章を終えたら、次が**できる／説明できる**ことを確認してください。
+
+- [ ] `cv2.absdiff` でフレーム差分を取り、差分が**物体の縁だけ**に出て中身に穴が空く理由を説明できる。
+- [ ] 「静止背景固定」方式が**背景変化・ゴースト**で破綻することを示し、**MOG2/KNN** が履歴から背景を学ぶ利点を説明できる。
+- [ ] 背景差分器を**フレーム順に `apply`** して慣らし運転が要ること、`detectShadows=True` の影（127）を閾値で落とす定石を書ける。
+- [ ] `findContours` が OpenCV 4 系では **2 つ返し** `(contours, hierarchy)` であることを踏まえ、面積で動体を数え外接矩形を描ける。
+- [ ] **輝度一定仮定**と**開口問題**を説明し、なぜ追跡に**角（コーナー）**が向くかを `goodFeaturesToTrack` と結びつけられる。
+- [ ] `calcOpticalFlowPyrLK` の返り値 `(p1, status, err)` から **`status==1` の点だけ残す**鉄則を書け、軌跡を描ける。
+- [ ] `calcOpticalFlowFarneback` で全画素フローを求め、`cartToPolar`→**HSV 配色**（色=向き / 明度=大きさ）で可視化できる。
+- [ ] **終点誤差 EPE** の定義を述べ、合成（既知シフト）でのみ真値と比較できる理由を説明できる。
+- [ ] `calcBackProject` で色らしさの確率マップを作り、`meanShift`（**窓固定**）と `CamShift`（**サイズ・回転追従**）の差を説明できる。
+- [ ] 色追跡が**背景の似た色に引っ張られる**弱点と、`inRange` で低 S/V を捨て H だけでヒストを作る前処理を説明できる。
+- [ ] ミニプロジェクトを実行し、**動体数・EPE・窓成長率・処理 FPS** で動き解析の良し悪しを数値で確認できる。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+実装中に詰まったら、まずここを見てください。多くの不具合はこの数個の原因に集約されます（第12節の症状別チェックリストと併せて参照）。
+
+- **Q. フレーム差分のマスクが物体の輪っかだけになる。** A. 仕様です。連続 2 枚の差分は**動いた縁**しか出ず、内部は色が同じで差 0 になります。中身まで取りたければ**背景差分（MOG2/KNN）**へ、または `MORPH_CLOSE` で穴埋めします。
+- **Q. 背景差分の前景が最初だけ全面真っ白／ノイズだらけ。** A. 背景モデルの**慣らし運転前**です。フレームを順に `apply` して数枚で安定します。1 枚だけ渡しても背景は学習されません。影（127）を前景に含めている場合は `threshold(.., 200, 255, ..)` で落とします。
+- **Q. `cv2.findContours` で `ValueError: not enough values to unpack`。** A. OpenCV 4 系は **2 つ返し** `(contours, hierarchy)` です。3 系向けの 3 つ返しサンプルをそのまま使うと落ちます。`contours, _ = cv2.findContours(...)` と受けます。
+- **Q. LK の軌跡が突然飛ぶ・暴れる。** A. **見失った点（`status==0`）を使い続けています**。`p1[status.ravel()==1]` で追えた点だけ残し、次の起点に更新します。点が減ったら `goodFeaturesToTrack` で補充します。
+- **Q. LK が動きをほとんど拾わない。** A. のっぺりした領域に点を置いた（**開口問題**）か、動きが大き過ぎます。`goodFeaturesToTrack` で角を選び、`winSize`/`maxLevel` を上げてピラミッドを深くします。
+- **Q. `calcOpticalFlowFarneback` で `(-215) ... type` エラー。** A. **カラー画像を渡しています**。Farnebäck は**グレースケール**入力が必須。`cv2.cvtColor(..., COLOR_BGR2GRAY)` してから渡します。
+- **Q. HSV フロー図の色が変・赤青が反転する。** A. `flow_to_bgr` の最後で `HSV2BGR` を忘れたか、matplotlib に BGR のまま渡しています。可視化は `cvtColor(hsv, HSV2BGR)`、matplotlib には `BGR2RGB` してから渡します。
+- **Q. meanShift の窓が対象より小さいまま大きくならない。** A. meanShift は**窓サイズ固定**です。拡縮に追従させたいなら `cv2.CamShift`（回転矩形）を使います。
+- **Q. 色追跡が背景に吸い寄せられる。** A. 背景に対象と似た色があるか、S/V の低い画素を色モデルに含めています。`inRange` で低彩度・低明度を除外し、**色相 H だけ**でヒストを作ります。バックプロジェクションを `GaussianBlur` で平滑化してから最尤位置を取ると孤立点に釣られにくくなります。
+- **Q. `VideoWriter` で空／壊れた動画ができる、あるいは何も書けない。** A. 出力サイズ `(W, H)` が書き込むフレームと 1px でも食い違うと無言で壊れます。`writer.isOpened()` を必ず検証し、`mp4v`＋`.mp4` か `XVID`＋`.avi` の移植性の高い組み合わせを使い、最後に `release()` します。
+- **Q. `cv2.imshow` で固まる／エラーになる。** A. headless 版に `imshow` はありません。`cv2.imwrite`・`VideoWriter`・matplotlib(Agg) で**保存して確認**します。
+
+## 🚀 発展トピック・参考
+
+- **KNN 背景差分・GSOC/LSBP（contrib）**: 本章は本体同梱の MOG2/KNN を使いましたが、`opencv-contrib` には `bgsegm` の GSOC・LSBP などより新しい背景差分があります。同じ `apply` 形式で差し替え比較すると、頑健性とコストのトレードオフが見えます。
+- **疎フローの点補充戦略**: LK は遮蔽・速い動きで点を失います。一定数を切ったら `goodFeaturesToTrack` で**再検出して補充**する、グリッド上に強制配置する、といった運用で長時間追跡が安定します。
+- **密フローの軽量化**: Farnebäck は重いので、`pyr_scale`/`levels`/`winsize` を下げる、入力を `INTER_AREA` で縮小する、`flags=OPTFLOW_FARNEBACK_GAUSSIAN` を試す、N フレームに 1 回だけ計算する、などで CPU 実時間に寄せられます（第11回の最適化に直結）。
+- **DIS オプティカルフロー**: `cv2.DISOpticalFlow_create()` は Farnebäck より速く品質の良い密フローで、CPU 実時間用途で有力です。同じ HSV 可視化に載せて比較すると違いが分かります。
+- **EPE 以外の指標**: フロー評価には EPE の他に **Fl-all**（誤差 3px かつ 5% 超の割合）など KITTI/Sintel 系の指標があります。第27回の深層フロー RAFT で、ベンチマークデータ上の定量比較として再登場します。
+- **CSRT/KCF 単一物体トラッカ**: 色だけに頼る meanshift/camshift より頑健な古典トラッカ（`cv2.legacy.TrackerKCF_create` 等、contrib 同梱）。検出器なしで 1 物体を追う用途で、camshift の次のステップになります。
+- 参考ドキュメント: OpenCV 公式チュートリアル「Optical Flow」 https://docs.opencv.org/4.x/d4/dee/tutorial_optical_flow.html ／「Meanshift and Camshift」 https://docs.opencv.org/4.x/d7/d00/tutorial_meanshift.html ／「Background Subtraction」 https://docs.opencv.org/4.x/d1/dc5/tutorial_background_subtraction.html
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
+> Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13.0.92（`cv2` 4.13.0、背景差分 MOG2/KNN・オプティカルフロー・meanShift/CamShift・VideoWriter はすべて本体同梱・contrib 不要）／ Pillow 12.2.0 ／ matplotlib 3.10.9（Agg バックエンドで保存）。torch は本章では未使用（深層フローは第27回で torch 2.12+cpu を使用）。

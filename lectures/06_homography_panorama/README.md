@@ -189,9 +189,93 @@ score = ssim(gray_ref_masked, gray_aligned_masked)   # 1 に近いほど一致
 
 この表の 8 項目が、本章で時間を取られる原因のほぼ全てです。逆にこれらを自分で説明でき・回避コードを書けるようになれば、この章のゴールに到達しています。
 
+## 🛠 章末ミニプロジェクト — 4枚パノラマ + 平面物体のまっすぐ化 + 品質レポート
+
+ここまでの部品（特徴マッチ → `findHomography(RANSAC)` → 再投影誤差 → キャンバス計算 → `warpPerspective` → フェザー合成 → ホモグラフィの合成 → `cv2.Stitcher` 比較 → SSIM 評価 → 平面物体の位置合わせ）を、**1 本のパイプラインに統合する総合課題**が `mini_project.py` です。この章の学びが「個別の関数」ではなく「つながった一連の処理」として手に入っているかを、実際に動く完成形で確認します。
+
+`mini_project.py` が行うことは次の 5 段です（すべて CPU・合成データ・ネット/カメラ不要・headless 安全）。
+
+1. **[A] 4 視点を合成**: 同じ平面シーンを左→右に少しずつ首を振って撮った 4 枚 `mp_view_0..3.png` を生成。
+2. **[B] 手作りパノラマ**: 4 枚を順次つないで `mp_panorama_manual.png` を作り、**ペアごとのインライア数・先頭ペアの再投影誤差・インライア比**を数値化。
+3. **[C] `cv2.Stitcher` と比較**: 自動合成 `mp_panorama_stitcher.png` を作り、手作り版との**重なり領域 SSIM** を測る（採用モード・サイズ・所要時間も記録）。
+4. **[D] 平面物体のまっすぐ化**: 「書類カード」を散らかった背景に射影で貼り込み、テンプレート→シーンのマッチングで検出して四辺形を描き（`mp_document_detected.png`）、**逆ホモグラフィ `inv(H)` で正面へ復元**（`mp_document_rectified.png`）。元カードとの SSIM で「どれだけ元通りに戻せたか」を測る。
+5. **[E] レポート化**: 全指標を `mp_report.json` に、図を `mp_summary.png`（2×2 のまとめ）に保存。
+
+完成形を**読んで理解し、自分で拡張できる**ことが到達目標です。腕試しに次の発展課題へ挑戦してください。
+
+- 視点数を 4→6 に増やし、端の画像ほど累積誤差で SSIM が下がる様子を `mp_report.json` で観察する。
+- フェザー合成を**単純上書き**に差し替え、重なり境界のシームが SSIM に与える影響を比べる。
+- `dst_quad` を変えて書類をより浅い角度（強いパース）で貼り、再投影誤差と rectify SSIM の悪化を確かめる。
+- 書類復元（rectify）した正面画像に対し、第4回のしきい値処理を掛けて「スキャン風の白黒文書」に仕上げる。
+
+```bash
+uv run python lectures/06_homography_panorama/mini_project.py
+# → outputs/06_homography_panorama/ に mp_*.png と mp_report.json が出る
+```
+
+## ✅ 到達チェックリスト
+
+この章を「できた」と言うために、次を自分の言葉で説明し・コードで再現できるか確認してください。
+
+- [ ] アフィン変換（2×3, 自由度 6, 最低 3 点）とホモグラフィ（3×3, 自由度 8, **最低 4 点**）の違いと、それぞれの守備範囲を説明できる。
+- [ ] `cv2.findHomography(src, dst, cv2.RANSAC, thr)` の**向き**（`src→dst`）を意識して呼び、`H is None` を必ずチェックできる。
+- [ ] RANSAC が返す**インライア mask** の数・比を品質の一次指標として読み、`drawMatches` の `matchesMask` でインライアだけ可視化できる。
+- [ ] **再投影誤差**を `perspectiveTransform` で計算し、**インライアだけ**で測るべき理由を説明できる。
+- [ ] `perspectiveTransform` で四隅を写し、外接矩形から**キャンバスサイズと平行移動 `T`** を求められる。
+- [ ] `warpPerspective` が**原点始まり**である仕様を理解し、`T @ H` を渡して負座標の切れを防げる。
+- [ ] **フェザー（加重平均）ブレンド**で重なりのシームを消せる。重みマップも画素と同じ `H` で warp する理由を言える。
+- [ ] 3 枚以上を**ホモグラフィの合成 `M_i = M_{i-1} @ H_i`** で基準フレームへそろえ、順次合成の**累積誤差**に気づける。
+- [ ] `cv2.Stitcher` の `status` を確認して使い、手作りパイプラインとの**役割分担（バンドル調整・露出補正・マルチバンド合成）**を説明できる。
+- [ ] 逆ホモグラフィ `inv(H)` で平面物体を**正面へまっすぐ化**でき、`mini_project.py` を読み解いて拡張できる。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+**Q. パノラマが「ぐちゃぐちゃ」に歪む。まず何を疑う？**
+A. 9 割は (1) `H` の**向きが逆**、(2) **外れ値で `H` が破綻**、のどちらかです。デバッグ順は「① インライア数/比を表示（極端に少なければ対応が悪い）→ ② 再投影誤差をインライアのみで確認（大きければ `H` が悪い）→ ③ `src/dst` の順を確認」。本章の合成データでは健全時にインライア比 9 割・再投影誤差 1px 前後が出るので、それと比べると一目で異常が分かります。
+
+**Q. `warpPerspective` したら画像の左や上が切れる。**
+A. `warpPerspective` の出力は常に**原点 (0,0) 始まり**です。`H` が画像を負の座標へ動かすと、その部分は無言で捨てられます。四隅を `perspectiveTransform` で写して最小座標 `(x_min, y_min)` を求め、`T = [[1,0,-x_min],[0,1,-y_min],[0,0,1]]` を作って **`T @ H`** を渡し、キャンバスサイズも外接矩形から決めます（5・6 節）。
+
+**Q. 重なり境界に縦の段差（シーム）が出る。位置合わせは合っているのに。**
+A. それは推定の問題ではなく**合成（ブレンド）の問題**です。単純な上書きは露出差をそのまま境界に出します。フェザー（縁ほど軽い重みの加重平均）で溶かしてください。重要なのは**重みマップも画素と同じ `H` で warp する**こと（7 節）。`mp_summary.png` で naive と feather を見比べると効果が分かります。
+
+**Q. `findHomography` が `None` を返す。**
+A. 対応点が **4 未満**か、点が一直線に並ぶ（退化配置）かです。`cv2.imread` の `None` 戻りと同じ静かな罠なので、必ず `if H is None:` で受けます。良マッチ数を増やすには比率テストのしきい値を少し緩める（0.75→0.8）か、`ORB_create(nfeatures=...)` を増やします。
+
+**Q. 平面物体検出で枠が物体に張り付かず、1 点に潰れた四辺形になる。**
+A. 誤対応が多く、RANSAC が**少数の偽の合意**に乗ってしまった兆候です（インライアが数個だけ、なのに再投影誤差は小さい、という状態）。背景に物体と似た特徴（同じ文字など）が多いと起きます。対策は「物体側の特徴を強く・大きくする」「背景の競合特徴を減らす」「インライア数の**下限**（例: 15 以上）を設けて、満たさなければ検出失敗として扱う」。`mini_project.py` は背景を低周波（角の少ない）画像にして、書類カードを主役にしています。
+
+**Q. RANSAC の結果が実行ごとに微妙に変わる。**
+A. RANSAC は内部で乱数を使います。再現したいときはスクリプト冒頭で `cv2.setRNGSeed(0)` を呼びます（本章の全スクリプトがそうしています）。
+
+**Q. matplotlib に渡すと色が変（赤と青が入れ替わる）。**
+A. OpenCV は BGR、matplotlib は RGB です。`cv2.cvtColor(img, cv2.COLOR_BGR2RGB)` を挟んでから `imshow` してください。保存系も同様です。
+
+## 🚀 発展トピック・参考
+
+- **バンドル調整（bundle adjustment）**: 順次合成の累積誤差を、全画像のカメラパラメータを**まとめて**最適化して抑える手法。`cv2.Stitcher` が内部で行っているのはこれ。手作り版で端の画像がずれる原因の本質です。
+- **投影モデル（円筒・球面）**: 視野角が広い回転パノラマでは、平面に貼ると端が極端に引き伸ばされます。`Stitcher_PANORAMA` は円筒/球面に投影してこれを回避します。湾曲した仕上がりはこの投影の証拠。
+- **シーム探索（graph-cut seam finding）+ マルチバンド合成**: フェザーより高度な合成。継ぎ目を「目立たない経路」に通し（graph cut）、周波数帯ごとに別々に混ぜる（multi-band）ことで、動く物体や露出差にも強くなります。
+- **ロバスト推定の改良**: 素の RANSAC の上位版に **USAC / MAGSAC++**（`cv2.USAC_MAGSAC` を `findHomography` の `method` に指定可能）。外れ値が多い・しきい値設定が難しい場面で安定します。
+- **平面物体検出 → AR**: 本章の「テンプレートの四隅を `perspectiveTransform` で投影」は、平面マーカへ CG を重ねる AR の基礎そのもの。次に進むなら姿勢推定（`solvePnP`）へ。
+- **次章への接続**: ホモグラフィは「平面」を結ぶ変換でした。第7回のカメラキャリブレーション／ステレオでは、平面に限らない**一般の 3 次元**幾何（基本行列・基礎行列・エピポーラ拘束）へ進みます。本章の「対応点 → ロバスト推定 → 行列」の型がそのまま土台になります。
+- 参考: OpenCV 公式チュートリアル [Feature Matching + Homography](https://docs.opencv.org/4.x/d1/de0/tutorial_py_feature_homography.html) ／ [High level stitching API (Stitcher class)](https://docs.opencv.org/4.x/d8/d19/tutorial_stitcher.html) ／ [`findHomography` リファレンス](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html)。
+
 ## 動かし方
 
-すべて CPU・ネット非依存・追加依存なしで動きます（サンプル画像は各スクリプトが `numpy`/`cv2` で合成生成します）。リポジトリのルートで以下を順に実行してください。結果はすべて `outputs/06_homography_panorama/` に画像として保存され、画面表示はしません（headless 安全）。
+すべて CPU・ネット非依存・追加依存なしで動きます（サンプル画像は各スクリプトが `numpy`/`cv2` で合成生成します）。結果はすべて `outputs/06_homography_panorama/` に画像・JSON として保存され、画面表示はしません（headless 安全）。
+
+### 📂 スクリプト一覧
+
+| ファイル | 役割 | 主な出力 |
+| --- | --- | --- |
+| `cv_helpers.py` | 共通ヘルパ（合成シーン生成・ORB マッチ・推定/評価部品・SSIM）。単体実行でスモークテスト | `helper_view_*.png` |
+| `01_homography_ransac.py` | ホモグラフィ推定の核心（RANSAC・インライア・再投影誤差・失敗モード・平面物体検出） | `01_*.png` |
+| `02_panorama_manual.py` | 手作りパノラマ（warp・キャンバス・シーム/フェザー・3枚つなぎ） | `02_*.png` |
+| `03_stitcher_compare.py` | `cv2.Stitcher` との比較（自動合成・重なり領域 SSIM） | `03_*.png` |
+| `mini_project.py` | **章末ミニプロジェクト**（4枚パノラマ + 平面物体のまっすぐ化 + 品質レポート） | `mp_*.png` / `mp_report.json` |
+| `exercises.py` | 演習 8 問（TODO を実装 → 自己採点。未実装でも FAIL 表示で正常終了） | （標準出力） |
+| `exercises_solutions.py` | 演習の模範解答（採点ロジックを共有して全問 PASS する完成形） | （標準出力） |
 
 ```bash
 # 1) ホモグラフィ推定の核心（RANSAC・インライア・再投影誤差・物体検出）
@@ -203,13 +287,16 @@ uv run python lectures/06_homography_panorama/02_panorama_manual.py
 # 3) cv2.Stitcher との比較（自動合成・重なり領域 SSIM）
 uv run python lectures/06_homography_panorama/03_stitcher_compare.py
 
+# 4) 章末ミニプロジェクト（統合課題：4枚パノラマ + 書類のまっすぐ化 + JSON レポート）
+uv run python lectures/06_homography_panorama/mini_project.py
+
 # 演習（TODO を実装 → 自己採点。未実装でも FAIL 表示で正常終了する）
 uv run python lectures/06_homography_panorama/exercises.py
-# 行き詰まったら模範解答で挙動を確認（まずは自力で！）
-SHOW_SOLUTION=1 uv run python lectures/06_homography_panorama/exercises.py
+# 行き詰まったら模範解答で全 PASS の挙動を確認（まずは自力で！）
+uv run python lectures/06_homography_panorama/exercises_solutions.py
 ```
 
-実行後は `outputs/06_homography_panorama/` の画像を順に開いて、本文の確認ポイントと照らし合わせてください。特に `01_matches_all.png`→`01_matches_inliers.png`（RANSAC で間引かれる様子）、`01_object_detected.png`（傾いた物体に張り付く緑枠）、`02_pano_naive.png`↔`02_pano_feather.png`（シームの有無）、`03_compare.png`（手作り版と Stitcher 版の投影モデルの違い）を見比べると、各節の内容が一気に腑に落ちます。`cv_helpers.py` 単体を実行すると、合成 2 視点と真のホモグラフィを生成するスモークテストになります。
+実行後は `outputs/06_homography_panorama/` の画像を順に開いて、本文の確認ポイントと照らし合わせてください。特に `01_matches_all.png`→`01_matches_inliers.png`（RANSAC で間引かれる様子）、`01_object_detected.png`（傾いた物体に張り付く緑枠）、`02_pano_naive.png`↔`02_pano_feather.png`（シームの有無）、`03_compare.png`（手作り版と Stitcher 版の投影モデルの違い）、`mp_summary.png`（統合課題のまとめ）を見比べると、各節の内容が一気に腑に落ちます。`cv_helpers.py` 単体を実行すると、合成 2 視点と真のホモグラフィを生成するスモークテストになります。
 
 ## まとめ
 
@@ -219,5 +306,5 @@ SHOW_SOLUTION=1 uv run python lectures/06_homography_panorama/exercises.py
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
-> Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13.0.92（`cv2` 4.13.0、SIFT/ORB/Stitcher は本体同梱・contrib 不要）／ Pillow 12.2.0 ／ matplotlib 3.10.9
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
+> Python 3.12 ／ numpy 2.4 ／ opencv-python-headless 4.13（`cv2` 4.13.0、SIFT/ORB/Stitcher は本体同梱・contrib 不要）／ Pillow 12.2 ／ matplotlib 3.10

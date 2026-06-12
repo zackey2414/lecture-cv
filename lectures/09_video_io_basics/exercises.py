@@ -7,10 +7,13 @@
      全問が PASS すれば "ALL PASS" と表示される。
   3. どうしても分からない時は、模範解答を実行して挙動を確認する:
          SHOW_SOLUTION=1 uv run python lectures/09_video_io_basics/exercises.py
+       または完成版を直接:
+         uv run python lectures/09_video_io_basics/exercises_solutions.py
      （まずは自力で！）
 
 注意: 未実装でも例外で落とさず PASS/FAIL を表示して正常終了（exit 0）します。
 ヒント: 採点用の合成動画は同じフォルダの cv_helpers.make_demo_video() で作っています。
+易→難の順に ex1〜ex9 まで 9 問あります。
 """
 
 from __future__ import annotations
@@ -24,7 +27,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from cv_helpers import make_demo_video, output_dir  # noqa: E402
+from cv_helpers import make_demo_video, make_moving_frames, output_dir  # noqa: E402
 
 
 # =====================================================================
@@ -32,7 +35,7 @@ from cv_helpers import make_demo_video, output_dir  # noqa: E402
 # =====================================================================
 
 def ex1_count_frames(source: str) -> int:
-    """演習1: VideoCapture の正準ループでフレーム総数を数える。
+    """演習1【易】VideoCapture の正準ループでフレーム総数を数える。
 
     cv2.VideoCapture(source) を開き、while ループで read() し、ret=False で抜ける。
     数えた枚数を返し、最後に必ず release() すること（総フレーム数 cap.get に頼らない）。
@@ -43,7 +46,7 @@ def ex1_count_frames(source: str) -> int:
 
 
 def ex2_read_meta(source: str) -> tuple[float, int, int, int]:
-    """演習2: cap.get で (fps, frame_count, width, height) を取得して返す。
+    """演習2【易】cap.get で (fps, frame_count, width, height) を取得して返す。
 
     それぞれ cv2.CAP_PROP_FPS / FRAME_COUNT / FRAME_WIDTH / FRAME_HEIGHT を使う。
     frame_count / width / height は int に丸めること。fps は float のままで良い。
@@ -55,7 +58,7 @@ def ex2_read_meta(source: str) -> tuple[float, int, int, int]:
 
 
 def ex3_fourcc_to_str(fourcc_int: int) -> str:
-    """演習3: CAP_PROP_FOURCC の 32bit 整数を 4 文字のコーデック名に復元する。
+    """演習3【易】CAP_PROP_FOURCC の 32bit 整数を 4 文字のコーデック名に復元する。
 
     fourcc は 4 つの ASCII 文字を 1 バイトずつ詰めた整数。下位 8bit から順に取り出す。
     例: cv2.VideoWriter_fourcc(*"mp4v") を渡すと "mp4v" が返る。
@@ -65,7 +68,7 @@ def ex3_fourcc_to_str(fourcc_int: int) -> str:
 
 
 def ex4_seek_and_read(source: str, index: int) -> np.ndarray | None:
-    """演習4: POS_FRAMES で index フレームへシークし、その1枚を返す（無ければ None）。
+    """演習4【初級】POS_FRAMES で index フレームへシークし、その1枚を返す（無ければ None）。
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, index) してから read()。ret=False なら None を返す。
     最後に release() すること。
@@ -76,7 +79,7 @@ def ex4_seek_and_read(source: str, index: int) -> np.ndarray | None:
 
 
 def ex5_moving_average_fps(dts: list[float], window: int = 20) -> float:
-    """演習5: フレーム毎の処理時間 dts(秒) から、末尾 window 個の移動平均FPSを返す。
+    """演習5【初級】フレーム毎の処理時間 dts(秒) から、末尾 window 個の移動平均FPSを返す。
 
     deque(maxlen=window) に dt を順に入れ、最後に平均 dt の逆数(=FPS)を返す。
     dts が空、または平均が 0 のときは 0.0 を返すこと。
@@ -86,8 +89,59 @@ def ex5_moving_average_fps(dts: list[float], window: int = 20) -> float:
     raise NotImplementedError
 
 
+def ex6_estimate_duration_sec(source: str) -> float:
+    """演習6【初級】動画の長さ（秒）= 総フレーム数 / FPS を返す。
+
+    cap.get(CAP_PROP_FRAME_COUNT) と cap.get(CAP_PROP_FPS) から計算する。
+    FPS が 0 以下（画像シーケンス等）のときは 0.0 を返すこと。最後に release()。
+    """
+    # TODO: cap=cv2.VideoCapture(source); fps=cap.get(CAP_PROP_FPS);
+    #       n=cap.get(CAP_PROP_FRAME_COUNT); cap.release();
+    #       return n/fps if fps>0 else 0.0
+    raise NotImplementedError
+
+
+def ex7_write_video_roundtrip(frames: list[np.ndarray], fps: float, out_path: str) -> int:
+    """演習7【中級】frames を VideoWriter で書き出し、読み戻して読めた枚数を返す。
+
+    手順:
+      1. frames[0] の shape から出力サイズ (W, H) を決める。
+      2. cv2.VideoWriter(out_path, fourcc("mp4v"), fps, (W,H)) を作り、isOpened() を確認。
+         開けなければ 0 を返す（採点はスキップ扱いになる）。
+      3. 全フレームを write() してから release()。
+      4. out_path を VideoCapture で開き直し、ret 判定ループで読めた枚数を数えて返す。
+    """
+    # TODO: VideoWriter を開く→isOpened 確認→write→release→VideoCapture で読み戻して数える
+    raise NotImplementedError
+
+
+def ex8_subsample_indices(source: str, step: int) -> list[int]:
+    """演習8【中級】正準ループで全フレームを走査し、step おき(idx%step==0)の idx を返す。
+
+    総フレーム数 cap.get には頼らず、ret 判定ループで idx を 0,1,2,... と数えながら、
+    idx % step == 0 のものだけをリストに集める。例: 60フレーム・step=10 → [0,10,20,30,40,50]。
+    """
+    # TODO: cap=...; idx=0; out=[]; while read: if idx%step==0: out.append(idx); idx+=1
+    #       cap.release(); return out
+    raise NotImplementedError
+
+
+def ex9_count_motion_pixels(source: str, thresh: int = 25) -> int:
+    """演習9【難】連続フレーム間のグレースケール差分が thresh を超えた画素数の総和を返す。
+
+    手順（背景差分/動体検出の最小形）:
+      - 各フレームを cv2.cvtColor(..., COLOR_BGR2GRAY) でグレー化。
+      - 1つ前のグレー画像との cv2.absdiff を取り、その値が thresh を超えた画素を数える。
+      - 全フレーム対について合計して返す（最初の1枚は比較対象が無いのでスキップ）。
+    動く物体があるので結果は 0 より十分大きくなるはず。
+    """
+    # TODO: prev=None; total=0; while read: gray=...; if prev is not None:
+    #       diff=cv2.absdiff(gray,prev); total+=int(np.count_nonzero(diff>thresh)); prev=gray
+    raise NotImplementedError
+
+
 # =====================================================================
-# 自己採点ランナー
+# 自己採点ランナー（採点ロジックの唯一の置き場。模範解答側もこれを再利用する）
 # =====================================================================
 
 def _grade() -> None:
@@ -144,76 +198,50 @@ def _grade() -> None:
         return (ok, f"fps={got:.3f} (期待 100.0), 空入力={empty}")
     check("ex5_moving_average_fps", _c5)
 
+    def _c6():
+        dur = ex6_estimate_duration_sec(source)
+        expected = num / fps  # 60 / 24 = 2.5 秒
+        if mode == "png-sequence":
+            # 画像シーケンスは FPS 不定なので 0.0 を許容（スキップ的にPASS）。
+            return (dur >= 0.0, f"dur={dur:.2f}s (画像シーケンスはFPS不定)")
+        return (abs(dur - expected) < 0.2, f"dur={dur:.2f}s (期待 {expected:.2f}s)")
+    check("ex6_estimate_duration_sec", _c6)
+
+    def _c7():
+        frames = make_moving_frames(num=30, width=160, height=120)
+        n = ex7_write_video_roundtrip(frames, 24.0, str(out / "ex7_roundtrip.mp4"))
+        if n == 0:
+            return (True, "VideoWriter を開けない環境のためスキップ(PASS)")
+        return (abs(int(n) - len(frames)) <= 1, f"read_back={n} (期待 {len(frames)})")
+    check("ex7_write_video_roundtrip", _c7)
+
+    def _c8():
+        got = ex8_subsample_indices(source, step=10)
+        # 0 始まりの step 刻みになっているか（フレーム数が ±1 ぶれても本数で吸収）。
+        consecutive = got == [i * 10 for i in range(len(got))]
+        return (consecutive and 5 <= len(got) <= 7, f"indices={got}")
+    check("ex8_subsample_indices", _c8)
+
+    def _c9():
+        total = ex9_count_motion_pixels(source, thresh=25)
+        # 動く円があるので動体画素は十分大きい（0 ではない）。
+        return (int(total) > 100, f"motion_pixels={total} (>100 を期待)")
+    check("ex9_count_motion_pixels", _c9)
+
     print("=== 採点結果 ===")
     print(f"(採点用動画: mode={mode}, fps={fps}, frames={num})")
     all_ok = True
     for name, ok, detail in results:
         mark = "PASS" if ok else "FAIL"
         all_ok = all_ok and ok
-        print(f"  [{mark}] {name:22s} {detail}")
+        print(f"  [{mark}] {name:26s} {detail}")
     print("\nALL PASS 🎉" if all_ok else "\nまだ未達の演習があります。TODO を埋めましょう。")
-
-
-# =====================================================================
-# 模範解答（SHOW_SOLUTION=1 のとき本体へ差し替えて実行）。まず自力で！
-# =====================================================================
-
-def _sol_ex1(source):
-    cap = cv2.VideoCapture(source)
-    count = 0
-    while True:
-        ret, _frame = cap.read()
-        if not ret:
-            break
-        count += 1
-    cap.release()
-    return count
-
-
-def _sol_ex2(source):
-    cap = cv2.VideoCapture(source)
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    cap.release()
-    return (fps, count, width, height)
-
-
-def _sol_ex3(fourcc_int):
-    code = int(fourcc_int)
-    return "".join(chr((code >> (8 * i)) & 0xFF) for i in range(4))
-
-
-def _sol_ex4(source, index):
-    cap = cv2.VideoCapture(source)
-    cap.set(cv2.CAP_PROP_POS_FRAMES, index)
-    ret, frame = cap.read()
-    cap.release()
-    return frame if ret else None
-
-
-def _sol_ex5(dts, window=20):
-    buf = deque(maxlen=window)
-    for d in dts:
-        buf.append(d)
-    if not buf:
-        return 0.0
-    avg = sum(buf) / len(buf)
-    return 1.0 / avg if avg > 0 else 0.0
-
-
-def _install_solutions() -> None:
-    g = globals()
-    g["ex1_count_frames"] = _sol_ex1
-    g["ex2_read_meta"] = _sol_ex2
-    g["ex3_fourcc_to_str"] = _sol_ex3
-    g["ex4_seek_and_read"] = _sol_ex4
-    g["ex5_moving_average_fps"] = _sol_ex5
 
 
 if __name__ == "__main__":
     if os.environ.get("SHOW_SOLUTION") == "1":
         print("(模範解答モードで実行します)\n")
-        _install_solutions()
+        # 模範解答は別ファイルに集約（採点ロジックを重複させないため）。
+        import exercises_solutions
+        exercises_solutions.install(sys.modules[__name__])
     _grade()

@@ -8,13 +8,19 @@
      全問 pass すれば "ALL PASS" と表示される。
   3. どうしても分からない時は、模範解答の挙動を見る:
          SHOW_SOLUTION=1 uv run python lectures/11_realtime_stream/exercises.py
+     （完全な解答ファイルは exercises_solutions.py にもある）
 
-この5問は、本モジュールの4スクリプトの核を1つずつ抜き出したもの:
-  ex1: 背景差分マスクの掃除（影127除去＋モルフォロジー）        … 01
-  ex2: 早期縮小（アスペクト比を保って最大辺を縮める）           … 02
-  ex3: キュー満杯時のフレームドロップ（put_nowait）             … 03
-  ex4: 処理FPSの指数移動平均(EMA)                               … helper / 全体
-  ex5: 再接続ループの集計（連続失敗で諦める）                   … 04
+この10問は易→難。本モジュールの4スクリプト＋プロファイルの核を1つずつ抜き出した:
+  ex1  背景差分マスクの掃除（影127除去＋モルフォロジー）          … 01
+  ex2  早期縮小（アスペクト比を保って最大辺を縮める）             … 02
+  ex3  キュー満杯時のフレームドロップ（put_nowait）               … 03
+  ex4  処理FPSの指数移動平均(EMA)                                 … helper / 全体
+  ex5  再接続ループの集計（連続失敗で諦める）                     … 04
+  ex6  レイテンシのパーセンタイル(p50/p99)                        … プロファイル
+  ex7  フレームスキップで実際に処理する枚数                       … 02
+  ex8  前景マスクから動体の個数を数える（輪郭＋面積しきい値）     … 01
+  ex9  指数バックオフのスケジュール（上限つき）                   … 04
+  ex10 maxsize 付きキューの再生（put_nowait ドロップ＋FIFO get）  … 03（総合）
 """
 
 from __future__ import annotations
@@ -93,6 +99,65 @@ def ex5_reconnect_summary(read_results: list[bool], give_up_after: int) -> tuple
     raise NotImplementedError
 
 
+def ex6_latency_percentiles(latencies_ms: list[float]) -> tuple[float, float]:
+    """演習6: レイテンシ(ミリ秒)のリストから (p50, p99) を返す。
+
+    - 平均だけ見ると『たまの詰まり』を見落とすので p99（上位1%の遅さ）も測る。
+    - np.percentile(arr, 50) と np.percentile(arr, 99) を使い、float で返す。
+    - 空リストなら (0.0, 0.0) を返す。
+    """
+    # TODO: np.asarray にして np.percentile で 50 と 99 を計算し (p50, p99) を返す
+    raise NotImplementedError
+
+
+def ex7_processed_count(num_seen: int, every_n: int) -> int:
+    """演習7: 「N枚に1回だけ処理する」フレームスキップで、実際に処理する枚数を返す。
+
+    - 1..num_seen のうち seen % every_n == 0 となる回数（= num_seen // every_n）。
+    - every_n=1 なら全部処理（= num_seen）、every_n=3・num_seen=120 なら 40。
+    - every_n <= 0 は不正なので ValueError を投げる。
+    """
+    # TODO: every_n<=0 をはじき、num_seen // every_n を返す
+    raise NotImplementedError
+
+
+def ex8_count_motion_boxes(mask: np.ndarray, min_area: int) -> int:
+    """演習8: 2値の前景マスクから、面積 min_area 以上の動体の個数を数える。
+
+    - cv2.findContours(mask, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE) で輪郭を取る
+      （OpenCV 4 系は (contours, hierarchy) の2つ返し）。
+    - cv2.contourArea(c) >= min_area の輪郭だけ数える（小さいノイズは無視）。
+    - 返り値はその個数(int)。
+    """
+    # TODO: findContours → contourArea でしきい値以上の輪郭をカウントして返す
+    raise NotImplementedError
+
+
+def ex9_backoff_schedule(num_failures: int, initial: float, factor: float, cap: float) -> list[float]:
+    """演習9: 連続失敗 num_failures 回ぶんの指数バックオフ待ち時間リストを返す。
+
+    - i 回目(0 始まり)の待ち時間は min(initial * factor**i, cap)。
+    - 返り値は長さ num_failures の float リスト。num_failures<=0 なら空リスト。
+    例: backoff_schedule(5, 0.01, 2.0, 0.2) -> [0.01, 0.02, 0.04, 0.08, 0.16]
+        6個目は 0.32 だが cap=0.2 で頭打ちになり 0.2。
+    """
+    # TODO: for i in range(num_failures): min(initial*factor**i, cap) を積む
+    raise NotImplementedError
+
+
+def ex10_queue_replay(events: list[tuple], maxsize: int) -> dict:
+    """演習10: maxsize 付きキューの動作を再生する（put_nowait ドロップ＋FIFO get）。
+
+    events は次のいずれかのタプルの列:
+      ("put", value) : value を入れる。満杯なら put_nowait のように『新しい方を捨てる』(drop++)。
+      ("get",)       : 最も古い要素を取り出して outputs に追加。空なら None を outputs に追加。
+    返り値は {"outputs": [...], "dropped": int}。
+    （FIFO=先入れ先出し。queue.Queue(maxsize) と put_nowait/get_nowait で実装してよい）
+    """
+    # TODO: q=queue.Queue(maxsize)。put は満杯で queue.Full を握って drop++、get は空で None を積む
+    raise NotImplementedError
+
+
 # =====================================================================
 # 自己採点ランナー
 # =====================================================================
@@ -107,7 +172,20 @@ def _make_raw_mask() -> np.ndarray:
     return m
 
 
-def _grade() -> None:
+def _make_two_blob_mask() -> np.ndarray:
+    """採点用の2値マスク: 大きなブロブ2個（残す）＋小さな点1個（無視させる）。"""
+    m = np.zeros((100, 160), dtype=np.uint8)
+    m[20:60, 20:70] = 255    # ブロブ1（面積 50*40=2000）
+    m[20:55, 100:140] = 255  # ブロブ2（面積 40*35=1400）
+    m[90, 150] = 255         # 微小ノイズ（面積≒1）
+    return m
+
+
+def _grade() -> bool:
+    """全演習を採点して結果を表示し、全問 PASS なら True を返す。
+
+    exercises_solutions.py はこの関数をそのまま再利用する（採点ロジックを重複させない）。
+    """
     results: list[tuple[str, bool, str]] = []
 
     def check(name: str, fn) -> None:
@@ -166,13 +244,64 @@ def _grade() -> None:
         return a == (5, 2) and b == (1, 3), f"集計={a}"
     check("ex5_reconnect_summary", _c5)
 
+    # ex6: 0..100 を 1 刻みで並べた列なら p50≈50.0・p99≈99.0。空なら (0,0)。
+    def _c6():
+        vals = [float(i) for i in range(101)]
+        got = ex6_latency_percentiles(vals)
+        ref = _sol_ex6(vals)
+        empty = ex6_latency_percentiles([])
+        close = abs(got[0] - ref[0]) < 1e-6 and abs(got[1] - ref[1]) < 1e-6
+        return close and empty == (0.0, 0.0), f"p50={got[0]:.1f} p99={got[1]:.1f}"
+    check("ex6_latency_percentiles", _c6)
+
+    # ex7: (120,3)->40, (10,1)->10, (7,3)->2。every_n<=0 は ValueError。
+    def _c7():
+        ok = ex7_processed_count(120, 3) == 40 and ex7_processed_count(10, 1) == 10 \
+            and ex7_processed_count(7, 3) == 2
+        raised = False
+        try:
+            ex7_processed_count(10, 0)
+        except ValueError:
+            raised = True
+        return ok and raised, "frameskip 処理枚数"
+    check("ex7_processed_count", _c7)
+
+    # ex8: 大ブロブ2個（min_area=100）→ 2。min_area=1900 にすると面積1400のブロブが落ちて 1。
+    def _c8():
+        mask = _make_two_blob_mask()
+        n2 = ex8_count_motion_boxes(mask, min_area=100)
+        n1 = ex8_count_motion_boxes(mask, min_area=1900)
+        return n2 == 2 and n1 == 1, f"検出数={n2}(min100)/{n1}(min1900)"
+    check("ex8_count_motion_boxes", _c8)
+
+    # ex9: (5,0.01,2,0.2) -> [.01,.02,.04,.08,.16]。6個目は cap=0.2。空は []。
+    def _c9():
+        got = ex9_backoff_schedule(5, 0.01, 2.0, 0.2)
+        ref = _sol_ex9(5, 0.01, 2.0, 0.2)
+        capped = ex9_backoff_schedule(6, 0.01, 2.0, 0.2)
+        empty = ex9_backoff_schedule(0, 0.01, 2.0, 0.2)
+        ok = len(got) == 5 and all(abs(a - b) < 1e-9 for a, b in zip(got, ref))
+        return ok and abs(capped[5] - 0.2) < 1e-9 and empty == [], f"先頭={got[:3]}"
+    check("ex9_backoff_schedule", _c9)
+
+    # ex10: maxsize=1 で put1,put2(drop),get->1,put3,put4(drop),get->3,get->None,get->None。
+    def _c10():
+        events = [("put", 1), ("put", 2), ("get",), ("put", 3), ("put", 4),
+                  ("get",), ("get",), ("get",)]
+        got = ex10_queue_replay(events, maxsize=1)
+        ref = _sol_ex10(events, 1)
+        return got == ref and got == {"outputs": [1, 3, None, None], "dropped": 2}, \
+            f"outputs={got.get('outputs')} drop={got.get('dropped')}"
+    check("ex10_queue_replay", _c10)
+
     print("=== 採点結果 ===")
     all_ok = True
     for name, ok, detail in results:
         mark = "PASS" if ok else "FAIL"
         all_ok = all_ok and ok
-        print(f"  [{mark}] {name:22s} {detail}")
+        print(f"  [{mark}] {name:24s} {detail}")
     print("\nALL PASS 🎉" if all_ok else "\nまだ未達の演習があります。TODO を埋めましょう。")
+    return all_ok
 
 
 # =====================================================================
@@ -236,6 +365,46 @@ def _sol_ex5(read_results: list[bool], give_up_after: int) -> tuple[int, int]:
     return good, reconnects
 
 
+def _sol_ex6(latencies_ms: list[float]) -> tuple[float, float]:
+    if not latencies_ms:
+        return 0.0, 0.0
+    arr = np.asarray(latencies_ms, dtype=np.float64)
+    return float(np.percentile(arr, 50)), float(np.percentile(arr, 99))
+
+
+def _sol_ex7(num_seen: int, every_n: int) -> int:
+    if every_n <= 0:
+        raise ValueError("every_n must be >= 1")
+    return num_seen // every_n
+
+
+def _sol_ex8(mask: np.ndarray, min_area: int) -> int:
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    return sum(1 for c in contours if cv2.contourArea(c) >= min_area)
+
+
+def _sol_ex9(num_failures: int, initial: float, factor: float, cap: float) -> list[float]:
+    return [min(initial * (factor ** i), cap) for i in range(num_failures)]
+
+
+def _sol_ex10(events: list[tuple], maxsize: int) -> dict:
+    q: "queue.Queue" = queue.Queue(maxsize=maxsize)
+    outputs: list = []
+    dropped = 0
+    for ev in events:
+        if ev[0] == "put":
+            try:
+                q.put_nowait(ev[1])
+            except queue.Full:
+                dropped += 1          # 満杯 → 新しい方を捨てる（put_nowait の挙動）
+        else:  # ("get",)
+            try:
+                outputs.append(q.get_nowait())
+            except queue.Empty:
+                outputs.append(None)  # 空 → None を積む
+    return {"outputs": outputs, "dropped": dropped}
+
+
 def _install_solutions() -> None:
     """模範解答で TODO 関数を差し替える（教材検証・答え合わせ用）。"""
     g = globals()
@@ -244,6 +413,11 @@ def _install_solutions() -> None:
     g["ex3_drop_when_full"] = _sol_ex3
     g["ex4_ema_fps"] = _sol_ex4
     g["ex5_reconnect_summary"] = _sol_ex5
+    g["ex6_latency_percentiles"] = _sol_ex6
+    g["ex7_processed_count"] = _sol_ex7
+    g["ex8_count_motion_boxes"] = _sol_ex8
+    g["ex9_backoff_schedule"] = _sol_ex9
+    g["ex10_queue_replay"] = _sol_ex10
 
 
 if __name__ == "__main__":
