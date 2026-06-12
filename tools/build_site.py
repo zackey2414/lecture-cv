@@ -78,6 +78,15 @@ img{max-width:100%}
 .status{font-size:.7rem;font-weight:700;padding:.15em .55em;border-radius:999px;white-space:nowrap}
 .status.done{background:#dcfce7;color:#15803d}.status.wip{background:var(--g100);color:var(--g500)}
 .chip{font-size:.7rem;background:var(--p100);color:var(--p700);padding:.12em .5em;border-radius:6px;font-weight:600;white-space:nowrap}
+/* ===== index view toggle (ジャンル別 / 難易度別) ===== */
+.view-toggle{display:flex;gap:.3rem;justify-content:center;width:max-content;max-width:94%;margin:0 auto 1.6rem;background:#fff;border:1px solid var(--g200);border-radius:999px;padding:.32rem;box-shadow:var(--shadow);position:relative;z-index:1}
+.vt-btn{border:none;background:transparent;color:var(--g600);font-weight:700;font-size:.9rem;padding:.5rem 1.25rem;border-radius:999px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.vt-btn.active{background:var(--p600);color:#fff}
+.cards-view{display:grid;gap:1.5rem}
+.cards-view[hidden]{display:none}
+.content a.rm-link{text-decoration:none}
+.content a.rm-link code{cursor:pointer;background:var(--b50);color:var(--b800);white-space:nowrap}
+.content a.rm-link:hover code{background:var(--p100);color:var(--p700)}
 /* ===== 3-column layout (module/roadmap/graph) ===== */
 .layout{display:grid;gap:1.6rem;max-width:1400px;margin:56px auto 0;padding:1.4rem 1.4rem 3rem;align-items:start}
 .layout.has-left.has-right{grid-template-columns:240px minmax(0,1fr) 234px}
@@ -278,40 +287,78 @@ def sidebar_left(current_id: str | None) -> str:
 
 
 # ----------------------------------------------------------------------------- index page
-cards = []
-for track, ms in tracks.items():
-    items = []
-    for m in ms:
-        lv = LEVEL_CLASS.get(m["level"], "intro")
-        status = '<span class="status done">公開</span>' if m["_authored"] else '<span class="status wip">準備中</span>'
-        goal = html.escape((m.get("goal") or "")[:108]) + ("…" if len(m.get("goal") or "") > 108 else "")
-        groups = "".join(f'<code class="chip">{html.escape(g)}</code>' for g in (m.get("needs_groups") or []))
-        items.append(
-            f'<a class="level-card" href="{m["id"]}.html">'
-            f'<h3><span class="level-badge {lv}">{m["level"]}</span>'
-            f'<span class="mod-num">{m["_num"]}</span> {html.escape(m["title"])}</h3>'
-            f'<p>{goal}</p><div class="card-foot">{status}{groups}</div></a>'
-        )
-    cards.append(
-        f'<section class="lang-section"><div class="lang-header">'
-        f'<h2>{html.escape(track)}</h2></div>'
-        f'<div class="lang-levels">{"".join(items)}</div></section>'
+def _render_card(m: dict) -> str:
+    lv = LEVEL_CLASS.get(m["level"], "intro")
+    status = '<span class="status done">公開</span>' if m["_authored"] else '<span class="status wip">準備中</span>'
+    goal = html.escape((m.get("goal") or "")[:108]) + ("…" if len(m.get("goal") or "") > 108 else "")
+    groups = "".join(f'<code class="chip">{html.escape(g)}</code>' for g in (m.get("needs_groups") or []))
+    return (
+        f'<a class="level-card" href="{m["id"]}.html">'
+        f'<h3><span class="level-badge {lv}">{m["level"]}</span>'
+        f'<span class="mod-num">{m["_num"]}</span> {html.escape(m["title"])}</h3>'
+        f'<p>{goal}</p><div class="card-foot">{status}{groups}</div></a>'
     )
+
+
+def _section(title: str, ms: list) -> str:
+    items = "".join(_render_card(m) for m in ms)
+    return (
+        f'<section class="lang-section"><div class="lang-header">'
+        f'<h2>{html.escape(title)}</h2></div>'
+        f'<div class="lang-levels">{items}</div></section>'
+    )
+
+
+# 表示① ジャンル（トラック）別
+track_sections = "".join(_section(track, ms) for track, ms in tracks.items())
+# 表示② 難易度別（入門→初級→中級→上級、各回は番号順）
+LEVEL_ORDER = ["入門", "初級", "中級", "上級"]
+by_level: dict[str, list] = {lvl: [] for lvl in LEVEL_ORDER}
+for m in modules:
+    by_level.setdefault(m["level"], []).append(m)
+level_sections = "".join(
+    _section(f"{lvl}（{len(by_level[lvl])}回）", sorted(by_level[lvl], key=lambda x: x["_num"]))
+    for lvl in LEVEL_ORDER if by_level.get(lvl)
+)
 hero = f"""<header class="hero">
   <h1>lecture-cv</h1>
   <p>Computer Vision を「AI の補助なしで自力で書ける」まで叩き込む全{len(modules)}回ハンズオン講座</p>
   <p class="hero-meta">公開 {len(authored)} / {len(modules)} 回　・　CPU のみで完走　・　各回 解説＋実行コード＋演習</p>
 </header>"""
+view_toggle = (
+    '<div class="view-toggle" role="tablist">'
+    '<button class="vt-btn active" data-view="track" type="button">ジャンル別</button>'
+    '<button class="vt-btn" data-view="level" type="button">難易度別</button>'
+    "</div>"
+)
+toggle_script = (
+    '<script>(function(){var bs=document.querySelectorAll(".vt-btn");'
+    'bs.forEach(function(b){b.addEventListener("click",function(){'
+    'bs.forEach(function(x){x.classList.remove("active")});b.classList.add("active");'
+    'var v=b.getAttribute("data-view");'
+    'document.getElementById("view-track").hidden=(v!=="track");'
+    'document.getElementById("view-level").hidden=(v!=="level");});});})();</script>'
+)
 index_body = (
     hero
-    + f'<main class="cards">{"".join(cards)}</main>'
+    + '<main class="cards">'
+    + view_toggle
+    + f'<div id="view-track" class="cards-view">{track_sections}</div>'
+    + f'<div id="view-level" class="cards-view" hidden>{level_sections}</div>'
+    + "</main>"
     + '<footer class="footer">lecture-cv ／ 設計時点: 2026-06 ／ 各回フッターにライブラリ版を明記</footer>'
+    + toggle_script
 )
 SITE.mkdir(exist_ok=True)
 (SITE / "index.html").write_text(page("lecture-cv 教材", index_body))
 
 # ----------------------------------------------------------------------------- roadmap page
 roadmap_html, _ = md_to_html((ROOT / "docs" / "roadmap.md").read_text())
+# ロードマップ表中の各モジュールID（`<code>00_setup</code>`）を各ページへのリンクにする
+for _mid in modmap:
+    roadmap_html = roadmap_html.replace(
+        f"<code>{_mid}</code>", f'<a class="rm-link" href="{_mid}.html"><code>{_mid}</code></a>'
+    )
 roadmap_body = lay(f'<article class="content">{blockify(roadmap_html)}</article>', left=sidebar_left(None))
 (SITE / "roadmap.html").write_text(page("ロードマップ — lecture-cv", roadmap_body))
 
