@@ -299,6 +299,66 @@ A. モデル重みの初回ダウンロードです。`HF_HOME` をキャッシ�
 
 ---
 
+## 💡 実践ユースケース集
+
+この章のキャプション生成は「画像を見て言葉で説明する」基礎力です。現場では次のような
+「説明文を量産・再利用する」用途で効いてきます。2〜3個の応用と、すぐ動かせる出発点
+（`use_case.py`）を載せます。
+
+### 1.（同梱・動く）自動 alt-text / 画像説明ジェネレータ（`use_case.py`）
+
+- **何に使うか**: ブログ・EC・社内ドキュメントに大量の画像を載せるとき、アクセシビリティ用の
+  `<img alt="...">`（スクリーンリーダーが読み上げる代替テキスト）を、1枚ずつ手書きする代わりに
+  **下書きを自動生成 → 人が確認・修正**する。SEO の画像 alt 自動付与にも転用できます。
+- **作り方の要点**: BLIP で各画像にキャプション → alt-text 作法（冗長な "a photo of" を削る／
+  文頭大文字化＋末尾ピリオド／長さ目安 125 文字）で整形 → **CLIPScore（§6.2）で画像と説明の
+  整合度を測り、低いものを「要レビュー」に flag** → JSON・自己完結 HTML ギャラリー・サイドカー
+  `.txt` として書き出す。`mini_project.py`（評価ベンチ）とは別物で、こちらは**そのまま貼れる成果物**
+  を作る実ツールです。
+- **注意**: 自動生成 alt は **hallucination（画像にない記述）** を起こしうるので、`alt=""`
+  （装飾画像扱い）にせず必ず内容を入れ、CLIPScore が低い／長すぎる画像は人手確認に回すこと。
+  誤った alt は「無し」より有害です。
+
+```bash
+# 既定（BLIP・ビームサーチ）で全画像に alt-text を付ける
+uv run python lectures/24_image_captioning/use_case.py
+# モデルを切り替えて挙動を比べる（blip / git / vitgpt2）
+uv run python lectures/24_image_captioning/use_case.py git
+```
+
+- **実データの置き方**: `data/24_image_captioning/` に自分の `.png/.jpg` を置くだけで、その
+  フォルダが対象になります（参照キャプション不要。CLIPScore は参照なしで動くため品質スクリーニングも
+  そのまま機能）。画像が無ければ合成シーン（夕焼け/赤い車/木）に自動フォールバックして必ず完走します。
+- **出力**: `outputs/24_image_captioning/` に `use_case_alt_text.json`（台帳）・`use_case_gallery.html`
+  （画像を base64 埋め込みした実 `<img alt>` 付き・ブラウザで読み上げ確認可）・`use_case_preview.png`・
+  `alt_text/<name>.alt.txt`（CMS が読むサイドカー形式）。
+- **拡張アイデア**: 多言語 alt（英語生成＋翻訳で日本語併記）／詳細版 longdesc（`max_new_tokens` 増）の
+  出し分け／CLIPScore がしきい値未満の画像だけ「要レビュー」キューに出して人手に回す品質ゲート／
+  WordPress・microCMS の API へ alt を一括 PUT する薄いアダプタ。
+
+### 2. 商品画像の説明文・検索タグ自動生成（EC カタログ）
+
+- **何に使うか**: EC サイトの大量の商品画像に、一覧用の短い説明やサムネイル代替テキスト、検索用タグの
+  下書きを付ける。新規入荷のたびに人手で書く負担を下げ、表記ゆれも減らせます。
+- **作り方の要点**: 条件付きキャプション（§4、`text="a photo of a"`）で**語り口・観点を固定**して
+  フォーマットを揃え、`02` で学んだ `num_beams`/`repetition_penalty` で安定した1文に寄せる。
+  生成文を名詞・色などへ簡易分割すれば検索タグの種になります。
+- **注意**: ブランド名・型番・素材など**画像から読めない属性**はキャプションに出ません。商品 DB の
+  メタデータと必ず突き合わせ、生成文は「見た目の説明」に限定して使うのが安全です。
+
+### 3. 写真ライブラリの一括キャプション付け＆self-retrieval 整理
+
+- **何に使うか**: 撮りためた写真・素材フォルダに説明文を一括付与して、後から「言葉で探せる」状態に
+  整える。第16/17回の CLIP 検索や FAISS と組み合わせれば、キャプションを介した素材管理になります。
+- **作り方の要点**: バッチ推論（§5、`processor(images=[...])`＋`batch_decode`）で全画像を一括処理し、
+  各画像にキャプションを JSON で保存。CLIPScore で「説明が画像と合っているか」を採点して、低スコアの
+  ものだけ再生成（beam を増やす等）すると品質を底上げできます。
+- **注意**: 似た構図の写真には似たキャプションが付きがちで識別子になりにくい。撮影日・場所などの
+  メタデータを併用し、キャプションは「中身の手がかり」と割り切ること。CPU では枚数に比例して時間が
+  かかるので、`max_new_tokens` を小さく保ち夜間バッチに回すのが現実的です。
+
+---
+
 ## ▶ 動かし方（コマンド）
 
 ```bash
@@ -312,6 +372,8 @@ uv run python lectures/24_image_captioning/01_blip_caption.py     # BLIP 無条�
 uv run python lectures/24_image_captioning/02_vitgpt2_git.py      # 3モデル比較・生成パラメータ
 uv run python lectures/24_image_captioning/03_caption_metrics.py  # BLEU/ROUGE/CIDEr/CLIPScore
 uv run python lectures/24_image_captioning/mini_project.py        # 章末ベンチマーク
+uv run python lectures/24_image_captioning/use_case.py            # 実践: 自動 alt-text 生成ツール
+uv run python lectures/24_image_captioning/use_case.py git        #   （任意）モデルを git/vitgpt2 に切替
 
 # 演習: まず TODO を自分で埋める（未実装でも exit 0、FAIL 表示されるだけ）
 uv run python lectures/24_image_captioning/exercises.py

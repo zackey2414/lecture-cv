@@ -420,6 +420,64 @@ PatchCore / 評価 / IQA）が分かれているので差し替えが容易で�
 
 ---
 
+## 💡 実践ユースケース集
+
+本章の「正常だけで覚える異常検知」と「IQA」は、そのまま現場の小ツールになります。
+代表的な 3 つを挙げます（1 つ目は動く出発点 `use_case.py`）。
+
+### ① 外観検品ツール（`use_case.py`・動く出発点）
+
+- **何に使うか**: 「良品フォルダ」を渡すだけで覚え、検査フォルダの画像を 1 枚ずつ
+  **OK/NG 判定 + 異常ヒートマップ + 欠陥位置（bbox）** にし、`inspection_report.csv/json`
+  （1 行 = 1 製品）を吐く現場寄りの検品 CLI。製造ラインの外観検査・到着検品の叩き台。
+- **mini_project.py との違い**: ミニプロジェクトは**ラベル付き評価セットで AUROC/AUPR/PRO を
+  測る学習デモ**。`use_case.py` は**ラベル不要**で、未知の良品を取り置く **hold-out 較正**で
+  しきい値を決め、評価指標ではなく「1 個ずつの判定と成果物（レポート/画像）」を出します。
+- **作り方の要点**: 良品で `padim_fit` → 良品の一部を学習に使わず取り置き、その素点 ×
+  マージンをしきい値に（不良サンプルが要らない）→ 検査画像を `padim_score` → 異常マップの
+  最大値が境界を超えたら NG、高反応領域を bbox 化。
+
+```bash
+# 既定（引数なし）は合成データで完走。実画像は data/32_anomaly_iqa/ に置けば自動で使う
+uv run python lectures/32_anomaly_iqa/use_case.py
+# 自分のデータで検品（フォルダ指定・しきい値マージン調整）
+uv run python lectures/32_anomaly_iqa/use_case.py \
+    --train-dir data/32_anomaly_iqa/train --test-dir data/32_anomaly_iqa/test --margin 1.3
+```
+
+- **data/ の置き方**: `data/32_anomaly_iqa/train/` に**良品（正常）だけ**、
+  `data/32_anomaly_iqa/test/` に**検査したい画像**（OK/NG 混在可）を置く（`.png/.jpg/.jpeg/.bmp/.webp`）。
+  両方に画像が無ければ合成にフォールバックして必ず `exit 0`。出力は
+  `outputs/32_anomaly_iqa/usecase_overlays/*.png`・`usecase_contact_sheet.png`・`inspection_report.csv/json`。
+- **拡張アイデア**: ① しきい値較正を分位点 / 中央値+MAD のロバスト統計に変える ②
+  PaDiM を PatchCore（`lab.patchcore_fit/score`）へ差し替え位置ずれに強くする ③ 入口に
+  撮影品質ゲート（`lab.variance_of_laplacian`）を足しボケ画像を検査前に弾く ④ 欠陥 bbox を
+  COCO/YOLO 形式で書き出し二次アノテーションの種にする。
+- **注意**: PaDiM は**良品が位置合わせ済み**（同じ製品を同じ構図）を前提にする。被写体が
+  動く/回るデータでは精度が落ちるので PatchCore へ。しきい値は良品の分布で決まるため、
+  撮影条件が変わったら**再較正**が必要。合成は分離が容易で満点が出やすい点も忘れずに。
+
+### ② 撮影品質ゲート（無参照 IQA で「検査に値する写真か」を弾く）
+
+- **何に使うか**: 異常検知や OCR・検出の**前段**で、ボケ・手ブレ・露出不良の写真を自動で
+  リジェクトし「撮り直し」に回す。ゴミ画像を下流に流さないことで誤検出を減らす。
+- **作り方の要点**: 良品の鮮鋭度 `variance_of_laplacian`（または `tenengrad`）の分布から
+  下限 `mean − k·std` を決め、それ未満を「要再撮影」に（`mini_project.py` の `quality_gate` が雛形）。
+- **注意**: 鮮鋭度は**ボケは検出できてもノイズは品質低下と見なせない**（ノイズで値が上がる）。
+  ノイズ/圧縮も弾くなら BRISQUE/NIQE（pyiqa・§10 の任意導入）に拡張する。
+
+### ③ 生成・超解像パイプラインの自動品質チェック（参照あり/なし IQA）
+
+- **何に使うか**: 超解像（29）や生成・復元（31）の出力を**人手レビュー前に自動採点**し、
+  PSNR/SSIM が基準未満のものだけを目視に回す CI 的なゲート。バッチ生成の品質を定量監視。
+- **作り方の要点**: 正解（高解像/クリーン）があれば `psnr`/`ssim`（参照あり）、無ければ
+  鮮鋭度（無参照）でスコア化。`METRIC_DIRECTION`（pyiqa の `lower_better` 相当）で**向きを
+  そろえて**から合否しきい値を引く。
+- **注意**: 指標ごとに測れる歪みと**良し悪しの向き**が違う。PSNR/SSIM は知覚と乖離するため、
+  生成評価には LPIPS（参照あり・低いほど良い）や分布距離 FID（31）を併用する。
+
+---
+
 ## ▶ 動かし方
 
 ```bash
@@ -433,6 +491,8 @@ uv run python lectures/32_anomaly_iqa/02_anomaly_eval.py
 uv run python lectures/32_anomaly_iqa/03_iqa_metrics.py
 # 章末ミニプロジェクト（品質ゲート → 異常検知 → 評価 → 合否）
 uv run python lectures/32_anomaly_iqa/mini_project.py
+# 実践ユースケース: PaDiM 外観検品ツール（良品で覚えて OK/NG + ヒートマップ + 検品レポート）
+uv run python lectures/32_anomaly_iqa/use_case.py
 # 演習（自己採点）と模範解答
 uv run python lectures/32_anomaly_iqa/exercises.py
 uv run python lectures/32_anomaly_iqa/exercises_solutions.py

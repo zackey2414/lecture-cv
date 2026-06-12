@@ -249,6 +249,7 @@ uv run python lectures/26_ocr_document/02_trocr.py               # TrOCR で印�
 uv run python lectures/26_ocr_document/03_donut_docvqa.py        # Donut/DocVQA で帳票 QA（exact-match/ANLS）
 uv run python lectures/26_ocr_document/04_cer_wer_eval.py        # CER/WER の定義・正規化・エンジン比較
 uv run python lectures/26_ocr_document/mini_project.py           # 章末: 読み取り→構造化→評価の統合
+uv run python lectures/26_ocr_document/use_case.py               # 実践: レシート読取（行検出→TrOCR→構造化 JSON）
 
 # 演習: まず TODO を自分で埋める（最初は全 FAIL だが exit 0）
 uv run python lectures/26_ocr_document/exercises.py
@@ -274,8 +275,47 @@ uv run python lectures/26_ocr_document/exercises_solutions.py
 | `03_donut_docvqa.py` | Donut/DocVQA（task_prompt→token2json）で帳票 QA。exact-match/ANLS、pipeline との整合 |
 | `04_cer_wer_eval.py` | CER/WER を定義から検算（手作り vs torchmetrics）・正規化の効果・エンジン横並び比較 |
 | `mini_project.py` | 章末統合: 認識(TrOCR/CER)×理解(Donut/ANLS)を1パイプラインに。総合レポート出力 |
+| `use_case.py` | 実践ユースケース: レシート/書類リーダー。行検出→TrOCR→正規表現で構造化→`receipt.json`、Donut で合計をクロスチェック |
 | `exercises.py` | TODO 形式の演習8問（自己採点ランナー付き・純計算・モデル DL 不要） |
 | `exercises_solutions.py` | 演習の模範解答（実行すると全 PASS） |
+
+## 💡 実践ユースケース集
+
+本章の OCR・文書理解は「紙やスクショの中の文字を、下流システムが使える構造化データに変える」ための道具立てです。ここでは、教材の合成データを離れて**現実の小ツール**としてどう組むかを 3 つ挙げます。1 つ目は実際に動く `use_case.py` として同梱しました。
+
+### ① レシート/書類リーダー（同梱: `use_case.py`）
+
+**何に使うか**: レシート写真や帳票スキャンを 1 枚渡すと、**店名・日付・明細（品名と金額）・合計**を抽出して `receipt.json` に構造化し、経費精算アプリや帳簿入力の前段に流し込む小ツールです。章末ミニプロジェクトが「1 行ずつ切り出した合成行で **CER/WER/ANLS を測る（評価）**」のに対し、こちらは採点ではなく**成果物（構造化 JSON）を作る**のが目的という違いがあります。
+
+**作り方の要点**: TrOCR は**認識専用で検出を持たない**（第2・5節）ため、複数行が並んだ 1 枚を直接読めません。そこで `use_case.py` はまず**横方向の射影プロファイル**（各行に黒画素＝インクがあるかを調べ、連続区間を 1 行とみなす）で**自前の行検出**を行い、各行を TrOCR で読み、**正規表現で店名/日付/明細/合計に構造化**します。さらに Donut/DocVQA に「What is the total?」を投げ、合計金額を**OCR フリーにクロスチェック**します（TrOCR の行読み取りと Donut の文書理解、両方を実地で組み合わせる構成）。
+
+**注意**: 射影プロファイルは整ったスキャン/合成には十分ですが、**斜め・湾曲・影**には弱いので、実運用では二値化（大津法）や傾き補正の前処理を足します。正規表現パーサも「末尾に金額がある行＝明細」という素朴な仮定なので、数量×単価・税・小計・通貨記号が混ざる実レシートに合わせて育てる必要があります。
+
+```bash
+uv run python lectures/26_ocr_document/use_case.py
+# → outputs/26_ocr_document/use_case_receipt.png（行検出の可視化）, use_case_receipt.json（構造化レコード）
+
+# 実データで動かす: data/26_ocr_document/ にレシート/帳票画像（.png/.jpg/.jpeg/.bmp/.tif）を置くと
+# その最初の1枚を自動で読み取る（置かなければ合成レシートで必ず完走＝exit 0）
+```
+
+**拡張アイデア**: 行検出に連結成分/傾き補正を足して斜めレシートへ対応／明細パーサに数量・税・軽減税率(*)を追加／Donut を `donut-base-finetuned-cord-v2`（レシート構造化）に差し替えて `token2json` のネスト構造を直接使い正規表現を置き換える／出力 JSON を会計ソフト取り込み形式（CSV 等）に整形／TrOCR の繰り返し・空行から「要確認」フラグを立てる。
+
+### ② スキャン PDF の全文テキスト化＋個人情報マスキング
+
+**何に使うか**: 契約書・申込書のスキャン画像を**検索可能なテキスト**にし、同時に氏名・口座番号などを**黒塗り（マスキング）**して共有用に出す前処理ツール。社内ナレッジ検索や RAG の取り込み前段で需要が大きい用途です。
+
+**作り方の要点**: ここでは**座標が要る**ので TrOCR ではなく **Tesseract の `image_to_data`（`left/top/width/height/conf/text`）か EasyOCR の 4 点 quad** を使い、単語ごとの box を取得します。マスキング対象は「正規表現（口座番号・電話番号）」や「キーワード近傍」で当たりを付け、該当 box を `PIL.ImageDraw.rectangle` で塗りつぶします。全文は別途プレーンテキストとして保存します。
+
+**注意**: マスキングは**座標付き OCR が前提**（TrOCR・Donut は座標を出さないので不向き）。OCR の取りこぼし＝マスク漏れ＝情報漏洩に直結するため、conf 閾値を低めにして**過検出側に倒す**、最後に人手レビューを挟むなど、安全側の設計が必須です。日本語は `tesseract-ocr-jpn` か EasyOCR `['ja']` を使います。
+
+### ③ 帳票の項目抽出 API（Donut で OCR フリーに JSON 化）
+
+**何に使うか**: 請求書・注文書をアップロードすると `{invoice_no, date, total, ...}` の **JSON を返す社内 API**。OCR の誤り伝播を避けたい・レイアウトが効く定型フォームで威力を発揮します。
+
+**作り方の要点**: `pipeline("document-question-answering", model="naver-clova-ix/donut-base-finetuned-docvqa")` に必要項目ぶんの質問（「What is the invoice number?」等）を投げ、答えを 1 つの dict にまとめて返すだけ。構造化レシートなら `donut-base-finetuned-cord-v2` の `token2json` で**ネストした明細 JSON を一発取得**できます。OCR・行検出・正規表現が不要になるのが Donut 系の最大の利点です。
+
+**注意**: Donut は**タスク別 finetune 重みが必須**（`donut-base` 素体は意味ある答えを返さない）で、**未知レイアウトへの一般化が弱い**。新フォームには finetune が要る点と、CPU では 1 枚あたり数秒かかる点を運用前提に織り込みます。回答の妥当性は exact-match だけでなく **ANLS**（綴り揺れに寛容）で監視すると実態に即します。
 
 ---
 

@@ -284,6 +284,59 @@ uv run python lectures/31_generation_editing/mini_project.py
 
 ---
 
+## 💡 実践ユースケース集
+
+本章の生成・編集・評価は、そのまま **EC（ネットショップ）の商品画像づくり**に効きます。
+「撮り直さずに素材を増やす／余計なものを消す／低解像の在庫写真を出品基準に上げる」という、
+現場でコストに直結する作業を小ツール化できます。
+
+### ① EC 出品バリエーション生成 + ヒーロー自動選定 — `use_case.py`（動く出発点）
+
+- **何に使うか**: 1 つの商品について、背景・ライティング違いのサムネ候補を SD-Turbo の
+  text-to-image でまとめて生成し、**CLIPScore（プロンプト整合）で一番『商品らしい』1 枚（ヒーロー）**を
+  自動で選ぶ。A/B テスト用の主画像候補出しを 1 コマンドで。同時に、商品写真の**不要物（値札・透かし）を
+  cv2.inpaint で除去**するクリーンアップも行い、結果を「出品キット（画像＋JSON 目録）」として書き出す。
+- **作り方の要点**: バリエーションは `gl.load_t2i_pipeline()`＋`num_inference_steps=1〜2 / guidance_scale=0.0 /
+  256〜384px`（Turbo 厳守）。採用は `gl.load_clip_scorer()` の CLIPScore 最大値で決定。除去は
+  「マスク＝白(255)」を `cv2.inpaint(..., INPAINT_TELEA)` に渡すだけ。すべて CPU・ガード付きで、
+  重みが取れなければ古典の色変換バリエーション＋古典インペイントへフォールバックして **必ず exit 0**。
+- **実行コマンド**:
+  ```bash
+  uv run python lectures/31_generation_editing/use_case.py                  # 生成＋除去（既定 both）
+  uv run python lectures/31_generation_editing/use_case.py --mode variations --num 4 \
+      --prompt "a product photo of a perfume bottle"                        # バリエーションのみ
+  uv run python lectures/31_generation_editing/use_case.py --mode cleanup   # 不要物除去のみ
+  # → outputs/31_generation_editing/use_case_variations.png / use_case_cleanup.png / use_case_listing.json
+  ```
+- **`data/31_generation_editing/` の置き方**: `<任意名>.png`（最初の 1 枚をベース商品として優先読込）、
+  `*mask*.png`（白=255 が「消したい領域」。あれば合成シールの代わりに採用）。両方無ければ合成ボトル＋
+  ダミー値札で完走する。
+- **拡張アイデア**: (a) バリエーションを **img2img**（`gl.load_img2img_pipeline`）にして同じ商品の一貫性を上げる
+  （本筋は IP-Adapter / ControlNet）、(b) 除去マスクを輝度しきい値や `23_text_prompt_segmentation` の
+  文プロンプトで**自動検出**、(c) 採用基準を CLIPScore 単独でなく無参照 IQA（鮮鋭さ）と複合化、
+  (d) スタイル一覧・採用枚数をカテゴリ別プリセットにして量産。
+- **注意**: SD-Turbo は `guidance_scale>0` で崩れる／`512px` 以上は CPU で急に重い。t2i の各生成は別シードの
+  “別物”なので商品の同一性は保証されない（一貫性が要るなら img2img/IP-Adapter）。`mini_project.py` が
+  「生成→劣化→復元→評価」の総合学習なのに対し、本ツールは**出品ワークフローに絞った現実の小ツール**。
+
+### ② 不要物・透かし・値札の除去（写真クリーンアップ）
+
+- **何に使うか**: 商品・不動産・中古品の写真から、写り込んだロゴ／日付スタンプ／値札シール／小さなゴミを消す。
+- **作り方の要点**: 消す領域を uint8 マスク（除去=255）にし、**小さく細い欠損は `cv2.inpaint`(Telea/NS)** で十分。
+  マスクは少し `dilate` して境界の残渣を巻き込むと跡が目立たない。
+- **注意**: 古典法は周囲色の伝播なので**大穴・構造（文字・窓）復元は苦手**で平坦な跡が残る。広い除去や自然な置換が
+  要るなら **LaMa（`simple-lama-inpainting`）や拡散インペイント**へ（依存が重く CPU では遅いので本講座は概念/任意）。
+
+### ③ 低解像の在庫写真を出品基準へ（超解像リマスター）
+
+- **何に使うか**: 過去の小さいサムネしか残っていない在庫画像を、撮り直さずに出品サイズへ引き上げる。
+- **作り方の要点**: まず軽量・確実な**古典補間（bicubic/Lanczos, `cv2.resize`）**をベースラインにし、品質が要る所だけ
+  **Swin2SR（`gl.load_swin2sr` / `gl.swin2sr_upscale`）**。before/after は PSNR/SSIM ではなく実画では目視＋無参照 IQA で確認。
+- **注意**: Swin2SR classical-sr は「**ノイズなしの bicubic 縮小**」前提で学習されているため、JPEG ノイズや圧縮劣化が強い
+  実写では古典補間に負けることがある（**劣化ミスマッチ**）。出力は内部パディングで厳密 2× にならない点も忘れずクロップ。
+
+---
+
 ## ▶ 動かし方
 
 ```bash
@@ -293,6 +346,7 @@ uv run python lectures/31_generation_editing/02_img2img_inpaint.py       # img2i
 uv run python lectures/31_generation_editing/03_superres_bg_removal.py   # 超解像 + 背景除去
 uv run python lectures/31_generation_editing/04_eval_psnr_ssim_clipscore.py  # 評価
 uv run python lectures/31_generation_editing/mini_project.py             # 統合
+uv run python lectures/31_generation_editing/use_case.py                 # 実践ユースケース(EC商品写真)
 
 # 演習（TODO を実装 → 自己採点。未実装でも exit 0）
 uv run python lectures/31_generation_editing/exercises.py
