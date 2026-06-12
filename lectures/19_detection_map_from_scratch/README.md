@@ -142,7 +142,9 @@ map_75   = np.nanmean(ap[:, 5])  # IoU=0.75 のみ
 | `01_iou_matching.py` | IoU の自作（torchvision と一致確認）、confidence 降順の貪欲マッチング、二重カウント防止、TP/FP/FN の可視化 |
 | `02_pr_ap_interpolation.py` | 累積和で PR 列を構築、AP の 3 補間方式（11 点 / 全点 / COCO 101 点）、ソート漏れバグの再現 |
 | `03_map_vs_pycocotools.py` | カテゴリ × IoU 閾値で mAP@0.5 / mAP@0.75 / mAP@[.5:.95] を算出、pycocotools COCOeval と一致を `assert` 検証 |
-| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
+| `mini_project.py` | 章末ミニプロジェクト。同一 GT に strong/weak の2検出器を合成し、自作 mAP で比較→pycocotools で検算→F1 最大の運用しきい値を決定（4枚パネル図 + JSON） |
+| `exercises.py` | TODO 形式の演習9問（IoU / マッチング / PR / 3補間方式 / xywh変換 / NMS / mAP集約）。自己採点ランナー付きで、未実装でも `exit 0`。`SHOW_SOLUTION=1` で模範解答に差し替え |
+| `exercises_solutions.py` | 演習の模範解答ランナー（全問 PASS）。採点ロジックと解答は `exercises.py` を再利用（重複なし） |
 
 `det_helpers.py` だけは「読み物」ではなく「再利用する道具」です。中身も厚くコメントしてあるので、最初に一読してから 01 へ進むと、各スクリプトが何のデータで実験しているかが腑に落ちます。実画像で試したい人は、自分の GT/予測を `gt_boxes / pred_boxes / pred_scores / pred_labels` の形に整えて `make_detection_dataset` の戻り値と同じ dict にすれば、評価器にそのまま流せます。
 
@@ -159,10 +161,14 @@ uv run python lectures/19_detection_map_from_scratch/01_iou_matching.py
 uv run python lectures/19_detection_map_from_scratch/02_pr_ap_interpolation.py
 uv run python lectures/19_detection_map_from_scratch/03_map_vs_pycocotools.py
 
+# 章末ミニプロジェクト（2検出器を自作 mAP で比較→pycocotools 検算→運用しきい値決定）
+uv run python lectures/19_detection_map_from_scratch/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL。それでも exit 0 で落ちない）
 uv run python lectures/19_detection_map_from_scratch/exercises.py
-# どうしても分からない時だけ、模範解答の挙動を見る
+# どうしても分からない時だけ、模範解答の挙動を見る（どちらも全問 PASS）
 SHOW_SOLUTION=1 uv run python lectures/19_detection_map_from_scratch/exercises.py
+uv run python lectures/19_detection_map_from_scratch/exercises_solutions.py
 ```
 
 実行後は `outputs/19_detection_map_from_scratch/` に生成された画像と JSON を確認してください。`01_matching.png`（GT=緑 / TP=青 / FP=赤）、`02_pr_curve.png`（raw PR・単調包絡・11 点標本）、`03_map_compare.png`（左: IoU 閾値ごとの mAP 低下曲線、右: 自作と pycocotools の棒が重なる＝一致）を、本文の解説と照らし合わせると理解が定着します。各 JSON には自作と公式双方の数値が記録されているので、一致を自分の目でも確かめられます。なお `03` は初回に pycocotools のインデックス作成ログを標準出力へ出しますが、これはネットアクセスではなくローカル処理のログです（モデル DL も発生しません）。
@@ -194,6 +200,61 @@ SHOW_SOLUTION=1 uv run python lectures/19_detection_map_from_scratch/exercises.p
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点・CPU で動作確認）:
+## 🛠 章末ミニプロジェクト — 2台の検出器の「評価レポート」を一気通貫で書く
+
+ここまでで部品（IoU → マッチング → PR → AP → mAP）は全部そろいました。最後は、それらを統合して **「現場で評価レポートを書く」** ところまでやり切ります。`mini_project.py` は、次の 4 ステップを 1 本のスクリプトで通します。実務で検出器を「採用するか／どのしきい値で運用するか」を決めるときの最小フローそのものです。
+
+1. **同一 GT に 2 台の検出器を合成**: まず GT（正解）を 1 セットだけ作り、その**同じ GT** に対して品質の異なる予測を 2 通り合成します（`strong` = 取りこぼし少・位置精度高・誤検出少／`weak` = その逆）。検出器を比べるときは「同じ正解・同じ画像」で測るのが鉄則です。GT が違えば mAP は比較不能になります。
+2. **自作 mAP で評価**: 03 で組んだロジック（`coco101_ap` / カテゴリ × IoU 閾値ループ）を自己完結で再実装し、両検出器の `mAP@0.5 / mAP@0.75 / mAP@[.5:.95]` とカテゴリ別 AP50 を算出します。
+3. **pycocotools で検算**: 各検出器について自作値が COCOeval と `< 1e-6` で一致することを `assert` します。**検算が通って初めてレポートの数字が信用できる** —— これが「自作できる」ことの実利です。
+4. **運用しきい値を F1 で決める**: PR 機構は評価だけの道具ではありません。`strong` 検出器について confidence しきい値を 0.05〜0.95 で掃引し、`precision / recall / F1` を描いて **F1 が最大になる 1 点** を推奨しきい値として選びます。mAP は「しきい値非依存の総合力」、運用は「1 点を選ぶ」—— この役割分担を体で覚えます。
+
+成果物は `outputs/19_detection_map_from_scratch/` に出ます。`mini_detector_report.png` は 4 枚パネルで、(左上) 2 検出器の PR 曲線（strong が右上に張り出す）、(右上) IoU 閾値に対する mAP の右肩下がり（strong が常に上）、(左下) カテゴリ別 AP50 の棒比較、(右下) strong の F1 掃引と推奨しきい値の縦線、を一望できます。`mini_project_report.json` には両検出器の全指標・pycocotools との最大差・推奨しきい値が記録されます。実行すると `strong: mAP@[.5:.95]≈0.74 / weak≈0.16`、`推奨しきい値≈0.55 (F1≈0.99)` のような数字が出ます。
+
+> **発展課題（自分で手を動かす）**: (a) `make_predictions` の `shift_frac` だけを 0.06→0.18 に上げ、`mAP@0.5` はあまり下がらないのに `mAP@[.5:.95]` が大きく下がること（＝位置が甘いと厳しい IoU で効く）を確認する。(b) しきい値選びの基準を F1 から「recall を 0.9 以上に保ちつつ precision 最大」へ変え、運用要件で最適点が動くことを見る。(c) `data/` に実画像の COCO 形式（GT/予測）を置き、`make_ground_truth` の代わりにそれを読んで `AP_S`（小物体）が意味を持つようにする。
+
+## ✅ 到達チェックリスト
+
+この章を「マスターした」と言えるかどうかのセルフチェックです。すべて “理由つきで” 説明でき、コードで再現できれば合格です。
+
+- [ ] IoU を定義式（交差 / 和集合）から numpy で書け、`torchvision.ops.box_iou` と一致させられる。
+- [ ] bbox の 3 形式 `xyxy / xywh / cxcywh` を区別でき、COCO へ渡すときに `xyxy→xywh` を変換できる。
+- [ ] confidence 降順の貪欲マッチングを書け、**1 つの GT に複数 TP を許さない**（二重カウント防止）理由を説明できる。
+- [ ] マッチングは画像ごと・PR の累積は画像横断、という **二段構え** を説明でき、recall の分母がカテゴリ全体の GT 数（FN 込み）だと言える。
+- [ ] cumsum で precision/recall 列を作り、**単調包絡**（`np.maximum.accumulate`）が何をしているか説明できる。
+- [ ] AP の 3 補間方式（PASCAL 11 点 / VOC2010+ 全点 / COCO 101 点）を実装でき、同じ PR でも値が違う理由を言える。
+- [ ] カテゴリ平均と IoU 閾値平均の二段で `mAP@0.5` と `mAP@[.5:.95]` を作れ、両者の差から「位置精度の甘さ」を読める。
+- [ ] GT 0 件カテゴリを `np.nan + np.nanmean` で平均から除外する理由（COCO は −1）を説明できる。
+- [ ] 自作 mAP が pycocotools COCOeval と `< 1e-6` で一致することを `assert` で示せる。
+- [ ] 「AP が妙に低い／微妙にズレる／precision が不当に高い」の各症状から、原因（ソート漏れ・補間方式違い・二重カウント）を逆算できる。
+- [ ] ミニプロジェクトで 2 検出器を比較し、PR から F1 最大の運用しきい値を選べる。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+第 10 節のチェックリスト（症状 → 原因 → 対処）に加え、つまずきやすい点を Q&A 形式で補足します。
+
+- **Q. 自作 AP が pycocotools と少しだけ（0.0x）ズレる。** まず補間方式を疑ってください。COCO は **101 点・101 recall 閾値**、`np.searchsorted(..., side="left")`、`precision + np.spacing(1)`、右からの単調化、までを完全一致させる必要があります。次にソートの安定性（`kind="stable"`＝mergesort）。本章の合成データはスコアが連続値で同点がほぼ無いので影響は小さいですが、実データでは同点が頻発し、不安定ソートだと値が揺れます。
+- **Q. AP が極端に低い（半分くらい）。** ほぼ確実に **confidence 降順ソートの忘れ**です。`02` がわざと再現しています（正しい 0.7581 → ソート無し 0.4087）。cumsum の前に必ずスコア降順へ並べ替えてください。
+- **Q. precision が 1.0 近くに張り付いて不自然に高い。** 1 つの GT に複数の予測を TP として数えていませんか。マッチした GT を「使用済み」にして再利用を禁止してください（`gt_used` フラグ）。
+- **Q. pycocotools に渡すと箱が画面外に飛ぶ／AP が 0 になる。** `xyxy` のまま `loadRes` へ渡しています。COCO の `bbox` は **`xywh`**。`to_coco_dt`（演習なら `ex7_xyxy_to_xywh`）で変換してください。`target_sizes` を使う検出モデル（DETR 等）では `(H, W)` 順の取り違えも同種のバグです。
+- **Q. `AP_S` が `-1.0000` と出る。** バグではありません。その面積帯（小物体 < 32² px）に GT が 1 つも無いと pycocotools は `-1`（該当なし）を返します。本章の合成データは小物体を含まないので `AP_S=-1` が正常です。実画像を入れれば意味を持ちます。
+- **Q. GT が 1 つも無いカテゴリでクラッシュ／NaN が伝播する。** AP 表を `np.nan` で初期化し `np.nanmean` で平均すれば、空カテゴリは自動的に除外されます（COCO は内部で −1 として無視）。`np.mean` を使うと NaN が全体に伝播します。
+- **Q. NMS（演習 8）の結果が `torchvision.ops.nms` と一致しない。** NMS とマッチングは別物です。NMS は「スコア最高の箱を残し、それと IoU > 閾値の箱を捨てる」を繰り返す重複除去で、評価のマッチングとは独立に**推論の後処理**として行います。YOLO11 のように NMS 内蔵のモデルへさらに NMS をかけて二重抑制しないよう注意。比較は順序ではなく**残存 index の集合**で行います。
+- **Q. `mAP` と言われて話が噛み合わない。** `mAP@0.5`（旧 PASCAL 風・位置に緩い）と `mAP@[.5:.95]`（COCO 主指標・位置に厳しい）は別物です。必ず IoU 閾値（と補間方式）を添えて話してください。
+- **デバッグの定石**: 値が合わないときは「①スコア降順か → ②二重カウントしてないか → ③補間方式（点数）は合ってるか → ④bbox は xywh か → ⑤空カテゴリを除外したか」の順に潰すと、ほぼ全ての mAP バグは特定できます。本章の `assert` 群はこの 5 点を 1 つずつ踏み外すと必ず落ちるように作ってあります。
+
+## 🚀 発展トピック・参考
+
+- **IoU の拡張**: 評価は素の IoU ですが、**学習の損失**には `GIoU / DIoU / CIoU`（重なりゼロでも勾配が出る・中心距離やアスペクト比を加味）が使われます。`torchvision.ops.generalized_box_iou` で挙動を比べると、素の IoU が「重ならないと 0 で勾配消失」する弱点が分かります。
+- **後処理の改良**: 素の NMS は重なる正解物体を消しすぎることがあります。**Soft-NMS**（IoU に応じてスコアを減衰）、**class-agnostic NMS / batched_nms**（クラス跨ぎ抑制の有無）、**NMS-free 検出器**（DETR 系・YOLO26）の違いは、recall 上限と二重検出のトレードオフとして mAP に効きます。
+- **誤差の分解**: mAP は 1 つの数に潰れて「なぜ低いか」が見えません。**TIDE**（Bolya et al.）は誤差を分類誤り・位置ズレ・重複・背景・見逃しに分解し、改善の打ち所を教えてくれます。本章の TP/FP/FN の枠組みがその土台です。
+- **データセットごとの作法**: COCO は `maxDets=100`・101 点・`areaRng` 既定。**LVIS** は希少クラスを含む長尾評価（AP_r/AP_c/AP_f）、**Open Images** は階層ラベルと group-of box で評価規則が異なります。指標名が同じ `mAP` でも前提が違う点に注意。
+- **タスクの横展開**: `iouType` を変えるだけで、`segm`（マスク IoU の mask AP）、`keypoints`（OKS による keypoint mAP）へ同じ COCOeval が使えます。次回以降の `mIoU / Dice / PQ = SQ × RQ` も「対応付け → 累積 → 面積/比」という本章の骨格の応用です。
+- **公式実装を読む**: `pycocotools/cocoeval.py` の `evaluate / accumulate / summarize` は本章の自作とほぼ 1:1 対応します（`ious` 計算 → `dtMatches` → `precision` テンソル → `summarize`）。一度ソースを通読すると、自作との一致が「なぜ起きるか」が腑に落ちます。
+- 参考: COCO 評価 [cocodataset.org/#detection-eval](https://cocodataset.org/#detection-eval) ／ pycocotools [github.com/ppwwyyxx/cocoapi](https://github.com/ppwwyyxx/cocoapi) ／ torchvision ops [docs.pytorch.org/vision/stable/ops.html](https://docs.pytorch.org/vision/stable/ops.html) ／ torchmetrics detection [lightning.ai/docs/torchmetrics](https://lightning.ai/docs/torchmetrics/stable/)。
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点・CPU で動作確認）:
 > Python 3.12 ／ numpy 2.4.6 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ pycocotools 2.0.11 ／ matplotlib 3.10.9。
 > 本講座の評価トラックの想定スタック（2026-06 時点）は torch 2.12+cpu / torchvision 0.27+cpu / pycocotools 2.0.11 / scikit-learn 1.9 / torchmetrics 1.9 で、後続回では transformers 5.11・faiss-cpu も併用します（本回では未使用）。pycocotools は C 拡張のため numpy 2.x との ABI 不一致に注意（2.0.11 は cp310–cp314 の wheel 配布で無ビルド導入可）。

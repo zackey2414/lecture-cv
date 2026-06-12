@@ -175,9 +175,64 @@ results = processor.post_process_grounded_object_detection(
 | `01_owlvit_owlv2.py` | `pipeline` で最短検出 → `AutoModel` 手書き（`post_process_grounded_object_detection`・`target_sizes=(H,W)`）→ OWL-ViT vs OWLv2 比較・幻覚しにくさの確認 |
 | `02_grounding_dino.py` | Grounding DINO のキャプション形式・`box_threshold`/`text_threshold` の効き方・過検出/厳しめの比較（重い場合は概念紹介にフォールバック） |
 | `03_threshold_sweep_eval.py` | GT 付きシーンで閾値スイープ → P/R/F1 → F1 最大点と PR 曲線（OWLv2 vs Grounding DINO） |
-| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `mini_project.py` | 章末ミニプロジェクト。OWL-ViT vs OWLv2 を自作 AP@0.5・mAP@[.5:.95]・F1 運用点で厳密比較し、評価レポート（ダッシュボード＋JSON）を生成する総合課題 |
+| `exercises.py` | TODO 形式の演習8問（IoU/座標変換/マッチング/PRF/キャプション整形/IoU行列/NMS/AP補間）。自己採点ランナー `grade()` 付き |
+| `exercises_solutions.py` | 演習の模範解答（全 PASS）。採点ロジックは `exercises.grade()` を再利用（重複なし） |
 
 `ovd_helpers.py` だけは「読み物」ではなく「再利用する道具」です。とくに `detect_owl` / `detect_gdino`（検出して xyxy 絶対座標を返す）と `build_scene`（GT 付き4物体シーン）、`greedy_match`（クラス込み TP/FP/FN）が、3スクリプト全部の土台です。`ovd_helpers.py` を単体実行すると道具箱のスモークテスト（合成シーン描画＋IoU/PRF の動作確認、**モデル DL 不要**）になるので、まずそれを動かしてから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。
+
+## 🛠 章末ミニプロジェクト — 2検出器の厳密比較レポート
+
+`mini_project.py` は、この章の学び（OWL でのテキスト検出・`target_sizes=(H,W)` の後処理・IoU/貪欲マッチング・P/R/F1 の閾値スイープ）を1本に統合した総合課題です。01 が OWL-ViT と OWLv2 を「スコアの高さ」で**目視**比較しただけだったのに対し、ここでは**自作の検出メトリクスで定量比較**し、評価レポート（4枚パネルのダッシュボード＋JSON）を `outputs/20_open_vocabulary_detection/` に出力します。マスター要素は3つです。
+
+- **(1) 2検出器の厳密比較**: OWL-ViT と OWLv2 を AP@0.5・mAP@[.5:.95]・F1 最大運用点で並べる。AP@0.5 は**両者そろって 1.0 に飽和**して見分けがつかない一方、mAP@[.5:.95] は **OWL-ViT 0.93 < OWLv2 1.00** と差が出ます。
+- **(2) COCO 流 mAP の自作**: 第19回の自作 mAP を実モデルへ適用。スコア降順マッチング→**全点補間**で AP@0.5 を出し、IoU を 0.50:0.05:0.95 で動かして mAP@[.5:.95] を計算。OWL-ViT は **IoU=0.95 で AP が 0.33 まで落ちる**（＝箱が緩く局在が甘い）ことが可視化され、「**AP@0.5 では隠れる局在精度の差**」を体感できます。
+- **(3) 運用点はモデルで違う**: F1 最大のしきい値が **OWL-ViT t≈0.25 / OWLv2 t≈0.70** と大きく異なります。スコアのスケールがモデルで別物なので、片方の閾値を流用すると取りこぼし／過検出になる――「**閾値はモデルとセットで F1 最大点で決める**」を数値で示し、併せて『シーンに無いラベル』の誤検出（幻覚）を監査します。
+
+`mini_project_dashboard.png` の4パネル（最良モデルの検出・AP/mAP 棒・AP vs IoU 曲線・F1 vs 閾値曲線）と `mini_project_report.json` を、上の3点と照らし合わせてください。モデルのロード/推論が失敗する環境では、箱の締まりとスコアを変えた**強/弱の合成検出**にフォールバックして必ず `exit 0` になります。
+
+## ✅ 到達チェックリスト
+
+この章を「身につけた」と言える基準です。手を動かして全部 ✅ にできるか確認してください。
+
+- [ ] オープン語彙検出が「領域をテキスト埋め込みとの類似度で名付ける（第16回 CLIP の領域版）」技術だと自分の言葉で説明できる。
+- [ ] `AutoProcessor` + `AutoModelForZeroShotObjectDetection` で OWL をロードし、`post_process_grounded_object_detection` で box/score/label を取り出せる。
+- [ ] `target_sizes` を **`(H,W)`** 順（`image.size[::-1]`）で渡す理由を説明でき、間違えると box がどう歪むか言える。
+- [ ] OWL（候補ラベルの**リスト**）と Grounding DINO（**小文字＋ピリオド区切りキャプション**）の入力差と、GDINO の **box/text 2閾値**を使い分けられる。
+- [ ] IoU → 貪欲マッチング（クラス込み・1GT に1検出）→ TP/FP/FN → P/R/F1 を **numpy で自作**できる（演習 ex1/ex3/ex4）。
+- [ ] スコア閾値スイープで **F1 最大点を推奨閾値**として選べる（03）。
+- [ ] **AP（全点補間）と mAP@[.5:.95]** を自作でき、AP@0.5 と mAP@[.5:.95] が示す情報の違い（順位品質 vs 局在精度）を説明できる（演習 ex8・mini_project）。
+- [ ] NMS が「過検出した重複ボックスを1つに畳む」ことを実装できる（演習 ex7）。
+- [ ] 演習 8問すべてが `ALL PASS`、`mini_project.py`・01〜03 がいずれも `exit 0`。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+§13 の「症状→原因→対処」表と併せて、考え方・設計の疑問に答えます。
+
+**Q. OWL と Grounding DINO、結局どっちを使えばいい？**
+A. **列挙できる固定ラベル**なら OWL（候補配列を渡すだけ・ラベルが綺麗に付く）。**自由な言語表現・参照表現や下流の SAM 連携**なら Grounding DINO。CPU で軽く試すなら OWL-ViT、精度重視なら OWLv2。迷ったら OWLv2 から。
+
+**Q. `mAP` と書いてあるけど、AP@0.5 と mAP@[.5:.95] のどっち？**
+A. 文脈次第なので**必ず明記する**。PASCAL 流は mAP@0.5、COCO の主指標は mAP@[.5:.95]（IoU 0.50:0.05:0.95 の平均）。本章 mini_project は両方出すので、**AP@0.5 が同じでも mAP@[.5:.95] が違う**＝箱の締まり（局在精度）の差、という読み方を確認できます。
+
+**Q. AP@0.5 が 1.0 なのに mAP@[.5:.95] が 1.0 未満。なぜ？**
+A. AP@0.5 は「IoU≥0.5 で当たっていれば満点」。箱が少しズレていても 0.5 は超えるので満点になりがちです。mAP@[.5:.95] は IoU=0.90/0.95 のような**厳しい基準**も平均に含むため、箱が緩い検出器は高 IoU 側で AP が落ち、平均が下がります。これが「局在精度」を測るということです（mini_project の OWL-ViT がまさにこの挙動）。
+
+**Q. しきい値はいくつにすればいい？**
+A. **モデル・候補ラベル・画像ごとに変わる**ので固定値の正解はありません。03 と mini_project のように、低閾値で1回推論→後処理でスコア閾値を掃引→F1 最大点を選ぶ、が定石。OWL-ViT は ~0.1–0.25、OWLv2 は ~0.3–0.7 が目安ですが、**必ず自分のデータで F1 を測って決める**こと。
+
+**Q. 検出が0件 / box が出ない。どう切り分ける？**
+A. ①まず `ovd_helpers.py` を単体実行（モデル DL 不要のスモークテスト）→ IoU/PRF と合成シーンが正常か。②`01` の pipeline 出力で「4物体が当たり・無いラベルが0件」を確認。③box が歪むなら `target_sizes=(H,W)` を疑う。④検出が0件なら閾値を 0.01 まで下げて「そもそも候補が出ているか」を見る（出ていれば閾値問題、出ていなければ入力／ラベル／書式問題）。
+
+## 🚀 発展トピック・参考
+
+- **Grounded-SAM（第23回）**: Grounding DINO の box を SAM に `input_boxes` として渡し、テキスト指定領域をセグメンテーション。本章の `detect_gdino` がその前段そのもの。
+- **mAP@[.5:.95] と pycocotools**: 自作 mAP の検算は `COCOeval(iouType='bbox')` が正準（第19回）。AP_S/M/L（面積別）や AR@{1,10,100} まで出せる。自作値と突き合わせる癖をつける。
+- **NMS と過検出**: Grounding DINO の緩い設定で出る重複／断片は、演習 ex7 の NMS や `torchvision.ops.batched_nms`（クラス別 NMS）で後処理できる。OWL/GDINO は内部で NMS 済みなので**二重抑制に注意**。
+- **プロンプト設計**: 候補ラベルの言い回し（`"red circle"` / `"a red circle"` / `"a photo of a red circle"`）で低確信ボックスの数や検出が変わることがある。CLIP のプロンプト設計（第16回）と同じ発想で、検出対象ごとに最適な表現を探る。
+- **OWLv2 の self-training**: OWLv2 は OWL-ViT 自身の擬似ラベルで再学習して確信度・精度を底上げした後継。実務では「軽い OWL-ViT で試作 → OWLv2 で本番」。
+- **蒸留・最終章への接続**: OVD で粗く検出 → 良い検出を擬似ラベル化 → 軽量な閉語彙検出器（第18回）へ蒸留、は現場頻出。最終章（第40・41回）の Cluster-CLIP は OWLv2 をベースライン検出器に使う。
+- 参考: HuggingFace `transformers` の zero-shot-object-detection ドキュメント、OWL-ViT／OWLv2／Grounding DINO の各モデルカード、COCO 評価（pycocotools）。
 
 ## 12. 動かし方
 
@@ -195,9 +250,14 @@ uv run python lectures/20_open_vocabulary_detection/01_owlvit_owlv2.py
 uv run python lectures/20_open_vocabulary_detection/02_grounding_dino.py
 uv run python lectures/20_open_vocabulary_detection/03_threshold_sweep_eval.py
 
+# 章末ミニプロジェクト（OWL-ViT vs OWLv2 の評価レポート。ダッシュボード＋JSON を保存）
+uv run python lectures/20_open_vocabulary_detection/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
 uv run python lectures/20_open_vocabulary_detection/exercises.py
-# どうしても分からない時だけ、模範解答の挙動を見る
+# どうしても分からない時だけ、模範解答（全 PASS）を見る
+uv run python lectures/20_open_vocabulary_detection/exercises_solutions.py
+# もしくは同じ採点ロジックで模範解答を採点（採点を共有して確認）
 SHOW_SOLUTION=1 uv run python lectures/20_open_vocabulary_detection/exercises.py
 
 # （任意）実写で試す: data/20_open_vocabulary_detection/ に .png/.jpg を置くと自動で使われる
@@ -233,6 +293,6 @@ SHOW_SOLUTION=1 uv run python lectures/20_open_vocabulary_detection/exercises.py
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
 > Python 3.12 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ transformers 5.11.0 ／ huggingface-hub 1.18.0 ／ timm 1.0.27 ／ safetensors 0.8.0 ／ numpy 2.4.6 ／ Pillow 12.2.0 ／ matplotlib 3.10.9 ／ opencv-python-headless 4.13.0（合成シーンの描画）／ pycocotools 2.0.11（第19回の自作 mAP・COCOeval 突き合わせで使用）
 > 使用モデル: `google/owlvit-base-patch32`（OWL-ViT）／ `google/owlv2-base-patch16-ensemble`（OWLv2）／ `IDEA-Research/grounding-dino-tiny`（Grounding DINO）。いずれも初回のみ HuggingFace から重みを取得しキャッシュします。

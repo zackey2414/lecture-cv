@@ -78,6 +78,60 @@ def ex4_ap_coco101(precision: np.ndarray, recall: np.ndarray) -> float:
     raise NotImplementedError
 
 
+def ex5_ap_11point(precision: np.ndarray, recall: np.ndarray) -> float:
+    """演習5: PASCAL VOC 2007 方式の 11点補間 AP を返す。
+
+    recall = 0,0.1,...,1.0 の11点それぞれで「recall>=r を満たす点の precision の最大値」
+    （満たす点が無ければ 0）を取り、その11個を平均する。同じ PR でも COCO 101点とは値が違う。
+    ヒント: for r in np.linspace(0,1,11): mask=recall>=r; p=precision[mask].max() if mask.any() else 0
+    """
+    # TODO: PASCAL 11点 AP を float で返す
+    raise NotImplementedError
+
+
+def ex6_ap_all_point(precision: np.ndarray, recall: np.ndarray) -> float:
+    """演習6: VOC2010+ 方式の「全点」AP（単調化した PR 曲線の真下の面積）を返す。
+
+    端点 (recall=0, precision=1) と (recall=最終, precision=0) を足し、precision を右から
+    単調化（np.maximum.accumulate）。recall が変化した位置だけ AP=Σ(Δrecall)×precision を積む。
+    ヒント: mrec=concat([[0],recall,[recall[-1]]]); mpre=concat([[1],precision,[0]]) を単調化。
+    """
+    # TODO: 全点(VOC2010+) AP を float で返す
+    raise NotImplementedError
+
+
+def ex7_xyxy_to_xywh(boxes: np.ndarray) -> np.ndarray:
+    """演習7: xyxy 形式の (N,4) ボックス群を COCO の xywh 形式へ変換して返す。
+
+    xyxy=[x1,y1,x2,y2] → xywh=[x1, y1, x2-x1, y2-y1]。pycocotools へ渡すときに必須の変換で、
+    ここを誤ると箱が歪んで AP が崩壊する典型バグになる。x1,y1 はそのまま、w,h を差で作る。
+    """
+    # TODO: (N,4) の xywh 配列を返す
+    raise NotImplementedError
+
+
+def ex8_nms(boxes: np.ndarray, scores: np.ndarray, iou_thr: float) -> np.ndarray:
+    """演習8: Non-Maximum Suppression。残す予測の index 配列（スコア降順）を返す。
+
+    手順: スコア降順に並べ、先頭(最高スコア)を採用→残りのうち先頭との IoU>閾値 を捨てる、を繰り返す。
+          マッチングと同じく IoU で重複を抑える操作で、torchvision.ops.nms と同じ集合になる。
+    ヒント: box_iou_numpy(boxes[i][None], boxes[残り])[0] <= iou_thr で生き残りを絞る。
+    """
+    # TODO: 残す index 配列 (K,) を返す
+    raise NotImplementedError
+
+
+def ex9_map_aggregate(ap_table: np.ndarray) -> tuple[float, float, float]:
+    """演習9: AP[カテゴリ, IoU閾値] の表から mAP@0.5 / mAP@0.75 / mAP@[.5:.95] を返す。
+
+    列の並びは IoU=0.50,0.55,...,0.95。mAP@0.5=列0の平均, mAP@0.75=列5の平均,
+    mAP@[.5:.95]=全要素の平均。GT 無しカテゴリは np.nan で入っているので np.nanmean で除外する。
+    戻り値は (map50, map75, map5095) の順。
+    """
+    # TODO: (map50, map75, map5095) を返す
+    raise NotImplementedError
+
+
 # =====================================================================
 # 自己採点ランナー（未実装でも例外で落とさず PASS/FAIL を表示。必ず exit 0）
 # =====================================================================
@@ -162,6 +216,58 @@ def _grade() -> None:
         return np.isclose(ap, ref, atol=1e-9), "COCO 101点 AP が参照値と一致"
     check("ex4_ap_coco101", _c4)
 
+    # ex5: PASCAL 11点 AP（参照値はインラインで独立計算）
+    def _c5_11pt():
+        recall = np.array([0.2, 0.4, 0.6, 0.8, 1.0])
+        precision = np.array([1.0, 0.9, 0.7, 0.6, 0.5])
+        ref = float(np.mean([precision[recall >= r].max() if (recall >= r).any() else 0.0
+                             for r in np.linspace(0, 1, 11)]))
+        return np.isclose(ex5_ap_11point(precision, recall), ref, atol=1e-9), "PASCAL 11点 AP が参照値と一致"
+    check("ex5_ap_11point", _c5_11pt)
+
+    # ex6: 全点(VOC2010+) AP
+    def _c6_all():
+        recall = np.array([0.2, 0.4, 0.6, 0.8, 1.0])
+        precision = np.array([1.0, 0.9, 0.7, 0.6, 0.5])
+        mrec = np.concatenate([[0.0], recall, [recall[-1]]])
+        mpre = np.maximum.accumulate(np.concatenate([[1.0], precision, [0.0]])[::-1])[::-1]
+        idx = np.where(mrec[1:] != mrec[:-1])[0]
+        ref = float(np.sum((mrec[idx + 1] - mrec[idx]) * mpre[idx + 1]))
+        return np.isclose(ex6_ap_all_point(precision, recall), ref, atol=1e-9), "全点(VOC2010+) AP が参照値と一致"
+    check("ex6_ap_all_point", _c6_all)
+
+    # ex7: xyxy→xywh 変換
+    def _c7_fmt():
+        boxes = np.array([[10, 20, 40, 60], [0, 0, 100, 50]], dtype=float)
+        got = np.asarray(ex7_xyxy_to_xywh(boxes), dtype=float)
+        ref = np.array([[10, 20, 30, 40], [0, 0, 100, 50]], dtype=float)
+        return got.shape == ref.shape and np.allclose(got, ref), "xyxy→xywh(COCO) 変換が正しい"
+    check("ex7_xyxy_to_xywh", _c7_fmt)
+
+    # ex8: NMS が torchvision.ops.nms と同じ残存集合になる
+    def _c8_nms():
+        import torch
+        from torchvision.ops import nms as tv_nms
+        rng2 = np.random.default_rng(1)
+        bb = rng2.uniform(0, 300, (15, 2))
+        bb = np.concatenate([bb, bb + rng2.uniform(20, 80, (15, 2))], axis=1)
+        ss = rng2.uniform(0, 1, 15)
+        mine = np.asarray(ex8_nms(bb, ss, 0.5)).astype(int).tolist()
+        ref = tv_nms(torch.tensor(bb), torch.tensor(ss), 0.5).numpy().tolist()
+        return set(mine) == set(ref), "NMS の残存indexが torchvision.ops.nms と一致"
+    check("ex8_nms", _c8_nms)
+
+    # ex9: AP 表からの mAP 集約（NaN=空カテゴリを除外）
+    def _c9_agg():
+        ap = np.full((3, 10), np.nan)
+        ap[0] = np.linspace(0.9, 0.4, 10)
+        ap[1, :] = 0.5  # ap[2] は全 NaN（GT 無しカテゴリ）→ 平均から除外されるべき
+        m50, m75, m5095 = ex9_map_aggregate(ap)
+        ok = (np.isclose(m50, np.nanmean(ap[:, 0])) and np.isclose(m75, np.nanmean(ap[:, 5]))
+              and np.isclose(m5095, np.nanmean(ap)))
+        return ok, "mAP@0.5/0.75/[.5:.95] の集約(NaN除外)が正しい"
+    check("ex9_map_aggregate", _c9_agg)
+
     # 総合: ex2〜ex4 を組み合わせた mAP@[.5:.95] が pycocotools と一致
     def _c5():
         from pycocotools.coco import COCO
@@ -245,12 +351,64 @@ def _sol_ex4(precision, recall):
     return float(q.mean())
 
 
+def _sol_ex5(precision, recall):
+    precision = np.asarray(precision, float)
+    recall = np.asarray(recall, float)
+    aps = []
+    for r in np.linspace(0, 1, 11):
+        mask = recall >= r
+        aps.append(precision[mask].max() if mask.any() else 0.0)
+    return float(np.mean(aps))
+
+
+def _sol_ex6(precision, recall):
+    precision = np.asarray(precision, float)
+    recall = np.asarray(recall, float)
+    mrec = np.concatenate([[0.0], recall, [recall[-1]]])
+    mpre = np.maximum.accumulate(np.concatenate([[1.0], precision, [0.0]])[::-1])[::-1]
+    idx = np.where(mrec[1:] != mrec[:-1])[0]
+    return float(np.sum((mrec[idx + 1] - mrec[idx]) * mpre[idx + 1]))
+
+
+def _sol_ex7(boxes):
+    boxes = np.asarray(boxes, float).reshape(-1, 4)
+    out = boxes.copy()
+    out[:, 2] = boxes[:, 2] - boxes[:, 0]
+    out[:, 3] = boxes[:, 3] - boxes[:, 1]
+    return out
+
+
+def _sol_ex8(boxes, scores, iou_thr):
+    boxes = np.asarray(boxes, float).reshape(-1, 4)
+    scores = np.asarray(scores, float).reshape(-1)
+    order = np.argsort(-scores, kind="stable")
+    keep = []
+    while len(order) > 0:
+        i = order[0]
+        keep.append(int(i))
+        if len(order) == 1:
+            break
+        ious = box_iou_numpy(boxes[i][None], boxes[order[1:]])[0]
+        order = order[1:][ious <= iou_thr]  # 先頭との重なりが閾値以下のものだけ残す
+    return np.array(keep, dtype=int)
+
+
+def _sol_ex9(ap_table):
+    ap = np.asarray(ap_table, float)
+    return float(np.nanmean(ap[:, 0])), float(np.nanmean(ap[:, 5])), float(np.nanmean(ap))
+
+
 def _install_solutions() -> None:
     g = globals()
     g["ex1_iou"] = _sol_ex1
     g["ex2_match"] = _sol_ex2
     g["ex3_pr"] = _sol_ex3
     g["ex4_ap_coco101"] = _sol_ex4
+    g["ex5_ap_11point"] = _sol_ex5
+    g["ex6_ap_all_point"] = _sol_ex6
+    g["ex7_xyxy_to_xywh"] = _sol_ex7
+    g["ex8_nms"] = _sol_ex8
+    g["ex9_map_aggregate"] = _sol_ex9
 
 
 if __name__ == "__main__":

@@ -156,7 +156,9 @@ RUN_MASKGEN=1 uv run python lectures/23_text_prompt_segmentation/02_grounded_sam
 | `01_clipseg.py` | CLIPSeg で `logits→sigmoid→閾値`。3プロンプトの確率マップ・IoU/Dice・「不在の概念」検証 |
 | `02_grounded_sam.py` | Grounding DINO → SAM の2段構成。検出箱→マスク・最終 IoU・mask-generation の対比（概念） |
 | `03_referring_iou_eval.py` | CLIPSeg しきい値スイープ（IoU 最大点）＋ Grounded-SAM の box 閾値スイープ（recall トレードオフ） |
-| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `mini_project.py` | 章末ミニプロジェクト。3設定（CLIPSeg@0.5 / CLIPSeg@best / Grounded-SAM）を同じシーンで競わせ、IoU 棒グラフ・パネル・JSON で勝敗を出す |
+| `exercises.py` | TODO 形式の演習9問（易→難。自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `exercises_solutions.py` | 演習の全問模範解答ランナー（採点ロジック・解答とも `exercises.py` を再利用。全 PASS を確認する用） |
 
 `seg_helpers.py` だけは「読み物」ではなく「再利用する道具」です。とくに `clipseg_probs`（`logits→補間→sigmoid` を1つにまとめた中核）、`mask_iou`/`mask_dice`/`best_threshold`（評価の土台）、`build_scene`（GT 付き合成シーン）が3スクリプト全部の基盤になっています。まず helper を一読してから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。
 
@@ -174,10 +176,15 @@ uv run python lectures/23_text_prompt_segmentation/01_clipseg.py
 uv run python lectures/23_text_prompt_segmentation/02_grounded_sam.py
 uv run python lectures/23_text_prompt_segmentation/03_referring_iou_eval.py
 
+# 章末ミニプロジェクト: 3手法を1枚のベンチで比較（IoU 棒グラフ・パネル・JSON を保存）
+uv run python lectures/23_text_prompt_segmentation/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
 uv run python lectures/23_text_prompt_segmentation/exercises.py
 # どうしても分からない時だけ、模範解答の挙動を見る
 SHOW_SOLUTION=1 uv run python lectures/23_text_prompt_segmentation/exercises.py
+# 全問の模範解答を一括実行して「正解なら ALL PASS」を確認する
+uv run python lectures/23_text_prompt_segmentation/exercises_solutions.py
 
 # （任意）実画像で試す: data/23_text_prompt_segmentation/image.png を置き、
 #         prompts.txt に 1 行 1 プロンプトを書くと自動で使われる（GT 無しなら可視化のみ）。
@@ -213,6 +220,84 @@ SHOW_SOLUTION=1 uv run python lectures/23_text_prompt_segmentation/exercises.py
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
+## 13. 🛠 章末ミニプロジェクト — 3手法を1枚のベンチで競わせる
+
+ここまでに分解して学んだ部品（CLIPSeg の `logits→sigmoid→閾値`、IoU/Dice、しきい値スイープ、Grounding DINO→SAM の2段構成）を**1本のスクリプトに統合**して、「同じシーンを3つの設定で解き、表・図・JSON で勝敗を出す」のが `mini_project.py` です。本章の総合課題の完成形であり、まず動かして結果を眺め、次に「なぜこの順位になるか」を本文の知識で説明できれば、この章は body に落ちています。
+
+**比較する3設定**は、本章の「素朴 → 改善 → 別アプローチ」という学びの流れそのものです。
+
+1. **CLIPSeg @0.5** … 既定しきい値で2値化した「素朴な使い方」（第3節）。
+2. **CLIPSeg @best** … 各プロンプトでしきい値を 0.05〜0.95 でスイープし IoU 最大点を採る（第4節）。
+3. **Grounded-SAM** … Grounding DINO の box を SAM でマスク化する2段・高精度型（第5節）。
+
+**成果物**（`outputs/23_text_prompt_segmentation/` に保存）は3つです。`mini_project_compare.png`（オブジェクト×手法の IoU 棒グラフ）、`mini_project_panel.png`（GT／CLIPSeg@best／Grounded-SAM のマスク重ね合わせ）、`mini_project_report.json`（全数値＋**オブジェクト別の勝者**＋**手法別の平均 IoU・勝者数**）。合成シーンでの実測は概ね次のようになります（数値は環境で多少前後します）。
+
+| オブジェクト | CLIPSeg@0.5 | CLIPSeg@best | Grounded-SAM | 勝者 |
+| --- | --- | --- | --- | --- |
+| red circle | 0.945 | 0.965 | 0.998 | Grounded-SAM |
+| blue square | 0.942 | 0.947 | 1.000 | Grounded-SAM |
+| green triangle | 0.884 | 0.936 | 1.000 | Grounded-SAM |
+| **平均 IoU** | **0.924** | **0.950** | **0.999** | — |
+
+読み取るべきは2点です。第一に **CLIPSeg@best > CLIPSeg@0.5**――しきい値を選び直すだけで平均 IoU が上がり、「0.5 は最適でない」（第4節）が数字で裏付きます。第二に **Grounded-SAM が全オブジェクトで勝つ**――SAM の境界の鋭さが IoU 差として効く（第5節）ことが、勝者数 3-0 という形で現れます。**課題**: (a) `mini_project.py` を読み、`eval_clipseg` がどこで `best_threshold` を呼んでいるか、`best_sam_mask_for_gt` がなぜ「GT ごとに IoU 最大の SAM マスク」を選ぶのかを説明する。(b) `_SCENE` に4つ目の図形（例: 黄色い星）を `seg_helpers.py` に追加し、ベンチがそのまま4オブジェクトに拡張されることを確かめる。(c) 勝敗が変わるよう、CLIPSeg に有利な「滲んだ境界でも良い」設定（例: Dice を主指標にする）を考え、`winner` の判定軸を IoU から Dice に変えるとどうなるかを試す。
+
+## 14. ✅ 到達チェックリスト
+
+次の問いに「コードのどの行がそれを担うか」まで指させれば、この章は合格です。手を動かして確認してください。
+
+- [ ] 参照セグメが、セマンティックセグメ（固定クラス）・SAM（点/箱）・オープン語彙検出（箱）と**何が違うか**を1文で言える（任意テキストで指定し、出力は画素マスク）。
+- [ ] CLIPSeg の出力を **`sigmoid`** で確率化する理由（画素ごとの独立判定）を、`softmax` を使わない理由とセットで説明できる。
+- [ ] CLIPSeg のロジット（352×352）を **原寸へ補間してから** sigmoid する必要性を述べ、`F.interpolate(..., size=(h,w))` を書ける。
+- [ ] **IoU と Dice** の式を諳んじ、同じ重なりで **Dice ≥ IoU** になる理由を説明できる。
+- [ ] しきい値スイープで **最良点が 0.5 でない**ことを図で示し、「低すぎ＝塗り過ぎ／高すぎ＝塗り残し」を語れる。
+- [ ] Grounding DINO のテキストが **小文字＋ピリオド区切り**であるべき理由と、`post_process_*` の **`target_sizes` が (H, W) 順**であることを知っている。
+- [ ] SAM が box ごとに**候補マスクを3枚返す**こと、`iou_scores` の argmax を採る理由、`post_process_masks` で原寸化する必要を説明できる。
+- [ ] **box 閾値を上げると検出が 3→1→0 に崩れる**（recall が最終マスクの上限を決める）ことを、CLIPSeg のしきい値（切り方を変えるだけ）との違いとして対比できる。
+- [ ] `pipeline("mask-generation")`（プロンプト無し・網羅）と参照セグメ（プロンプト有り・特定対象）の**目的が逆**であることを言える。
+- [ ] 演習 ex8（貪欲マッチング）と ex9（AP 補間）で、**1つの GT に TP は1つだけ**・**precision を右から単調化して面積を取る**という検出評価の核を実装できる。
+
+## 15. ❓ よくある落とし穴・FAQ・デバッグ
+
+第11節の「症状→原因→対処」表が**実行時エラー**の早見表なら、ここは**概念のつまずき**の Q&A です。両方を行き来すると理解が固まります。
+
+**Q1. CLIPSeg の確率を `softmax` で正規化したら、どのプロンプトも合計1になって変です。**
+A. それが `softmax` の罠です。`softmax` は「候補のどれか1つ」に確率を寄せる**排他的**な正規化で、参照セグメには不向きです。CLIPSeg は**各画素を独立に**「この文に合うか」判定するので **`sigmoid`** が正しい。だから「シーンに無い概念（`a yellow star`）」を投げても全画素が低いまま=しきい値で「無い」と判定できます（第3節）。`softmax` だと無理やりどこかが高くなり、不在を表現できません。
+
+**Q2. 全プロンプトで IoU がほぼ 0 です。**
+A. まず原寸補間を疑ってください。CLIPSeg の生出力は 352×352 固定なので、`F.interpolate` で原寸 `(h, w)` に上げずに GT と重ねると、画像とマスクの**格子がずれて**重なりが消えます。次に GT 整合（`seg_helpers.build_scene` の GT は RGB のまま作るので、cv2 の `imread/imwrite` を挟んで BGR が混ざっていないか）を確認。`outputs/.../00_scene_and_gt.png` で GT が想定どおりの位置かを目視するのが最短です。
+
+**Q3. Grounding DINO が合成画像で何も検出しません（検出数 0）。**
+A. 合成画像はテクスチャが乏しく、実写前提の Grounding DINO の確信度が出にくい**ドメインギャップ**です。これは異常ではありません。本章のスクリプト（`02`・`mini_project`）は**検出ゼロを検知したら GT の外接 box を SAM に渡すフォールバック**に切り替えるので、SAM 単体の品質は必ず確認でき、かつ exit 0 で完走します。実写で試したい場合は `data/23_text_prompt_segmentation/image.png` を置いてください。なお検出の作法（小文字＋ピリオド区切り、`threshold` を下げる）も併せて見直します。
+
+**Q4. `box_threshold=` を渡したら `TypeError` になりました。**
+A. transformers v5 で `post_process_grounded_object_detection` の引数名が **`threshold`** に変わりました（旧 `box_threshold`）。`text_threshold` は別引数として残ります。本章のコードは `threshold=...` で統一しています。
+
+**Q5. `mini_project` で Grounded-SAM が常に勝ちます。CLIPSeg が劣るのはモデルが悪いから？**
+A. いいえ、**設計の違い**です。CLIPSeg は1モデルで「文→確率マップ」を出すので境界がソフトに滲み、IoU では SAM のシャープな境界に一歩譲ります。しかし CLIPSeg は**軽量・高速**で、`sky` のような**非物体の領域**も塗れ、しきい値で後から挙動を調整できる強みがあります（第8節の表）。「速度・手軽さ・領域概念」を重視する場面なら CLIPSeg が正解です。勝敗は**指標と要件しだい**で、IoU 単独で優劣を決めないこと。
+
+**Q6. box 閾値を上げると平均マスク IoU が `0.000` に落ちました。バグですか？**
+A. 仕様どおりです。閾値 0.95 では Grounding DINO が**1つも検出しない**ため、SAM に渡す箱が無く、マスクが作れません（IoU=0）。これは Grounded-SAM の本質――**段1の検出 recall が最終マスクの網羅性の上限**――を示す現象で、第6節で意図的に観察させています。CLIPSeg のしきい値が「1枚の確率マップの切り方」を変えるだけなのと対照的に、box 閾値は「そもそも対象を見つけるか否か」を左右します。
+
+**Q7. 演習 ex8（貪欲マッチング）で TP が GT 数を超えてしまいます。**
+A. 「**1つの GT に対応できる検出は1つだけ**」を破っています。score 降順に走査し、TP にした GT を「使用済み」フラグで除外してください。同じ GT に2つ目の検出が当たっても、それは TP ではなく **FP**（二重カウントは検出評価の典型バグ）です。ex9 の AP も、この「未使用 GT への一意マッチ」を前提に PR 曲線を作ります。
+
+**Q8. CPU で推論が極端に遅い／固まります。**
+A. CPU では `float16`/`half` が遅い・未対応のことが多いので **`float32` のまま**使います（本章は明示的に dtype 指定せず float32）。`pipeline("mask-generation")` は**点グリッドの数だけ SAM を走らせる**ので最も重く、本章では既定で概念紹介に留め、`RUN_MASKGEN=1` のときだけ `points_per_side=8` に絞ります。初回はモデル重みの DL も入るので、Docker ではキャッシュ（`HF_HOME` / `~/.cache/huggingface`）をボリュームマウントして再 DL を避けます。
+
+## 16. 🚀 発展トピック・参考
+
+本章の2手法は「テキスト→マスク」の入口です。現場・研究では次の方向へ広がります。
+
+- **より新しい SAM 系**: `SAM2`（動画対応・高速）・`MobileSAM`/`SlimSAM`（CPU で数秒の軽量版）への置換は、`seg_helpers.load_sam` の model_id を差し替えるだけで試せます。Grounded-SAM の段2を SAM2 にすると境界と速度が改善します。
+- **Grounded-SAM 2 / 検出器の差し替え**: 段1を `Grounding DINO 1.5`・`OWLv2`・自前学習の検出器に替えると語彙・精度が伸びます。**モジュール性**が2段構成の最大の利点で、「検出は得意なモデル、切り出しは SAM」と分業させる設計思想が核です。
+- **推論セグメンテーション（reasoning segmentation）**: `LISA`・`SEEM` は「**右側の一番大きい果物**」のような**推論を要する参照表現**を LLM/VLM と結合して解きます。CLIPSeg が苦手な「言語的な含意」を扱う次世代の参照セグメです。
+- **参照セグメ用データセットと指標**: `RefCOCO/+/g`・`PhraseCut` が定番ベンチで、評価には本章の IoU に加え **cIoU（cumulative IoU）**・**gIoU（generalized IoU）**・**Precision@X**（IoU≥X を成功とする割合）・**boundary IoU**（境界帯での一致）が使われます。境界の質を測りたいときは boundary IoU を足すと CLIPSeg と Grounded-SAM の差がより鮮明になります。
+- **ハイブリッド**: Grounding DINO の box を CLIPSeg の条件に混ぜる、SAM のマスクで CLIPSeg の確率を後段リファインする、といった組み合わせも有効です。本章のコードは部品を `seg_helpers` に分離してあるので、組み替えの土台にできます。
+
+参考リンク（モデルカード/ドキュメント）: CLIPSeg `CIDAS/clipseg-rd64-refined`、SAM `facebook/sam-vit-base`、Grounding DINO `IDEA-Research/grounding-dino-tiny`（いずれも HuggingFace transformers 同梱）。transformers の `image-segmentation` / `mask-generation` / `zero-shot-object-detection` パイプラインのドキュメントも併読すると、本章のスクリプトが「正準フローのどこを手書きしているか」が見通せます。
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06-12 時点の安定版で動作確認）:
 > Python 3.12 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ transformers 5.11.0 ／ huggingface-hub 1.18.0 ／ timm 1.0.27 ／ safetensors 0.8.0 ／ numpy 2.4.6 ／ Pillow 12.2.0 ／ matplotlib 3.10.9 ／ opencv-python-headless 4.13.0（合成シーンの描画）
 > 使用モデル: `CIDAS/clipseg-rd64-refined`（CLIPSeg）／ `facebook/sam-vit-base`（SAM）／ `IDEA-Research/grounding-dino-tiny`（Grounding DINO）。いずれも HuggingFace transformers 同梱で、初回のみ重みを取得しキャッシュします。Grounded-SAM の発展（より広い語彙の検出器への差し替え）や SAM2/MobileSAM への置換は、`seg_helpers.load_*` を差し替えるだけで試せます。

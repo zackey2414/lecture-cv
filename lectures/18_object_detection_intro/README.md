@@ -194,6 +194,18 @@ uv run python lectures/18_object_detection_intro/01_torchvision_detection.py
 
 まず依存グループを入れ、スクリプトを順に実行します。初回はモデル重みのDL（ssdlite≈13MB / retinanet≈130MB / fasterrcnn≈160MB / DETR≈160MB）が走るためネット接続が要りますが、2回目以降はキャッシュから即起動します。すべて CPU・合成画像で完走し、結果は `outputs/18_object_detection_intro/` に図と JSON で保存されます。
 
+### スクリプト一覧
+
+| ファイル | 役割 | 主な出力 | 重みDL |
+| --- | --- | --- | --- |
+| `detection_helpers.py` | 共通の道具箱（device 判定 / 合成画像 / 後処理 / 可視化 / 保存） | `00_scene.png`（単体実行時） | なし |
+| `01_torchvision_detection.py` | weights API で 3 モデル横断検出（4点セット・閾値・NMS・可視化） | `01_torchvision_compare.png` / `01_torchvision_results.json` | ssd/retina/frcnn |
+| `02_detr_huggingface.py` | HF DETR の `post_process` と `target_sizes=(H,W)` の罠を可視化 | `02_detr_target_sizes.png` / `02_detr_results.json` | DETR |
+| `03_detection_benchmark.py` | torchvision vs DETR を統一APIで比較し torchmetrics で mAP | `03_benchmark_compare.png` / `03_benchmark.json` | ssd/DETR |
+| `mini_project.py` | **章末課題**: 検出パイプライン × 自作 mAP@0.5 を1本に統合 | `mini_detection_overlay.png` / `mini_pr_curve.png` / `mini_project.json` | ssdlite |
+| `exercises.py` | 演習 10 問（IoU〜AP補間）。TODO を埋めて自己採点 | （標準出力の採点表） | なし |
+| `exercises_solutions.py` | 演習の模範解答ランナー（全10問 PASS を確認） | （標準出力の採点表） | なし |
+
 ```bash
 # 依存（深層学習の土台 + HuggingFace + 評価指標）
 uv sync --group dl --group hf --group metrics
@@ -207,15 +219,20 @@ uv run python lectures/18_object_detection_intro/02_detr_huggingface.py
 # 3) torchvision vs DETR を統一APIで比較し、torchmetrics で mAP を出す
 uv run python lectures/18_object_detection_intro/03_detection_benchmark.py
 
+# 章末ミニプロジェクト: 検出 → 後処理 → 可視化 → 自作mAP の検算まで一気通貫
+uv run python lectures/18_object_detection_intro/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
 uv run python lectures/18_object_detection_intro/exercises.py
 # どうしても分からない時だけ、模範解答の挙動を見る
 SHOW_SOLUTION=1 uv run python lectures/18_object_detection_intro/exercises.py
+# 模範解答だけ走らせて答え合わせ（全10問 PASS）
+uv run python lectures/18_object_detection_intro/exercises_solutions.py
 
 # （任意）実画像で試す: data/18_object_detection_intro/ に .jpg/.png を置くと自動で使われる
 ```
 
-実行後は、`01_torchvision_compare.png`（モデル横断の検出比較）、`02_detr_target_sizes.png`（`(H,W)` 正・`(W,H)` 誤の対比）、`03_benchmark_compare.png`（フレームワーク横断比較）の3枚を、解説と照らし合わせて眺めてください。とくに `02` の右パネルの「歪んだ箱」を一度見ておくと、`target_sizes` のバグを一生忘れません。
+実行後は、`01_torchvision_compare.png`（モデル横断の検出比較）、`02_detr_target_sizes.png`（`(H,W)` 正・`(W,H)` 誤の対比）、`03_benchmark_compare.png`（フレームワーク横断比較）、`mini_pr_curve.png`（PR 曲線と AP 面積）の各図を、解説と照らし合わせて眺めてください。とくに `02` の右パネルの「歪んだ箱」を一度見ておくと、`target_sizes` のバグを一生忘れません。
 
 ## 12. よくあるエラーと対処（チェックリスト）
 
@@ -244,6 +261,68 @@ SHOW_SOLUTION=1 uv run python lectures/18_object_detection_intro/exercises.py
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
+## 🛠 章末ミニプロジェクト — 「検出パイプライン × 自作 mAP」を1本に統合する
+
+ここまでの部品（4点セット・`[0,1]` リスト入力・閾値・`batched_nms`・可視化・mAP）を、`mini_project.py` で**ひと続きの評価系**に組み上げます。これは「検出器を動かす」だけでなく、**その良し悪しを自分で数値化し、ライブラリで検算する**という実務の最小ループを体験する総合課題です。
+
+**やること（2部構成）**
+
+- **Part A — 検出パイプライン**: `ssdlite320` を 4点セットでロードし、`[0,1]` float CHW リスト入力 → `eval()`＋`inference_mode()` 推論 → score 閾値＋クラス別 NMS → `draw_bounding_boxes` 可視化、を一気通貫で回します。合成画像のときは `make_scene_image()` が描く図形の**既知座標を pseudo-GT** とし、検出器の **mAP@0.5 を測定**します。COCO 学習器は抽象図形に弱いため、出力ラベルは `stop sign` ばかりになり、**mAP はほぼ 0**。これは故障ではなく、§10 で述べた**ドメインギャップを数値で見た**もので、`mini_detection_overlay.png` の「pseudo-GT（緑）vs 予測（赤）」を見比べると、箱の位置は近いのにラベルが総崩れ、という様子がよく分かります。
+
+- **Part B — 自作 mAP の検算（第19回の予告）**: 演習 ex7〜ex9（IoU マッチング → PR 曲線 → 全点補間 AP）を**複数画像・複数クラスへ拡張**した `mean_average_precision_50()` を自作し、決め打ちの controlled シナリオ（person は TP2・FP2・FN1、car は TP1）で **mAP@0.5 を計算**、`torchmetrics` の `map_50` と突き合わせます。実行すると次のように出ます。
+
+  ```text
+  per-class AP@0.5 = {1: 0.6667, 3: 1.0}   (1=person, 3=car)
+  self  mAP@0.5      = 0.8333   (全点補間)
+  torchmetrics map_50 = 0.8317  (COCO 101点補間)
+  ```
+
+  **値がぴったり一致しない**のが学びの核です。自作は PASCAL VOC2010+ の**全点補間**、torchmetrics は **COCO 101点補間**なので、同じ PR 曲線でも AP がわずかに違います（`abs_diff ≈ 0.0016`）。「mAP という単一の数字にも“流儀”がある」ことを、`mini_pr_curve.png`（PR 曲線と AP 面積の陰影）と合わせて体に入れてください。person クラスは recall が 0.667 で頭打ち（FN が 1 個残る）になり、AP 面積がその先で 0 に落ちる様子が一目で分かります。
+
+**発展課題（任意）**: ① `data/18_object_detection_intro/` に実写を置き、自分でアノテーションした GT で実測 mAP を出す。② 検出器を `fasterrcnn_resnet50_fpn` に替えて mAP と速度のトレードオフを比較。③ `ex10`（11点補間）でも AP を出し、3 方式（全点 / 11点 / COCO101点）の差を表にする。④ IoU 閾値を 0.5→0.75 に上げ、`map_50` と `map_75` の落差を観察する。
+
+## ✅ 到達チェックリスト
+
+次が「自分の言葉で説明でき、コードで再現できる」なら本章は卒業です。
+
+- [ ] 物体検出の出力が **`{boxes(xyxy), scores, labels}` の可変個集合**であり、分類との違いが「N が画像ごとに変わる」点だと説明できる。
+- [ ] torchvision の **weights API 4点セット**（`weights / build / transforms / categories`）を諳んじ、モデル差し替えが enum 1 行で済むと示せる。
+- [ ] 検出モデルが **`[0,1]` float CHW テンソルの“リスト”** を取り、正規化は内部で行う（二重正規化禁止）ことを理由付きで言える。
+- [ ] **COCO ラベルの index0 = `__background__`**、DETR の `id2label[0]='N/A'` を踏まえ、`categories[int(label)]` で名前を引ける。
+- [ ] **score 閾値 → `batched_nms`** の2段後処理を書け、なぜ `nms` でなく `batched_nms` なのか（別クラスの誤抑制回避）を説明できる。
+- [ ] `draw_bounding_boxes` が **uint8 CHW** を要求する理由と、float を渡したときの症状を知っている。
+- [ ] DETR の生 `pred_boxes` が **cxcywh 正規化**で、`post_process_object_detection` の **`target_sizes=(H,W)`** を通して初めて xyxy 絶対座標になると言える（`image.size[::-1]`）。
+- [ ] **IoU の定義**（交差/和集合）を実装でき、NMS と mAP マッチングの両方で使われると理解している。
+- [ ] mAP の手順 **「confidence 降順 → IoU 貪欲マッチング → TP/FP → PR 曲線 → AP 補間 → クラス平均」** を口頭で再現でき、**1 GT に 1 予測**（重複は FP）を守れる。
+- [ ] **AP 補間の3流儀**（PASCAL 11点 / 全点 / COCO 101点）で値が変わることを知り、`mAP@0.5` と `mAP@[.5:.95]` を取り違えない。
+- [ ] 合成画像で検出が乏しくても**パイプラインは exit 0**で、それが「ドメインギャップ＝正常」だと判断できる。
+- [ ] 演習 `exercises.py` を **全10問 PASS** できる（`exercises_solutions.py` で答え合わせ）。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+§12 の「症状→原因→対処」表と合わせて、**評価（mAP）まわり**の疑問を Q&A で補強します。
+
+- **Q. 自作 mAP が torchmetrics と少しズレる。バグ？** A. たいていバグではなく**補間方式の違い**です。本章の自作は全点補間、torchmetrics は COCO 101点補間。`mini_project.py` の `abs_diff` が 0.01 未満ならまず一致とみなしてよい。完全一致を狙うなら 101 個の recall 点で補間を揃えます（第19回）。
+- **Q. mAP が 0.0 になる。** A. ① 予測と GT で**ラベル整数の規約がズレている**（person を 1 と 0 で食い違わせている等）。mAP はクラス別評価なので、ラベルが噛み合わないと全 FP 扱いになる。② **box 形式の不一致**（GT が xywh、予測が xyxy）。`MeanAveragePrecision(box_format=...)` と実データを合わせる。③ 合成画像＋pseudo-GT なら**ドメインギャップで本当に 0**（正常）。
+- **Q. `MeanAveragePrecision.compute()` が遅い／結果が混ざる。** A. `update()` を**バッチごとに呼んで最後に1回 `compute()`**。毎バッチ `compute()` したり、次の評価前に `reset()` し忘れると累積が壊れます。`preds` と `targets` は同じ device に揃える。
+- **Q. NMS 後も同じ物体に箱が2つ残る。** A. ① IoU 閾値が高すぎ（`0.5` 付近へ）。② 別クラスとして検出され `batched_nms` が別物扱い（ラベルを見直す）。③ DETR は元々 NMS 不要なので、**後段で重ねて NMS をかけない**（二重抑制で逆に消えることも）。
+- **Q. 予測ゼロ。閾値を下げるべき？** A. まず `n_raw`（後処理前の生検出数）を見る。生がゼロなら閾値ではなくモデル/入力の問題（合成画像のドメインギャップ）。生はあるのに kept がゼロなら閾値を下げる。本章は合成で `0.3` に下げています。
+- **Q. `target_sizes` を直したのに box がまだ変。** A. `(H,W)` 順は直っても、**バッチで複数画像を渡すと `target_sizes` はリスト**（画像ごとに `(H,W)`）。1枚なら `[(H,W)]` と**リストで包む**のを忘れがち。
+- **Q. CPU で DETR が重い。** A. `PekingU/rtdetr_v2_r18vd` に差し替え（同じ `AutoModelForObjectDetection`＋`post_process`）。torchvision なら `ssdlite320` か `fasterrcnn_mobilenet_v3_large_320_fpn`。`min_size/max_size` や `imgsz` を下げ、**fp16 は使わない**（CPU では遅い/未対応）。
+- **Q. 1つの GT に複数の正しそうな予測。全部 TP でいい？** A. ダメ。**1 GT には最高スコアの1予測だけ TP**、残りは IoU が高くても FP。これを守らないと mAP が水増しされます（`ex7` の核心）。
+- **デバッグの定石**: 箱が変なら **`(1)` 形式（xyxy/xywh/cxcywh）→ `(2)` 座標系（正規化/絶対）→ `(3)` `(H,W)` 順** の順で疑う。ラベルが変なら **index0=背景** と `id2label/categories` の引き方を確認。値（mAP）が変なら **ラベル規約・box_format・補間方式** を確認。
+
+## 🚀 発展トピック・参考
+
+- **IoU の発展**: `generalized_box_iou`（GIoU）/ DIoU / CIoU は、重なりゼロでも勾配が出るよう距離やアスペクト比を加味した IoU 系指標で、学習の loss や高度な NMS に使われます。`torchvision.ops.generalized_box_iou` で試せます。
+- **NMS の発展**: Soft-NMS（重なる箱をスコア減衰させる）、class-agnostic NMS、weighted box fusion（複数モデルの箱を統合）など。DETR/YOLO26 のように **NMS-free** に向かう流れも押さえると、後処理設計の引き出しが増えます。
+- **COCO 公式評価の細部（第19回）**: `pycocotools` の `COCOeval` は `AP / AP50 / AP75`、面積別 `AP_S(<32²)/M/L`、`AR@{1,10,100}` を出します。`areaRng` と `maxDets` の既定を変えると数値が比較不能になる点に注意。自作 mAP との一致確認が第19回の主題です。
+- **モデルの広がり**: RT-DETR v2 / RF-DETR（DETR 系の高速・高精度化）、Ultralytics YOLO11/YOLO26（本講座は依存衝突で実行せず概念のみ）、Faster/Mask R-CNN（2-stage の定番）。検出の先は **オープン語彙検出（第20回: OWL-ViT/OWLv2/Grounding DINO）** と **セグメンテーション（第21〜23回: SegFormer/Mask R-CNN/SAM/CLIPSeg）** へ繋がります。
+- **公式ドキュメント**: torchvision detection models（<https://docs.pytorch.org/vision/stable/models.html>）、torchvision ops（<https://docs.pytorch.org/vision/stable/ops.html>）、transformers object detection（<https://huggingface.co/docs/transformers>）、torchmetrics detection（<https://lightning.ai/docs/torchmetrics/stable/>）、COCO 評価（<https://cocodataset.org/#detection-eval>）。
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（torch 2.12+cpu / torchvision 0.27+cpu / transformers 5.11 / pycocotools, 2026-06 時点の安定版で動作確認）:
 > Python 3.12 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ transformers 5.11.0 ／ huggingface-hub 1.18.0 ／ timm 1.0.27 ／ torchmetrics 1.9.0 ／ pycocotools 2.0.11（第19回で使用）／ numpy 2.4.6 ／ Pillow 12.2.0 ／ matplotlib 3.10.9 ／ opencv-python-headless 4.13.0（合成画像の描画）
 > 使用モデル: torchvision `ssdlite320_mobilenet_v3_large` / `retinanet_resnet50_fpn` / `fasterrcnn_resnet50_fpn`（COCO 重み）／ HF `facebook/detr-resnet-50`（DETR）。初回のみ重みを取得しキャッシュします。Ultralytics YOLO（`yolo11n`/`yolo26n`）は概念紹介のみで、依存衝突（opencv-python full ↔ headless）を避けるため実行経路には含みません。
+> スクリプト構成: 本編 `01`〜`03` ＋ 共通 `detection_helpers.py` ＋ 章末 `mini_project.py`（検出パイプライン×自作mAP）＋ 演習 `exercises.py`（全10問）／`exercises_solutions.py`（模範解答）。すべて CPU・合成データで `exit 0`。

@@ -192,7 +192,9 @@ global_miou = miou_from_global_confusion_matrix(gt, pred)  # 0.7157
 | `01_torchvision_semseg.py` | torchvision(lraspp/deeplabv3) で推論。`out['out']` → interpolate → argmax → パレット可視化 |
 | `02_segformer_pipeline.py` | HF SegFormer を pipeline と手動の2通りで実行。`[{label,mask}]`・`target_sizes=(H,W)`・一致率 |
 | `03_miou_dice_eval.py` | pixel acc/IoU/mIoU/Dice/FWIoU を**自作**し torchmetrics と一致確認。NaN・ignore_index・集計単位 |
-| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `mini_project.py` | **章末ミニプロジェクト**。6枚の合成データを global 集計で評価し、accuracy の罠・しきい値最適化・torchmetrics 検算を1枚のダッシュボードに統合 |
+| `exercises.py` | TODO 形式の演習10問（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答を同じ採点で確認） |
+| `exercises_solutions.py` | 演習の模範解答（全 PASS）。採点ロジックは `exercises.py` を再利用（重複なし） |
 
 `seg_helpers.py` だけは「読み物」ではなく「再利用する道具」です。とくに `make_toy_gt_pred`（決定的な6クラスのGT/予測）と `colorize`/`voc_colormap`（クラスID→色）が全スクリプトの土台になります。まず helper を一読してから 01 へ進むと、各スクリプトが何を import しているか腑に落ちます。
 
@@ -210,10 +212,15 @@ uv run python lectures/21_segmentation_intro/01_torchvision_semseg.py
 uv run python lectures/21_segmentation_intro/02_segformer_pipeline.py
 uv run python lectures/21_segmentation_intro/03_miou_dice_eval.py     # 自作 vs torchmetrics 一致確認
 
+# 章末ミニプロジェクト（総合課題: 評価ベンチマークを1枚にまとめる）
+uv run python lectures/21_segmentation_intro/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
 uv run python lectures/21_segmentation_intro/exercises.py
-# どうしても分からない時だけ、模範解答の挙動を見る
+# どうしても分からない時だけ、模範解答の挙動を見る（exercises_solutions.py を同じ採点で実行）
 SHOW_SOLUTION=1 uv run python lectures/21_segmentation_intro/exercises.py
+# 模範解答そのものを直接実行して全 PASS を確認することもできる
+uv run python lectures/21_segmentation_intro/exercises_solutions.py
 
 # （任意）実画像で試す: data/21_segmentation_intro/ に .png/.jpg を置くと自動で使われる
 ```
@@ -246,9 +253,59 @@ SHOW_SOLUTION=1 uv run python lectures/21_segmentation_intro/exercises.py
 
 ここで身につけた「クラスマップ → 混同行列 → 指標」という骨格は、次の第22回（インスタンス/パノプティック、SAM）の **mask AP・PQ=SQ×RQ** や、第23回（テキストプロンプトセグメンテーション）の評価へとそのまま発展します。まずは演習を全問 PASS させ、`03` の「**samplewise 0.624 と global 0.716 が食い違う**」結果と「**person が NaN で mIoU から除外される**」理由を、自分の言葉で説明できるようにしてから次へ進んでください。
 
+## 15. 🛠 章末ミニプロジェクト — 評価ベンチマークを一枚にまとめる
+
+ここまでの「推論パイプライン（01/02）」と「評価指標（03）」を一つに束ねた総合課題が `mini_project.py` です。単発の1枚評価ではなく、**6枚の合成データセットを “global 集計” で評価する**実務寄りの構成にしてあり、本編には無い3つのマスター要素を足しています。実行すると `outputs/21_segmentation_intro/mini_project_dashboard.png`（6パネルのダッシュボード）と `mini_project.json`（レポート）が出ます。
+
+- **(1) データセット集計（global）**：6枚すべての画素を**1つの混同行列に積み上げてから** mIoU/IoU/Dice/FWIoU を計算します。これが Cityscapes / ADE20K / Pascal VOC の公式 mIoU と同じ「データセット全体で intersection と union を貯める」流儀です（第9節の global）。最後に `torchmetrics.MeanIoU` を**全画素を1サンプルに平坦化**して呼び、自作の per-class IoU・mIoU と `1e-6` 一致することを `assert` で担保します。
+- **(2) accuracy の罠（クラス不均衡）**：「境界を数px ずらし person を一部取りこぼす**強い予測**」と「**多数派クラス（sky）だけを全画素に返す弱い予測**」を比較します。実測では弱い予測の **pixel accuracy ≈ 0.49**（空が画面の約半分なので一見そこそこ）に対し、**mIoU ≈ 0.10**（sky 以外は全クラス IoU=0）。pixel accuracy だけでモデルを選ぶと不均衡で必ず誤る、を数値で体感できます（強い予測は pixel acc ≈ 0.93 / mIoU ≈ 0.72）。
+- **(3) しきい値最適化（マスクの2値評価）**：car クラスの GT マスクに対し、ぼかし＋ノイズで作った確率マップのしきい値を 0.1〜0.9 で掃き、**mask-IoU / Dice が最大になるしきい値**を選びます。「確率→2値マスク」の境目は固定 0.5 が最適とは限らない、という前景マスク運用の勘所です。
+
+さらに末尾で（任意）実モデル LR-ASPP の推論パイプライン（`out['out']`→`interpolate`→`argmax`）も走らせますが、**重みのダウンロードに失敗してもスキップして必ず `exit 0`** にしてあります（合成シーンでは domain gap でほぼ `__background__` になる点も第10節どおり）。
+
+## 16. ✅ 到達チェックリスト
+
+次の項目を「自分の言葉で説明でき、コードでも示せる」ようになっていれば本章は合格です。
+
+- [ ] セマンティック / インスタンス / パノプティックの**粒度の違い**を説明できる。
+- [ ] torchvision セグメ出力が **dict** で、`out['out']` を取り出してから `argmax(1)` する理由を言える。
+- [ ] 低解像度ロジットを **`F.interpolate`（bilinear）で戻してから argmax** する（ラベルを最近傍で拡大しない）順番を説明できる。
+- [ ] SegFormer 手動 API の **`target_sizes=(高さ,幅)`** と `image.size=(幅,高さ)` の取り違えバグを回避できる。
+- [ ] **画素混同行列**から pixel acc / per-class IoU / mIoU / Dice / FWIoU を**自作**でき、torchmetrics と数値一致を取れる。
+- [ ] **未出現クラスは NaN**（`nanmean` で除外）にする理由と、`MeanIoU` の `-1` センチネルを NaN へ正規化する処理を説明できる。
+- [ ] **global と samplewise** の mIoU が食い違うこと、論文 mIoU は global であることを説明できる。
+- [ ] **`ignore_index`** で評価対象外画素を**混同行列を作る前に**捨てる理由を言える。
+- [ ] 2値マスクの **IoU = 交差/和集合** と **Dice = 2·IoU/(1+IoU)** の関係を導ける。
+- [ ] `mini_project.py` の「**pixel acc は高いのに mIoU は低い**」結果を、不均衡の言葉で説明できる。
+- [ ] 演習 `exercises.py` を**10問すべて PASS**できる。
+
+## 17. ❓ よくある落とし穴・FAQ・デバッグ
+
+第13節の「症状→原因→対処」表に加えて、つまずきやすい疑問を Q&A 形式で補足します。
+
+- **Q. 自作 mIoU が torchmetrics と合いません。** まず**集計単位**を疑ってください。`MeanIoU().update(batch)` は既定で **samplewise（画像ごと平均）** です。論文／自作は **global**。両者を合わせるには、全画素を `(1, N)` に平坦化して**1サンプル**として渡します（`mini_project.py` / `03` がこの形）。次に**未出現クラスの符号**。`MeanIoU` は未出現を `-1.0`、`DiceScore` は `NaN` で返すので、比較前に `-1 → NaN` に揃え、`np.allclose(..., equal_nan=True)` を使います。
+- **Q. `MeanIoU(per_class=True)` の戻り値に負の数が混じります。** バグではなく**未出現クラスのセンチネル `-1.0`** です。`iou[iou < 0] = np.nan` で正規化してから `nanmean` してください。
+- **Q. `ignore_index`（255 など）を含む GT を渡したら混同行列が壊れた/巨大になった。** クラス範囲 `0..K-1` の外のラベルを `g*K+p` に符号化すると添字が範囲外になります。**混同行列を作る前に** `keep = gt != ignore_index` でマスクして捨てるのが正解（演習 ex7・`03` 参照）。
+- **Q. per-class IoU で「写っていないクラス」を 0 と数えるべきですか。** いいえ。GT にも予測にも無いクラスを 0 にすると **mIoU が不当に下がります**。NaN にして平均から除外（`nanmean`）するのがベンチマーク慣行です。
+- **Q. Dice と F1 は別物ですか。** 同じ式（`2TP/(2TP+FP+FN)`）です。二重実装しないこと。また IoU とは `Dice = 2·IoU/(1+IoU)` で1対1対応するので、片方が上がれば必ずもう片方も上がります。
+- **Q. pixel accuracy が高いのにモデルが使い物になりません。** 典型的な**クラス不均衡の罠**です（`mini_project.py` で再現）。多数派クラスだけ当てれば accuracy は高く出ます。**mIoU / per-class IoU** を併用して小クラスの取りこぼしを見てください。
+- **Q. SegFormer のマスクが縦長/横長に歪みます。** `post_process_semantic_segmentation(target_sizes=[(H,W)])` の順番ミスです。`image.size` は `(W,H)` なので `image.size[::-1]` を渡します。
+- **デバッグの定石**：① まず `class_map.shape` と `np.unique(class_map)` を出して「出力が `(H,W)` の整数ラベルか」を確認 → ② 混同行列 `cm` を print して TP/FP/FN が直感に合うか目視 → ③ 指標が変なら**分母**（未出現 NaN・ignore 除外・集計単位）を順に疑う、の3段で大半は切り分けられます。
+
+## 18. 🚀 発展トピック・参考
+
+本章の「セマンティック × global mIoU」を足場に、次の方向へ広げられます。
+
+- **より強いモデル**：`SegFormer-b1/b2/b5`（精度↑・CPU では重い）、`Mask2Former`（セマンティック/インスタンス/パノプティックを統一）、torchvision の `deeplabv3_resnet101`。CPU 教材では b0 / LR-ASPP が現実的です。
+- **インスタンス／パノプティック（第22回）**：box IoU を**マスク IoU** に置き換えた **mask AP**（`COCOeval(iouType='segm')`）、`PQ = SQ × RQ`（SQ=マッチ片の平均 IoU、RQ=検出の F1）。本章の「混同行列→指標」がそのまま発展します。
+- **テキストプロンプト／参照セグメンテーション（第23回）**：`CLIPSeg`（文で領域指定）や Grounding DINO + SAM（Grounded-SAM）。本章の二値マスク IoU / Dice がそのまま品質評価に効きます。
+- **境界の評価**：mIoU は領域の重なりしか見ないため、輪郭の精度を測る **Boundary IoU / Boundary F-score** を併用すると、細い構造や境界品質を捉えられます。
+- **学習ループへの組み込み**：`torchmetrics.MeanIoU` を**エポック単位で `update`→`compute`→`reset`** する作法（バッチ毎に compute しない／reset 忘れに注意）。論文値と比べるなら集計を **global** に寄せること。
+- **公式ドキュメント**：torchvision segmentation models（<https://docs.pytorch.org/vision/stable/models.html>）、HF image-segmentation（<https://huggingface.co/docs/transformers/en/tasks/semantic_segmentation>）、torchmetrics segmentation（<https://lightning.ai/docs/torchmetrics/stable/>）。
+
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
-> Python 3.12 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ transformers 5.11.0 ／ huggingface-hub 1.18.0 ／ timm 1.0.27 ／ torchmetrics 1.9.0 ／ pycocotools 2.0.11（第19・22回で使用）／ numpy 2.4.6 ／ Pillow 12.2.0 ／ matplotlib 3.10.9 ／ opencv-python-headless 4.13.0（合成画像の描画）
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
+> Python 3.12 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ transformers 5.11.0 ／ huggingface-hub 1.18.0 ／ timm 1.0.27 ／ torchmetrics 1.9.0 ／ pycocotools 2.0.11（第19・22回で使用）／ scikit-learn 1.9.0 ／ numpy 2.4.6 ／ Pillow 12.2.0 ／ matplotlib 3.10.9 ／ opencv-python-headless 4.13.0（合成画像の描画）
 > 使用モデル: `lraspp_mobilenet_v3_large` / `deeplabv3_resnet50`（torchvision, Pascal VOC 21クラス）／ `nvidia/segformer-b0-finetuned-ade-512-512`（HF, ADE20K 150クラス）。初回のみ重みを取得しキャッシュします。
 > 注意: `torchmetrics.classification.Dice` は v1.9 で削除済みのため、本章は `torchmetrics.segmentation.DiceScore` / `MeanIoU` を使用しています。

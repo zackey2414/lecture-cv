@@ -128,9 +128,11 @@ assert np.isclose(pq_manual, float(pq), atol=1e-3)
 | `02_mask2former_panoptic.py` | Mask2Former でパノプティック。`post_process_panoptic_segmentation` の `segmentation`/`segments_info`、クエリ可視化 |
 | `03_sam_prompt_seg.py` | SAM の点/箱プロンプト。`post_process_masks` で原寸化、3マスクから `iou_scores` 最大を選択、GT との真 IoU |
 | `04_maskap_pq_eval.py` | mask AP（`COCOeval` segm + RLE）と PQ=SQ×RQ（自作 numpy ＝ torchmetrics を assert で照合） |
-| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
+| `mini_project.py` | **章末ミニプロジェクト**。SAM の点プロンプトで各物体を切り出し、`mask AP@0.5`（自作）と `PQ=SQ×RQ`（自作＝torchmetrics）で採点。同じ予測でも AP と PQ で FP の効き方が違うことを数値で見せる総合課題 |
+| `exercises.py` | TODO 形式の演習（**全10問**・易→難・自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
+| `exercises_solutions.py` | 演習の完成形（全10問 PASS）。採点ロジックは `exercises.py` 側を再利用（重複なし） |
 
-表の通り `seg_helpers.py` だけは「読み物」ではなく「再利用する道具」です。中身も厚くコメントしてあるので、最初に一読してから 01 へ進むと、各スクリプトが何を題材に実験しているかが腑に落ちます。
+表の通り `seg_helpers.py` だけは「読み物」ではなく「再利用する道具」です。中身も厚くコメントしてあるので、最初に一読してから 01 へ進むと、各スクリプトが何を題材に実験しているかが腑に落ちます。`mini_project.py` は 01〜04 を一通り終えてから取り組むと、各部品が1本の評価パイプラインに統合される様子が掴めます。
 
 ## 9. 動かし方
 
@@ -147,10 +149,15 @@ uv run python lectures/22_instance_panoptic_sam/02_mask2former_panoptic.py # パ
 uv run python lectures/22_instance_panoptic_sam/03_sam_prompt_seg.py       # SAM（点/箱）
 uv run python lectures/22_instance_panoptic_sam/04_maskap_pq_eval.py       # mask AP・PQ
 
+# 章末ミニプロジェクト（SAM で対話セグメンテーション → mask AP / PQ で採点）
+uv run python lectures/22_instance_panoptic_sam/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL。それでも exit 0 で落ちない）
 uv run python lectures/22_instance_panoptic_sam/exercises.py
 # どうしても分からない時だけ、模範解答の挙動を見る
 SHOW_SOLUTION=1 uv run python lectures/22_instance_panoptic_sam/exercises.py
+# 全問の完成形（ALL PASS を確認）
+uv run python lectures/22_instance_panoptic_sam/exercises_solutions.py
 ```
 
 実行後は `outputs/22_instance_panoptic_sam/` の画像と JSON を確認してください。`03_sam_prompt_seg.png`（点/箱で指した領域が綺麗に切れている）と `04_eval_metrics.json`（自作 PQ と torchmetrics が一致）を、本文の解説と照らし合わせると理解が定着します。実写で試したい場合は §7 の通り `data/22_instance_panoptic_sam/` に画像を置いてから再実行します。
@@ -184,6 +191,71 @@ SHOW_SOLUTION=1 uv run python lectures/22_instance_panoptic_sam/exercises.py
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点・CPU で動作確認）:
+## 🛠 章末ミニプロジェクト（`mini_project.py`）
+
+ここまでの「動かす（01〜03）」と「測る（04）」を、1本の評価パイプラインに統合します。テーマは **「クラスを知らない SAM を“点で教えて”インスタンス分割し、mask AP と PQ で採点する」**。具体的には、
+
+1. 合成シーンの **各 GT 物体の重心へ点プロンプト**を打ち、SAM で物体を切り出す（＝対話的インスタンスセグメンテーション）。SAM はクラス非依存なので、プロンプト元の GT のクラスをそのまま予測ラベルに使います。
+2. さらに **背景にも1点**打ち、わざと **低スコアの誤検出（FP）** を1つ仕込みます。
+3. 得た予測マスク群を、本章の2指標 **mask AP@0.5（自作・全点補間）** と **PQ＝SQ×RQ（自作 ＝ `torchmetrics`）** で採点します。
+
+このとき観察してほしいのが、**同じ予測でも AP と PQ で FP の効き方が違う**ことです。低スコアの FP は confidence 降順の末尾に来るので **mAP@0.5 は 1.000 のまま**（スコアが低い誤検出は AP をほぼ下げない）。一方 PQ は集合ベースなので、未マッチの予測＝FP として **RQ を必ず下げ**（この設定で PQ≈0.69）ます。「AP が高いのに PQ が低い」モデルは“当てた所は綺麗だが余計な検出が多い”——という読み方が、数値の対比から腑に落ちます。
+
+実装面では、SAM の **interactive な使い方の肝**も入れてあります。重い画像エンコーダ（`get_image_embeddings`）は**1回だけ**走らせ、各プロンプトの `forward` には `image_embeddings=` でその埋め込みを**使い回す**ので、CPU でも複数点を高速に処理できます。SAM が読み込めない環境では、GT を少し膨張させた疑似予測へ自動フォールバックし、採点パイプライン自体は必ず完走します（合成データなので「モデルが無くても exit 0」）。
+
+```bash
+uv run python lectures/22_instance_panoptic_sam/mini_project.py
+# → outputs/22_instance_panoptic_sam/mini_project.png（input / GT / SAM予測 / overlay）
+#   outputs/22_instance_panoptic_sam/mini_project_report.json（per予測IoU・mask AP・PQ）
+```
+
+**発展課題**（自分で改造してみる）: ①点プロンプトを**箱プロンプト**に替えて IoU/PQ がどう変わるか比べる。②背景 FP の `score` を高くして、AP が下がり始める閾値を探す（AP の score 依存性の体感）。③`mask AP@0.5` を **AP@[.5:.95]**（IoU 閾値を 0.50:0.05:0.95 で平均）に拡張し、`04` の `COCOeval` segm と突き合わせる。
+
+## ✅ 到達チェックリスト
+
+この章を「理解した」と言える状態かを、次の項目で自己点検してください（言葉で説明でき、かつコードで再現できれば合格）。
+
+- [ ] セグメンテーションの **3タスク（セマンティック/インスタンス/パノプティック）＋SAM** を、出力フォーマットの違いで説明できる。
+- [ ] Mask R-CNN の `masks` が **`(N,1,H,W)` の確率**であることを知り、`squeeze(1) > 0.5` で **bool** 化して `draw_segmentation_masks` に渡せる。
+- [ ] `post_process_*` の `target_sizes` が **`(H,W)` 順**（`image.size[::-1]`）だと分かり、座標ズレを自力で直せる。
+- [ ] SAM の **3マスク**から `iou_scores` 最大を選び、`post_process_masks` で**原寸化**できる。`iou_scores`（自己申告品質）と **GT との真の IoU** を区別できる。
+- [ ] **mask IoU**（交差画素/和集合画素）を書け、score 降順の**貪欲マッチ**で TP/FP/FN を数えられる。
+- [ ] PR 曲線から **全点補間 AP** と **11点補間 AP** を numpy で計算でき、両者の違いを説明できる。
+- [ ] クラス横断の **mask AP@0.5（mAP）** を、クラス別 AP の平均として組める。
+- [ ] **PQ＝SQ×RQ** の式（SQ＝マッチ組の平均 IoU、RQ＝TP/(TP+0.5FP+0.5FN)）を書け、**カテゴリ別に出して最後に平均**する手順を守れる。
+- [ ] 自作 PQ が `torchmetrics.detection.PanopticQuality` と**小数第3位まで一致**することを `assert` で確認できる。
+- [ ] COCO の **RLE（列優先・背景始まり）** の意味が分かり、counts からマスクを復元できる。
+- [ ] `exercises.py` の**全10問**を自力で PASS でき、`mini_project.py` の AP と PQ の対比を説明できる。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+§10 の「症状→原因→対処」表に加え、つまずきやすい疑問を Q&A 形式でまとめます。
+
+**Q1. SAM の `iou_scores` が 1.0 を超えるのはバグ？** いいえ。`iou_scores` は SAM が**自己申告する品質の回帰値**で、真の IoU の推定であって [0,1] に厳密にクリップされません。1.0 を超えることもあります。本当の精度が知りたければ **GT との IoU を別途計算**します（`03` と `mini_project.py` はこの2つを併記）。
+
+**Q2. mAP は 1.0 なのに PQ が低い。どちらが正しい？** どちらも正しく、**測っているものが違う**だけです。mAP は confidence でランク付けした検出の質（低スコア FP は末尾なので効きにくい）。PQ は集合の質（FP は必ず RQ を下げる）。`mini_project.py` はこの差をわざと作って見せています。「AP が高い＝良いモデル」と早合点しないこと。
+
+**Q3. 自作 PQ が `torchmetrics` と合いません。** ほぼ次のどれか。①**全体で集計**してしまった（正しくは**カテゴリ別→最後に平均**）。②`things`/`stuffs` に入れていない ID を評価に混ぜた（どちらでもない ID は **void** で無視される）。③入力テンソルの最後の次元が `(category_id, instance_id)` の順になっていない。④`stuff` の `instance_id` を物体ごとに変えてしまった（stuff は1カテゴリ1セグメントとして `instance_id` を固定）。
+
+**Q4. `COCOeval` が `KeyError: 'height'` で落ちる。** GT dict の `images` に **`height`/`width` が無い**のが原因。COCO の画像メタには必ず両方を入れます。あわせて RLE は `np.asfortranarray(...)`（**列優先**）で `mask.encode` に渡します（C 連続のままだと値が壊れます）。
+
+**Q5. 合成画像で Mask R-CNN / Mask2Former の検出が 0 件です。** **想定内**です。これらは COCO の実物体を覚えているので、抽象図形には確信を持てません（モデルの故障ではない）。評価指標は GT を完全制御できる合成データ（`04`・`mini_project.py`）で学び、実写を見たいときは `data/22_instance_panoptic_sam/` に画像を置きます。
+
+**Q6. CPU で遅い／メモリが厳しい。** `swin-large`・ViT-Huge・`blip2` 級は CPU では非現実的。本章既定の `mask2former-swin-tiny`・`sam-vit-base`（or `SlimSAM-uniform-77`）を使い、SAM は **画像埋め込みを1回だけ**計算してプロンプトで使い回す（`mini_project.py` 参照）。必要に応じて `torch.set_num_threads(物理コア数)`。
+
+**デバッグの定石**: マスク系で結果が変なときは、まず **`mask.dtype`（bool か）・`mask.shape`（`(H,W)` か `(N,H,W)` か）・画素値の範囲（確率 0〜1 か bool か）** の3点を `print` で確認する。`draw_*` 系の例外の8割はここで原因が割れます。座標ズレを疑ったら `target_sizes` に渡した値が `(H,W)` か `(W,H)` かを確認します。
+
+## 🚀 発展トピック・参考
+
+- **SAM 2 / MobileSAM / SlimSAM**: SAM2 は動画にも対応したメモリ機構を持ち、MobileSAM/SlimSAM は CPU 向けの軽量蒸留版。本講座は依存衝突を避けて HF SAM を使いますが、Ultralytics 版（`SAM('mobile_sam.pt')` / `SAM('sam2.1_t.pt')`）は別環境なら1行で試せます（`ultralytics` は `opencv-python` full を引き込み、本講座既定の headless と排他なので注意）。
+- **Mask2Former の出し分け**: 同じ重みで `post_process_instance_segmentation` / `post_process_semantic_segmentation` / `post_process_panoptic_segmentation` を切り替えるだけで3タスクを出せます。`02` を改造して instance/semantic 版の出力フォーマットを見比べると統一アーキテクチャの旨味が分かります。
+- **mask AP の深掘り**: `COCOeval` の `AP_S/M/L`（面積別）・`AR@{1,10,100}`（maxDets 別）や、`areaRng`/`maxDets` を変えたときの数値変化。COCO は **101 点補間**（recall を 0:0.01:1 でサンプル）で、本章の全点補間とは別流儀です。
+- **PQ の分解読み**: `PQ = SQ × RQ` を things/stuff 別（`PQ^Th` / `PQ^St`）に分けて報告すると、前景と背景のどちらが弱いかが見えます。panopticapi が公式実装、`torchmetrics.detection.PanopticQuality` が手軽な再現実装です。
+- **Grounded-SAM への接続（次章）**: 第23回では Grounding DINO の検出 box を SAM の `input_boxes` に渡し、**テキスト→検出→分割**の2段パイプラインを組みます。本章の「箱プロンプト SAM」と「IoU 評価」がそのまま土台になります。
+- **公式ドキュメント**: torchvision models（<https://docs.pytorch.org/vision/stable/models.html>）／ HF Mask2Former・SAM（<https://huggingface.co/docs/transformers>）／ torchmetrics PanopticQuality（<https://lightning.ai/docs/torchmetrics/stable/>）／ pycocotools（<https://github.com/ppwwyyxx/cocoapi>）。
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点・CPU で動作確認）:
 > Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ transformers 5.11.0 ／ pycocotools 2.0.11 ／ torchmetrics 1.9.0 ／ matplotlib 3.10.9。
 > 使用モデル: `maskrcnn_resnet50_fpn_v2`（torchvision Weights API）／ `facebook/mask2former-swin-tiny-coco-panoptic` ／ `facebook/sam-vit-base`（軽量化は `Zigeng/SlimSAM-uniform-77`）。本講座セグメ/評価トラックの想定スタック（2026-06 時点）は torch 2.12+cpu / torchvision 0.27+cpu / transformers 5.11 / pycocotools 2.0.11 / torchmetrics 1.9 です。
