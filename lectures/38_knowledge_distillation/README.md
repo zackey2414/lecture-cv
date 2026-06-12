@@ -2,33 +2,33 @@
 
 > トラック: **最適化・デプロイ** ／ レベル: **中級** ／ 必要な依存グループ: `dl`（`timm` は任意・`hf` グループ）
 
-このモジュールは「大きな teacher の知識を、小さな student へ移す」**知識蒸留(Knowledge Distillation, KD)** を、合成図形データの**CPU トイ学習**で最初から最後まで自分の手で書ける状態にすることを狙う。温度付きソフトターゲットの KL 損失、特徴量蒸留、DeiT の distillation token までを、`uv run` ですぐ動くスクリプトで確かめる。
+このモジュールが狙うのは、「大きな teacher の知識を、小さな student へ移す」**知識蒸留(Knowledge Distillation, KD)** を、合成図形データの**CPU トイ学習**として最初から最後まで自分の手で書ける状態にすることだ。温度付きソフトターゲットの KL 損失から特徴量蒸留、さらに DeiT の distillation token までを、`uv run` ですぐ動くスクリプトで一つずつ確かめていく。
 
 ---
 
 ## 🎯 この章のゴール
 
-teacher(凍結)→student へ知識を移す蒸留の枠組みを理解し、温度 T でソフトターゲットの KL に `T^2` スケールを掛けハードラベル CE と alpha 結合する Hinton 蒸留、forward hook で中間特徴を MSE で合わせる特徴量蒸留(FitNets、射影層必須)を、CPU で小モデルに対し**学習ループを自分で書いて**完結できる。さらに、同じ小 student を「素の教師あり学習」と「蒸留学習」で訓練し、テスト accuracy の差として**暗黙知(dark knowledge)の移転**を定量化できる。
+teacher(凍結)→student へ知識を移す蒸留の枠組みを理解した上で、二つの代表的な手法を CPU の小モデルで**学習ループを自分で書いて**完結できるようになることを目指す。一つは、温度 T でソフトターゲットの KL に `T^2` スケールを掛け、ハードラベル CE と alpha 結合する Hinton 蒸留。もう一つは、forward hook で中間特徴を捕まえ MSE で合わせる特徴量蒸留(FitNets、射影層必須)だ。さらに、同じ小 student を「素の教師あり学習」と「蒸留学習」の両方で訓練し、テスト accuracy の差として**暗黙知(dark knowledge)の移転**を定量化できるようにする。
 
-到達点はシンプルだ。`response_kd_loss = alpha * KD(soft) + (1-alpha) * CE(hard)` を**何も見ずに正しく書ける**こと、teacher を `eval() + requires_grad=False` で凍結する理由を説明できること、そして「蒸留ありが素の student を上回る」ことを自分のベンチで示せること。
+到達点はシンプルだ。すなわち、`response_kd_loss = alpha * KD(soft) + (1-alpha) * CE(hard)` を**何も見ずに正しく書ける**こと、teacher を `eval() + requires_grad=False` で凍結する理由を説明できること、そして「蒸留ありが素の student を上回る」ことを自分のベンチで示せること、の三点である。
 
 ---
 
 ## 1. 直感 — 「正解は1つ」では捨ててしまう情報がある
 
-ハードラベル（one-hot）は「この画像は猫だ」としか教えない。しかし、よく訓練された teacher の softmax 出力を覗くと、「猫 90%・犬 8%・車 1.5%・飛行機 0.5%」のように、**猫は犬に似ていて車には似ていない**という**クラス間の類似構造**まで含んでいる。Hinton はこれを *dark knowledge（暗黙知）* と呼んだ。蒸留とは、この「2 番手以降の確率」を student に伝え、正解ラベル 1 ビットよりはるかに豊かな信号で学ばせる営みだ。
+ハードラベル（one-hot）は「この画像は猫だ」としか教えてくれない。ところが、よく訓練された teacher の softmax 出力を覗くと、「猫 90%・犬 8%・車 1.5%・飛行機 0.5%」のように、**猫は犬に似ていて車には似ていない**という**クラス間の類似構造**まで含まれている。Hinton はこれを *dark knowledge（暗黙知）* と呼んだ。つまり蒸留とは、この「2 番手以降の確率」を student に伝え、正解ラベル 1 ビットよりもはるかに豊かな信号で学ばせる営みなのだ。
 
-なぜそれが効くのか。小さな student は容量が限られ、少ないデータでハードラベルだけを追うと、ノイズや暗記に陥りやすい。teacher の soft target は各サンプルに連続的な「正解らしさの分布」を与えるので、実質的に**1 サンプルあたりの情報量を増やし**、正則化としても働く。本モジュールのトイでは「少量・ラベル 40% ノイズ」という意地悪な状況を用意し、クリーンなフルデータで育った teacher の soft target が student をノイズ過学習から救う様子を見る。
+では、なぜそれが効くのか。小さな student は容量が限られるため、少ないデータでハードラベルだけを追うと、ノイズや暗記に陥りやすい。これに対し teacher の soft target は、各サンプルに連続的な「正解らしさの分布」を与えるので、実質的に**1 サンプルあたりの情報量を増やし**、正則化としても働く。そこで本モジュールのトイでは「少量・ラベル 40% ノイズ」という意地悪な状況をあえて用意し、クリーンなフルデータで育った teacher の soft target が student をノイズ過学習から救う様子を観察する。
 
-蒸留はモデル圧縮の **4 本柱（蒸留 / 量子化 / プルーニング / 低ランク分解）** の 1 本目にあたる。量子化やプルーニング(35回)が「同じモデルを物理的に削る」のに対し、蒸留は「**小さいモデルを賢く学習させる**」アプローチで、他の 3 本と直交し組み合わせられる（蒸留した小モデルをさらに量子化、など）。`01_kd_overview.py` でこの地図と teacher 凍結を確認する。
+そもそも蒸留は、モデル圧縮の **4 本柱（蒸留 / 量子化 / プルーニング / 低ランク分解）** の 1 本目にあたる。量子化やプルーニング(35回)が「同じモデルを物理的に削る」のに対し、蒸留は「**小さいモデルを賢く学習させる**」アプローチであり、他の 3 本と直交するため組み合わせて使える（蒸留した小モデルをさらに量子化、など）。`01_kd_overview.py` では、この全体地図と teacher 凍結を確認する。
 
 ---
 
 ## 2. 理論 — 温度付きソフトターゲットと KL ダイバージェンス
 
-蒸留の心臓部は **温度 T による軟化** と **KL ダイバージェンス損失** だ。ロジット `z` をそのまま softmax すると尖った分布になり、暗黙知が埋もれる。そこで `softmax(z / T)` と温度 T で割ってから softmax する。T を上げるほど分布はなだらかになり、2 番手以降の確率が持ち上がって読み取りやすくなる（T=1 は素の softmax、T→∞ で一様分布）。蒸留では T=2〜5 がよく使われる。
+蒸留の心臓部は **温度 T による軟化** と **KL ダイバージェンス損失** だ。ロジット `z` をそのまま softmax すると分布が尖り、暗黙知が埋もれてしまう。そこで `softmax(z / T)` のように温度 T で割ってから softmax する。こうすると T を上げるほど分布はなだらかになり、2 番手以降の確率が持ち上がって読み取りやすくなる（T=1 は素の softmax、T→∞ で一様分布）。なお蒸留では T=2〜5 がよく使われる。
 
-student の出力分布を teacher の soft target に近づける尺度が KL ダイバージェンスで、正準形は次の通り。**順序・log・reduction・T² の 4 点を厳守する**:
+軟化した student の出力分布を teacher の soft target に近づける尺度が、KL ダイバージェンスである。その正準形は次の通りで、**順序・log・reduction・T² の 4 点を厳守する**:
 
 ```python
 # soft = KL( softmax(teacher/T) || softmax(student/T) )
@@ -39,15 +39,15 @@ soft = F.kl_div(
 ) * (T ** 2)                                      # 勾配が 1/T^2 に縮むのを補正
 ```
 
-`T²` を掛ける理由は勾配スケールの補正だ。`softmax(z/T)` を微分すると勾配が `1/T²` のオーダーで縮むため、T を変えるたびに soft 損失の実効的な重み（実効学習率）が変わってしまう。`T²` を掛けておけば T によらず勾配の大きさがほぼ揃い、T をハイパラとして安心して動かせる。最終的な損失は **ソフトとハードの線形結合** `loss = alpha * soft + (1 - alpha) * F.cross_entropy(student_logits, y)` で、alpha=0 が素の教師あり学習、alpha=1 がソフトのみ。`02_hinton_soft_targets.py` で軟化・KL の向き・T² 補正・合成損失を一つずつ手で確かめる。
+`T²` を掛けるのは、勾配スケールを補正するためだ。`softmax(z/T)` を微分すると勾配が `1/T²` のオーダーで縮むため、T を変えるたびに soft 損失の実効的な重み（実効学習率）まで変わってしまう。そこで `T²` を掛けておけば、T によらず勾配の大きさがほぼ揃い、T をハイパラとして安心して動かせる。そして最終的な損失は **ソフトとハードの線形結合** `loss = alpha * soft + (1 - alpha) * F.cross_entropy(student_logits, y)` で表され、alpha=0 が素の教師あり学習、alpha=1 がソフトのみに対応する。これら軟化・KL の向き・T² 補正・合成損失を一つずつ手で確かめるのが `02_hinton_soft_targets.py` だ。
 
-蒸留には伝える「知識の場所」で 3 系統ある。**レスポンスベース**（出力ロジットを真似る＝Hinton 蒸留）、**特徴量ベース**（中間特徴を真似る＝FitNets）、**関係ベース**（サンプル間の距離・角度の関係を真似る＝RKD）。レスポンスは最も簡単で効果も安定、特徴量は teacher の内部表現まで写せる代わりに次元合わせ（射影層）が要る、関係は特徴次元が違っても比較できる、という棲み分けだ。
+蒸留は、伝える「知識の場所」によって 3 系統に分かれる。すなわち、**レスポンスベース**（出力ロジットを真似る＝Hinton 蒸留）、**特徴量ベース**（中間特徴を真似る＝FitNets）、**関係ベース**（サンプル間の距離・角度の関係を真似る＝RKD）の三つだ。それぞれ、レスポンスは最も簡単で効果も安定し、特徴量は teacher の内部表現まで写せる代わりに次元合わせ（射影層）が要り、関係は特徴次元が違っても比較できる、という棲み分けになっている。
 
 ---
 
 ## 3. 正準 API — `F.kl_div` / `register_forward_hook` / 凍結
 
-蒸留の実装で覚える正準 API は驚くほど少ない。**ソフト損失**は `F.log_softmax` / `F.softmax` / `F.kl_div(..., reduction="batchmean")`、**ハード損失**は `F.cross_entropy`。**特徴量蒸留**は中間特徴を取り出す `module.register_forward_hook(fn)` と、次元を合わせる射影層 `nn.Conv2d(student_ch, teacher_ch, 1)`（または `nn.Linear`）、スケール差を消す `F.normalize`、そして `nn.MSELoss` / `F.mse_loss`。最適化は `torch.optim.AdamW`。
+蒸留の実装で覚える正準 API は、驚くほど少ない。まず**ソフト損失**は `F.log_softmax` / `F.softmax` / `F.kl_div(..., reduction="batchmean")`、**ハード損失**は `F.cross_entropy` で組み立てる。次に**特徴量蒸留**では、中間特徴を取り出す `module.register_forward_hook(fn)`、次元を合わせる射影層 `nn.Conv2d(student_ch, teacher_ch, 1)`（または `nn.Linear`）、スケール差を消す `F.normalize`、そして `nn.MSELoss` / `F.mse_loss` を使う。最適化は一貫して `torch.optim.AdamW` でよい。
 
 ```python
 # --- レスポンス蒸留（合成損失） ---
@@ -68,13 +68,13 @@ loss_feat = F.mse_loss(F.normalize(proj.flatten(1), dim=1),
 h.remove()                                          # 使い終わったらフックを外す
 ```
 
-**teacher の凍結**は API というより規律だ。`teacher.eval()`（BN/dropout を固定）に加え `for p in teacher.parameters(): p.requires_grad_(False)`、推論は `with torch.inference_mode()` で行い、`optimizer` には **student のパラメータだけ** を渡す。これを怠ると擬似ラベルが毎バッチ揺れ、最悪 optimizer が teacher を更新してしまう。本講座では `kd_lab.freeze_module()` にこの規律を閉じ込めている。
+一方、**teacher の凍結**は API というより規律の問題だ。具体的には、`teacher.eval()`（BN/dropout を固定）に加えて `for p in teacher.parameters(): p.requires_grad_(False)` を実行し、推論は `with torch.inference_mode()` で行い、`optimizer` には **student のパラメータだけ** を渡す。これを怠ると擬似ラベルが毎バッチ揺れ、最悪の場合 optimizer が teacher まで更新してしまう。そこで本講座では、こうした規律を `kd_lab.freeze_module()` に閉じ込めている。
 
 ---
 
 ## 4. 実装を1つずつ — スクリプトで段階的に確かめる
 
-番号順に動かすと、概念→損失→学習→特徴→DeiT と積み上がる。すべて合成図形データ（cv2 で描く円・四角・三角・楕円・十字・線分の 6 クラス）で、teacher の学習も含めて CPU 数秒〜十数秒で完結する。共通部品は `kd_lab.py` にまとまっている（データ生成・モデル・損失・hook・評価）。
+番号順に動かしていくと、概念→損失→学習→特徴→DeiT と段階的に積み上がる。いずれも合成図形データ（cv2 で描く円・四角・三角・楕円・十字・線分の 6 クラス）を題材とし、teacher の学習まで含めて CPU で数秒〜十数秒で完結する。なお、データ生成・モデル・損失・hook・評価といった共通部品は `kd_lab.py` にまとめてある。
 
 ```bash
 uv run python lectures/38_knowledge_distillation/01_kd_overview.py        # 4本柱・teacher凍結・圧縮率
@@ -84,19 +84,19 @@ uv run python lectures/38_knowledge_distillation/04_feature_distill.py     # Fit
 uv run python lectures/38_knowledge_distillation/05_distill_token_deit.py  # DeiT distillation token
 ```
 
-`03` は本章の評価の核だ。**同じ StudentCNN** を (A) 素の教師あり学習 と (B) レスポンス蒸留 で訓練し、テスト accuracy を比べる。少量(132枚)・ラベル 40% ノイズという設定では、素の student がノイズに過学習して落ち込む一方、teacher の soft target を混ぜた student は明確に上回る（このトイでは概ね 0.42 → 0.73 程度）。さらに T と alpha をスイープし、これらが感度の高いハイパラであること、alpha=0（素の CE）が最低で「少しでもソフトを混ぜると改善する」ことを観察する。
+なかでも `03` は本章の評価の核だ。**同じ StudentCNN** を (A) 素の教師あり学習 と (B) レスポンス蒸留 で訓練し、テスト accuracy を比べる。少量(132枚)・ラベル 40% ノイズという設定では、素の student がノイズに過学習して精度を落とす一方、teacher の soft target を混ぜた student はこれを明確に上回る（このトイでは概ね 0.42 → 0.73 程度）。さらに T と alpha をスイープすることで、これらが感度の高いハイパラであること、そして alpha=0（素の CE）が最低で「少しでもソフトを混ぜると改善する」ことを観察できる。
 
-`04` は中間特徴まで合わせる FitNets を足す。`register_forward_hook` で teacher(64ch) と student(16ch) の特徴を捕まえ、1x1 Conv の射影層で次元を合わせ、正規化してから MSE を取る。出力だけのレスポンス蒸留にこれを足すとさらに精度が伸びやすい。`05` は DeiT を扱う。class token に加えて **distillation token** を持たせ、teacher の argmax を hard distillation で学ぶ専用ヘッドを足し、推論時に 2 ヘッドを平均する仕組みを、timm の `deit_tiny_distilled_*`（構造のみ確認・重み DL なし）と、CPU で回る自前の 2 ヘッド student で再現する。
+続く `04` では、中間特徴まで合わせる FitNets を足す。`register_forward_hook` で teacher(64ch) と student(16ch) の特徴を捕まえ、1x1 Conv の射影層で次元を合わせ、正規化してから MSE を取る、という流れだ。出力だけのレスポンス蒸留にこれを足すと、さらに精度が伸びやすい。最後の `05` は DeiT を扱う。class token に加えて **distillation token** を持たせ、teacher の argmax を hard distillation で学ぶ専用ヘッドを足し、推論時に 2 ヘッドを平均する——この仕組みを、timm の `deit_tiny_distilled_*`（構造のみ確認・重み DL なし）と、CPU で回る自前の 2 ヘッド student の両方で再現する。
 
 ### 実務の使い分け
 
-まず **レスポンス蒸留** から始める（最も簡単で安定）。出力ロジットと alpha・T だけで効くので、既存の学習ループに数行足すだけだ。精度が足りなければ **特徴量蒸留** を重ねる（teacher の内部表現まで写せるが、射影層と「どの層をフックするか」の設計が要る）。teacher と student のアーキが大きく違う（CNN→ViT など）場合は **DeiT 型の distillation token** や **関係ベース(RKD)** が候補になる。teacher が無い／作れない場合は self-distillation（自分自身や深い層から浅い層へ）も選択肢だ。どの場合も「teacher は強く、凍結して使う」「T/alpha はスイープする」が共通の鉄則。
+まずは **レスポンス蒸留** から始めるとよい（最も簡単で安定）。出力ロジットと alpha・T だけで効くので、既存の学習ループに数行足すだけで済む。それで精度が足りなければ、**特徴量蒸留** を重ねる（teacher の内部表現まで写せる反面、射影層と「どの層をフックするか」の設計が要る）。さらに、teacher と student のアーキが大きく違う（CNN→ViT など）場合は、**DeiT 型の distillation token** や **関係ベース(RKD)** が候補になる。一方、teacher が無い／作れない場合には、self-distillation（自分自身や深い層から浅い層へ）も選択肢となる。いずれの場合も、「teacher は強く、凍結して使う」「T/alpha はスイープする」が共通の鉄則だ。
 
 ---
 
 ## 🛠 章末ミニプロジェクト — 蒸留ベンチ（精度 × 圧縮率 × 速度）
 
-`mini_project.py` は本章の部品を 1 つに統合した **deliverable** だ。クリーンなフルデータで teacher を学習し、同じ小 student を **4 通り**（(A) baseline / (B) response KD / (C) response+feature / (D) DeiT distillation token）で少量ノイジーデータに対し学習する。そして **テスト accuracy・圧縮率・推論レイテンシ(p50/p99)** を同一指標の表にまとめ、図と JSON に保存する。
+`mini_project.py` は、本章の部品を 1 つに統合した **deliverable** だ。まずクリーンなフルデータで teacher を学習し、続いて同じ小 student を **4 通り**（(A) baseline / (B) response KD / (C) response+feature / (D) DeiT distillation token）で少量ノイジーデータに対して学習する。そのうえで **テスト accuracy・圧縮率・推論レイテンシ(p50/p99)** を同一指標の表にまとめ、図と JSON に保存する。
 
 ```bash
 uv run python lectures/38_knowledge_distillation/mini_project.py
@@ -115,7 +115,7 @@ uv run python lectures/38_knowledge_distillation/mini_project.py
     (D) DeiT distill token    0.592    1,500   15.9x     2.37      3.06  (+0.175)
 ```
 
-ここから読み取るべき結論は 2 つ。第一に、**student のサイズ（params・レイテンシ）は学習戦略を変えても不変**で、蒸留は「同じ小ささのまま精度を底上げする」手法だということ。第二に、**どの蒸留も素の baseline を明確に上回り**、teacher の暗黙知がノイズ過学習を抑えていること。まずレスポンス蒸留、足りなければ特徴量や DeiT を重ねる、という意思決定が表から自然に導ける。
+この表から読み取るべき結論は 2 つある。第一に、**student のサイズ（params・レイテンシ）は学習戦略を変えても不変**であり、蒸留はあくまで「同じ小ささのまま精度を底上げする」手法だということ。第二に、**どの蒸留も素の baseline を明確に上回っており**、teacher の暗黙知がノイズ過学習を抑えているということだ。こうして、まずレスポンス蒸留を試し、足りなければ特徴量や DeiT を重ねる、という意思決定が表から自然に導ける。
 
 ---
 
@@ -136,14 +136,14 @@ uv run python lectures/38_knowledge_distillation/mini_project.py
 
 ## ❓ 落とし穴・FAQ・デバッグ
 
-- **KL の引数を逆にした / log を付け忘れた**: `F.kl_div` は **入力に `log_softmax(student)`、ターゲットに `softmax(teacher)`** を渡す。順序を入れ替えたり log を付け忘れると別物の損失になり学習が崩れる。`02` の `[3]` で値が変わることを実演している。
-- **`reduction='mean'` を使った**: 既定の `'mean'` は要素数（バッチ×クラス）で割るため、数式の `1/N`（バッチサイズで割る）とずれる。必ず **`reduction='batchmean'`** を使う。クラス数倍だけ小さくなる。
-- **`T**2` を忘れた**: T を変えるたびソフト損失の実効重みが変わり、最適な alpha も動いて不安定になる。`02` の `[4]` で勾配ノルムが揃うことを確認できる。
-- **teacher を凍結し忘れた**: BN 統計や dropout が動いて擬似ラベルが毎回ブレる。さらに optimizer に teacher のパラメータを渡すと誤って更新される。`freeze_module()`（eval + requires_grad=False）を必ず通し、teacher の推論は `inference_mode()` で行う。
-- **特徴量蒸留で次元が合わない**: student と teacher の中間特徴はチャネル数が違う。**射影層（1x1 Conv か Linear）を必ず挟む**。さらにチャネルごとのスケール差を `F.normalize` で吸収してから MSE を取らないと、大きいスケールのチャネルに損失が支配される。
-- **フックを付けっぱなしにした**: `register_forward_hook` の戻り値（ハンドル）を保持し、学習後に `handle.remove()` する。付けっぱなしだと別の推論でも特徴が保存され続け、メモリと混乱の元。
-- **「蒸留したのに精度が上がらない」**: teacher が student より十分強いか、T/alpha が適切かを疑う。**T と alpha はスイープ必須**（`03` の `[2][3]`）。データがクリーンで student が単独でも十分学べる場合、蒸留の上積みは小さい（蒸留が効くのは「容量が足りない / データが少ない・ノイジー」な状況）。
-- **DeiT で推論時にヘッドを平均し忘れた**: distillation token を持つモデルは、推論時に class ヘッドと distill ヘッドの**平均**を取る。片方だけ使うと性能を取りこぼす。timm の `*_distilled` は eval 時に自動で平均する。
+- **KL の引数を逆にした / log を付け忘れた**: `F.kl_div` には、**入力に `log_softmax(student)`、ターゲットに `softmax(teacher)`** を渡す。順序を入れ替えたり log を付け忘れたりすると、別物の損失になって学習が崩れる。`02` の `[3]` で値が変わることを実演している。
+- **`reduction='mean'` を使った**: 既定の `'mean'` は要素数（バッチ×クラス）で割るため、数式の `1/N`（バッチサイズで割る）とずれ、クラス数倍だけ小さくなってしまう。したがって必ず **`reduction='batchmean'`** を使うこと。
+- **`T**2` を忘れた**: T を変えるたびにソフト損失の実効重みが変わり、最適な alpha も動いて不安定になる。`02` の `[4]` で勾配ノルムが揃うことを確認できる。
+- **teacher を凍結し忘れた**: BN 統計や dropout が動いて擬似ラベルが毎回ブレる。さらに optimizer へ teacher のパラメータを渡すと、誤って更新されてしまう。よって `freeze_module()`（eval + requires_grad=False）を必ず通し、teacher の推論は `inference_mode()` で行う。
+- **特徴量蒸留で次元が合わない**: student と teacher の中間特徴はチャネル数が違うため、**射影層（1x1 Conv か Linear）を必ず挟む**。さらに、チャネルごとのスケール差を `F.normalize` で吸収してから MSE を取らないと、スケールの大きいチャネルに損失が支配されてしまう。
+- **フックを付けっぱなしにした**: `register_forward_hook` の戻り値（ハンドル）を保持しておき、学習後に `handle.remove()` する。付けっぱなしだと別の推論でも特徴が保存され続け、メモリと混乱の元になる。
+- **「蒸留したのに精度が上がらない」**: teacher が student より十分強いか、T/alpha が適切かをまず疑う。**T と alpha はスイープ必須**だ（`03` の `[2][3]`）。なお、データがクリーンで student が単独でも十分学べる場合は、蒸留の上積みは小さい（蒸留が効くのは「容量が足りない / データが少ない・ノイジー」な状況である）。
+- **DeiT で推論時にヘッドを平均し忘れた**: distillation token を持つモデルは、推論時に class ヘッドと distill ヘッドの**平均**を取る。片方だけ使うと性能を取りこぼす。なお timm の `*_distilled` は eval 時に自動で平均してくれる。
 
 ---
 
@@ -181,7 +181,7 @@ uv run python lectures/38_knowledge_distillation/exercises.py
 uv run python lectures/38_knowledge_distillation/exercises_solutions.py
 ```
 
-成果物（図・JSON）は `outputs/38_knowledge_distillation/` に保存されます。CPU 前提・`model.eval()` + `torch.inference_mode()`・headless（`imshow` は呼ばず matplotlib=Agg で保存）。teacher は必ず `freeze_module()`（eval + requires_grad=False）で凍結します。
+成果物（図・JSON）は `outputs/38_knowledge_distillation/` に保存されます。実行は CPU 前提で、`model.eval()` + `torch.inference_mode()` を用い、headless（`imshow` は呼ばず matplotlib=Agg で保存）で動きます。また teacher は必ず `freeze_module()`（eval + requires_grad=False）で凍結します。
 
 ---
 

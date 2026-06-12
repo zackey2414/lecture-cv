@@ -26,15 +26,15 @@
 
 出口は大きく分けて次のとおりです。**サーバCPU / Intel** なら OpenVINO(と ONNX Runtime)、**Mac(Apple Silicon)** なら CoreML、**モバイル(Android/組込)** なら LiteRT(`.tflite`)、**NVIDIA GPU** なら TensorRT。どれも「PyTorch → 中間表現(ONNX か TorchScript)→ ターゲット形式」という共通の流れで、中間ハブに ONNX を据えると移植性が高まります。重要なのは、**変換した瞬間に「速くなった」と思い込まない**こと。変換後は必ず①元モデルとの数値一致(atol/rtol)と②正しい手順でのベンチを取り、速度・サイズ・精度の3つを同時に確認します。
 
-この章の実習環境はCPUのみ(MacBook を含む想定)なので、**確実に動く**ランタイム=eager / TorchScript / ONNX Runtime を主役にして横並びベンチを組みます。OpenVINO・CoreML・LiteRT・TensorRT は重い/プラットフォーム依存なので、import をガードして「導入済みなら実演・未導入なら概念紹介」に徹します(`04_edge_runtimes_concept.py`)。
+この章の実習環境はCPUのみ(MacBook を含む想定)なので、**確実に動く**ランタイム=eager / TorchScript / ONNX Runtime を主役にして横並びベンチを組みます。一方、OpenVINO・CoreML・LiteRT・TensorRT は重く、プラットフォーム依存も強いため、import をガードして「導入済みなら実演・未導入なら概念紹介」に徹します(`04_edge_runtimes_concept.py`)。
 
 ## 2. TorchScript — trace と script(直感 → 理論 → 正準API)
 
-**直感**: TorchScript は PyTorch モデルを「Python が無くても実行できる中間表現」に固める仕組みです。固めた `.pt` は `torch.jit.load` でロードでき、C++(LibTorch)やサーバ配布でそのまま動きます。捕まえ方は2通り。`torch.jit.trace` は**実際に1回 forward を走らせて通った道を記録**し、`torch.jit.script` は**ソースコードを解析して制御フローごとグラフ化**します。
+**直感**: TorchScript は PyTorch モデルを「Python が無くても実行できる中間表現」に固める仕組みです。固めた `.pt` は `torch.jit.load` でロードでき、C++(LibTorch)やサーバ配布でそのまま動きます。捕まえ方は2通りあります。`torch.jit.trace` は**実際に1回 forward を走らせて通った道を記録**し、`torch.jit.script` は**ソースコードを解析して制御フローごとグラフ化**します。
 
 **理論と罠**: trace は速くて手軽ですが「通った道」しか残りません。`if x.sum() > 0:` のような**データ依存の分岐**は、trace 時に通った側だけが焼き込まれ、別の入力では**間違った分岐のまま**動きます(これが trace の罠)。`01_torchscript_trace_script.py` では、入力 `+1` で trace したモデルに `-1` を入れると、本来 `-x = +1` であるべき出力が `-2`(=`x*2` の道に固定)になることを実測で見せます。一方 `script` は分岐を保持するので正しく `+1` を返します。判断基準はシンプルで、**分岐の無い純粋な計算(多くの CNN)は trace で十分、入力で経路が変わるモデルは script** を使います。
 
-**正準API**: 変換後は `torch.jit.freeze`(eval 済み前提で定数畳み込み等を適用)で推論用に軽くし、`.save()` で保存します。そして必ず `eager` 出力との最大絶対誤差を確認してから配布します。resnet18 では trace/script とも eager と完全一致(誤差 0)し、ロード後も誤差 1e-6 程度に収まります。
+**正準API**: 変換後は `torch.jit.freeze`(eval 済み前提で定数畳み込み等を適用)で推論用に軽くし、`.save()` で保存します。そのうえで、必ず `eager` 出力との最大絶対誤差を確認してから配布します。resnet18 では trace/script とも eager と完全一致(誤差 0)し、ロード後も誤差 1e-6 程度に収まります。
 
 ```python
 traced = torch.jit.trace(model.eval(), example)     # 実行をなぞる
@@ -48,7 +48,7 @@ reloaded = torch.jit.load("model.pt")                # 元コード不要でロ�
 
 **直感**: `torch.compile(model)` は PyTorch 2 の目玉で、モデルを書き換えずに1行で高速化を狙えます。中身は2段で、**TorchDynamo** が Python バイトコードをフックして計算グラフを切り出し(捕捉)、**Inductor** がそのグラフを最適化して**CPU では C++/OpenMP カーネルを生成**(GPU では Triton カーネル)します。複数の演算を1カーネルに**融合**してメモリ往復を減らすのが速さの源です。
 
-**落とし穴**: ここが本章の山場です。第一に、**初回呼び出しでコンパイルが走るため非常に遅い**(数秒〜)。ベンチで初回を混ぜると「遅い」と誤判定します。必ずウォームアップ後の定常レイテンシで測ります。第二に、CPU では Inductor が**g++ と Python 開発ヘッダ(`Python.h`)を必要**とし、これらが無い環境では**初回呼び出しで `CppCompileError` を出して失敗**します(本講座の実習環境がまさにこれ)。だから教材では `torch.compile` を**try/except でガード**し、使えなければ表から自動的に外し、概念だけ残します(`02_torch_compile_cpu.py` / `bench_lab.build_torch_compile`)。第三に、**グラフブレイク**(`print` や未対応構文・データ依存分岐でグラフが分断され Python に戻る)や、形状が変わるたびの**再コンパイル**で、期待した高速化が出ないことがあります。`fullgraph=True` で隠れたブレイクを例外として炙り出し、固定形なら `dynamic=False`、可変なら `dynamic=True` で挙動を制御します。
+**落とし穴**: ここが本章の山場です。第一に、**初回呼び出しでコンパイルが走るため非常に遅い**(数秒〜)。ベンチで初回を混ぜると「遅い」と誤判定します。必ずウォームアップ後の定常レイテンシで測ります。第二に、CPU では Inductor が**g++ と Python 開発ヘッダ(`Python.h`)を必要**とし、これらが無い環境では**初回呼び出しで `CppCompileError` を出して失敗**します(本講座の実習環境がまさにこれ)。そのため教材では `torch.compile` を**try/except でガード**し、使えなければ表から自動的に外して、概念だけ残します(`02_torch_compile_cpu.py` / `bench_lab.build_torch_compile`)。第三に、**グラフブレイク**(`print` や未対応構文・データ依存分岐でグラフが分断され Python に戻る)や、形状が変わるたびの**再コンパイル**で、期待した高速化が出ないことがあります。`fullgraph=True` で隠れたブレイクを例外として炙り出し、固定形なら `dynamic=False`、可変なら `dynamic=True` で挙動を制御します。
 
 実務では「`torch.compile` は使えれば効くが、デプロイ経路の必須にはしない」と捉えるのが安全です。確実に効かせたいなら、次に説明する ONNX Runtime のほうが移植性・再現性で勝ります。
 

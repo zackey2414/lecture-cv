@@ -7,7 +7,7 @@
 
 ## 🎯 この章のゴール
 
-学習した PyTorch モデルを、フレームワークに縛られない **ONNX（Open Neural Network Exchange）** に書き出し、**onnxruntime** という高速な推論エンジンで動かせるようになる。具体的には次を「AI 補助なしで書ける」ところまで持っていく。
+この章では、学習した PyTorch モデルを、フレームワークに縛られない **ONNX（Open Neural Network Exchange）** に書き出し、**onnxruntime** という高速な推論エンジンで動かせるようになる。具体的には、次の内容を「AI 補助なしで書ける」ところまで身につける。
 
 - `torch.onnx.export` でモデルを `.onnx` に書き出す（新既定 `dynamo=True` と旧 `dynamo=False` の違いを理解した上で、本講座環境では `dynamo=False` を正準に使う）
 - エクスポートの正しさを **2 段階**で検証する: `onnx.checker.check_model`（静的整合性）と、**torch と onnxruntime の出力が atol/rtol 内で一致するか**（最大絶対誤差）
@@ -23,25 +23,25 @@
 
 ## 0. 直感 — なぜ ONNX と onnxruntime なのか
 
-PyTorch はモデルを**研究・学習する**のに最高の道具だが、**本番で推論を回す**にはいくつか不都合がある。Python インタプリタと巨大な torch ランタイムを丸ごと抱える必要があり、デプロイ先（サーバ・エッジ・ブラウザ・モバイル）ごとに事情も違う。そこで「学習は PyTorch、推論は専用エンジン」という分業が定石になる。ONNX はその橋渡しをする **共通の中間表現（計算グラフのフォーマット）** であり、onnxruntime は ONNX を高速に実行する **推論専用エンジン**だ。
+PyTorch はモデルを**研究・学習する**のに最高の道具だが、**本番で推論を回す**となるといくつか不都合がある。Python インタプリタと巨大な torch ランタイムを丸ごと抱える必要がある上に、デプロイ先（サーバ・エッジ・ブラウザ・モバイル）ごとに事情も異なるからだ。そこで「学習は PyTorch、推論は専用エンジン」という分業が定石になる。この分業を支えるのが ONNX と onnxruntime であり、ONNX が両者の橋渡しをする **共通の中間表現（計算グラフのフォーマット）**、onnxruntime がその ONNX を高速に実行する **推論専用エンジン**にあたる。
 
-ONNX の嬉しさは大きく 3 つ。第一に **可搬性**: 一度 `.onnx` にすれば、onnxruntime・OpenVINO・TensorRT・CoreML・各種モバイルランタイムなど多様な実行系に流せる（第37回につながる）。第二に **速度**: onnxruntime は定数畳み込みや演算子融合といったグラフ最適化を行い、CPU では素の eager PyTorch より速いことが多い（本章の実測でも TinyCNN で約 2〜3 倍）。第三に **軽さ**: 推論だけなら torch 本体を持ち込まずに済み、int8 量子化と組み合わせれば配布サイズも小さくできる。
+ONNX の嬉しさは大きく 3 つある。第一に **可搬性**: 一度 `.onnx` にすれば、onnxruntime・OpenVINO・TensorRT・CoreML・各種モバイルランタイムなど多様な実行系に流せる（第37回につながる）。第二に **速度**: onnxruntime は定数畳み込みや演算子融合といったグラフ最適化を行うため、CPU では素の eager PyTorch より速いことが多い（本章の実測でも TinyCNN で約 2〜3 倍）。第三に **軽さ**: 推論だけなら torch 本体を持ち込まずに済み、int8 量子化と組み合わせれば配布サイズも小さくできる。
 
-ただし「ONNX 化すれば無条件に速くて正しい」わけではない。**変換が数値的に正しいか**は必ず検証しなければならないし、**最適化や量子化が本当に速くなるか**はモデルとハードで変わるので**必ず計測**する。この章は終始、第34回の「計測ファースト」「推測するな、測れ」を引き継ぐ。
+とはいえ「ONNX 化すれば無条件に速くて正しい」わけではない。**変換が数値的に正しいか**は必ず検証しなければならないし、**最適化や量子化が本当に速くなるか**もモデルとハードで変わるので**必ず計測**する。この点で本章は終始、第34回の「計測ファースト」「推測するな、測れ」を引き継いでいる。
 
 ## 1. ONNX とは何か（理論: 計算グラフ・opset・IR）
 
-ONNX ファイルの中身は、モデルの **計算グラフそのもの**だ。`Conv → Relu → MaxPool → … → Gemm` のような**演算子（node）の有向グラフ**に、重み定数（initializer）と、入出力テンソルの名前・型・形（value_info）が添えられている。PyTorch の `nn.Module`（Python のクラス階層）とは違い、ONNX は**実行順に並んだ平らな演算列**なので、どの実行系でも素直に解釈・最適化できる。`04_graph_inspect_netron.py` では `onnx` の Python API でこの中身（入出力・op の並び・initializer のサイズ）を実際に覗く。
+ONNX ファイルの中身は、モデルの **計算グラフそのもの**だ。具体的には、`Conv → Relu → MaxPool → … → Gemm` のような**演算子（node）の有向グラフ**に、重み定数（initializer）と、入出力テンソルの名前・型・形（value_info）が添えられている。PyTorch の `nn.Module`（Python のクラス階層）とは違い、ONNX は**実行順に並んだ平らな演算列**なので、どの実行系でも素直に解釈・最適化できる。`04_graph_inspect_netron.py` では、`onnx` の Python API でこの中身（入出力・op の並び・initializer のサイズ）を実際に覗いてみる。
 
-重要な概念が **opset（operator set）version** だ。ONNX の演算子セットには版があり（本章は `opset=18`）、エクスポート時に指定する。opset が新しいほど表現できる演算が増えるが、**実行側ランタイムが対応していない opset を指定するとロードに失敗する**。逆に古すぎると新しい演算が表現できない。だから「使う onnxruntime が安定に読める opset」を選ぶのが鉄則で、上げ過ぎ・下げ過ぎはどちらも事故の元（落とし穴の定番）。もう一つ **IR version**（グラフフォーマット自体の版）もあるが、これは export 時に自動で妥当な値が入るので普段は意識しなくてよい。
+ここで重要になる概念が **opset（operator set）version** だ。ONNX の演算子セットには版があり（本章は `opset=18`）、これをエクスポート時に指定する。opset が新しいほど表現できる演算が増えるが、その一方で **実行側ランタイムが対応していない opset を指定するとロードに失敗する**。逆に古すぎると新しい演算が表現できない。したがって「使う onnxruntime が安定に読める opset」を選ぶのが鉄則であり、上げ過ぎ・下げ過ぎはどちらも事故の元（落とし穴の定番）になる。なお **IR version**（グラフフォーマット自体の版）という版もあるが、こちらは export 時に自動で妥当な値が入るので普段は意識しなくてよい。
 
-入出力の **形（shape）** は、固定値にも**動的軸（記号名）**にもできる。例えばバッチ次元を `'batch'` という記号にしておけば、export 時は batch=1 でも、推論時は batch=16 でも同じモデルで通る。これを `dynamic_axes`（旧 API）／`dynamic_shapes`（新 API）で指定する。動的軸を張り忘れると「export したバッチサイズでしか動かない」硬いモデルになってしまう。
+入出力の **形（shape）** は、固定値にも**動的軸（記号名）**にもできる。例えばバッチ次元を `'batch'` という記号にしておけば、export 時は batch=1 でも、推論時は batch=16 でも、同じモデルで通せる。この指定は `dynamic_axes`（旧 API）／`dynamic_shapes`（新 API）で行う。逆に動的軸を張り忘れると、「export したバッチサイズでしか動かない」硬いモデルになってしまうので注意したい。
 
 ## 2. 正準 API — `torch.onnx.export`（dynamo の有無）
 
-PyTorch から ONNX への変換は `torch.onnx.export(model, args, path, ...)` 一本で行う。ここで**歴史的な分岐**を理解しておく必要がある。PyTorch 2.9 から、この関数の既定が **`dynamo=True`（torch.export を基盤にした新エクスポータ）** に変わった。新エクスポータは制御フローやダイナミックな形をより正確に捉えられる将来本命だが、変換に **`onnxscript` パッケージ**を必須とする。
+PyTorch から ONNX への変換は `torch.onnx.export(model, args, path, ...)` 一本で行う。ただし、その前に**歴史的な分岐**を理解しておく必要がある。というのも、PyTorch 2.9 から、この関数の既定が **`dynamo=True`（torch.export を基盤にした新エクスポータ）** に変わったからだ。新エクスポータは制御フローやダイナミックな形をより正確に捉えられる将来本命だが、その代わり変換に **`onnxscript` パッケージ**を必須とする。
 
-本講座の標準環境には `onnxscript` を入れていない（依存を増やさない方針）。そこで本章は **旧来の TorchScript ベースのエクスポータ（`dynamo=False`）を正準**として使う。これは `onnxscript` 不要で枯れており、ResNet/小型 CNN/素朴な Transformer のような「素直なモデル」なら安定して動く。`dynamo=False` を指定すると `DeprecationWarning`（将来は新方式が既定）が出るが、機能上は問題ない。新方式を使いたい場合は `uv add --group onnx onnxscript` を足し、`dynamo=True`（既定）にすればよい。
+一方、本講座の標準環境には `onnxscript` を入れていない（依存を増やさない方針）。そこで本章は **旧来の TorchScript ベースのエクスポータ（`dynamo=False`）を正準**として使う。こちらは `onnxscript` が不要で枯れており、ResNet/小型 CNN/素朴な Transformer のような「素直なモデル」なら安定して動く。`dynamo=False` を指定すると `DeprecationWarning`（将来は新方式が既定）が出るが、機能上は問題ない。なお、新方式を使いたい場合は `uv add --group onnx onnxscript` を足し、`dynamo=True`（既定）にすればよい。
 
 ```python
 import torch
@@ -57,43 +57,43 @@ torch.onnx.export(
 )
 ```
 
-**落とし穴になりやすい注意**: エクスポートは必ず `model.eval()` の **fp32 モデル**から行う。量子化済みモデルや MPS 上のモデルはエクスポートで失敗しやすい（量子化は ONNX 化の**後で** onnxruntime 側でやるのが安全）。また `nn.TransformerEncoder` は `eval()` かつ `inference_mode` 下で**融合カーネル**に切り替わり、旧エクスポータが対応しないことがある（`05_optimum_transformers.py` で実際に遭遇し、トレースを grad 有効で行って回避している）。
+**落とし穴になりやすい注意**: エクスポートは必ず `model.eval()` の **fp32 モデル**から行う。量子化済みモデルや MPS 上のモデルはエクスポートで失敗しやすいためで、量子化は ONNX 化の**後で** onnxruntime 側でやるのが安全だ。もう一つ、`nn.TransformerEncoder` は `eval()` かつ `inference_mode` 下で**融合カーネル**に切り替わり、旧エクスポータが対応しないことがある（`05_optimum_transformers.py` で実際にこれに遭遇し、トレースを grad 有効で行って回避している）。
 
 ## 3. 数値一致の検証 — `onnx.checker` と `atol/rtol`
 
-エクスポートして「ファイルができた」で満足してはいけない。**変換が数値的に正しいかを必ず検証**する。検証は 2 段構え。まず **静的チェック**として `onnx.checker.check_model(onnx.load(path))` を通す。これはグラフの型・shape・opset の整合性を調べ、壊れたグラフなら例外を投げる。これは「文法チェック」に相当し、通っても**数値が合う保証はない**。
+エクスポートして「ファイルができた」で満足してはいけない。その先で **変換が数値的に正しいかを必ず検証**する必要があり、検証は 2 段構えで行う。まず **静的チェック**として `onnx.checker.check_model(onnx.load(path))` を通す。これはグラフの型・shape・opset の整合性を調べ、壊れたグラフなら例外を投げる。いわば「文法チェック」に相当するもので、通っても**数値が合う保証まではない**。
 
-次に**動的チェック**として、**同じ入力**を torch と onnxruntime の両方に流し、出力が一致するかを `numpy.allclose(got, ref, atol, rtol)` で判定する。あわせて **最大絶対誤差** `max(|got - ref|)` を必ずログに出す。fp32 のまっとうな変換なら誤差は `1e-6` オーダー（浮動小数の演算順序差程度）に収まるはずで、`01_export_and_verify.py` でも最大絶対誤差 `~6e-7`、top-1 予測一致率 `1.000` になる。**ここを省いて壊れた ONNX を本番に出す**のが、この分野で最も多くて最も痛い事故だ。
+次に**動的チェック**として、**同じ入力**を torch と onnxruntime の両方に流し、出力が一致するかを `numpy.allclose(got, ref, atol, rtol)` で判定する。あわせて **最大絶対誤差** `max(|got - ref|)` も必ずログに出す。fp32 のまっとうな変換なら、誤差は `1e-6` オーダー（浮動小数の演算順序差程度）に収まるはずで、実際 `01_export_and_verify.py` でも最大絶対誤差 `~6e-7`、top-1 予測一致率 `1.000` になる。逆に **ここを省いて壊れた ONNX を本番に出す**のが、この分野で最も多くて最も痛い事故だ。
 
-`atol`（絶対許容）と `rtol`（相対許容）は、出力のスケールに応じて決める。分類ロジットのように値域が ±数十なら `atol=1e-4, rtol=1e-3` 程度で十分。int8 量子化後は誤差が桁違いに大きくなる（`~0.05` など）ので、量子化モデルの検証は「ロジットの一致」ではなく **「top-1 予測の一致率」や「accuracy の劣化幅」** で見るのが正しい（後述の三角評価）。
+`atol`（絶対許容）と `rtol`（相対許容）は、出力のスケールに応じて決める。例えば分類ロジットのように値域が ±数十なら `atol=1e-4, rtol=1e-3` 程度で十分だ。ただし int8 量子化後は誤差が桁違いに大きくなる（`~0.05` など）ので、量子化モデルの検証は「ロジットの一致」ではなく **「top-1 予測の一致率」や「accuracy の劣化幅」** で見るのが正しい（後述の三角評価）。
 
 ## 4. onnxruntime 推論とセッション最適化 — `InferenceSession` / `SessionOptions`
 
-推論側の主役が `onnxruntime.InferenceSession` だ。`InferenceSession(path, sess_options, providers=["CPUExecutionProvider"])` でモデルをロードし、`sess.run(None, {入力名: numpy配列})` で実行する。入力名は `sess.get_inputs()[0].name` で取れる（export で付けた `"input"`）。**プロバイダ**は実行バックエンドの指定で、pip 版 `onnxruntime` は CPU 用（`CPUExecutionProvider`）。GPU 用は別パッケージ `onnxruntime-gpu` で、**両方を同時に入れるとプロバイダ競合でロードに失敗**するので入れない（落とし穴）。
+推論側の主役が `onnxruntime.InferenceSession` だ。`InferenceSession(path, sess_options, providers=["CPUExecutionProvider"])` でモデルをロードし、`sess.run(None, {入力名: numpy配列})` で実行する。入力名は `sess.get_inputs()[0].name` で取れる（export で付けた `"input"`）。引数の **プロバイダ**は実行バックエンドの指定で、pip 版 `onnxruntime` は CPU 用（`CPUExecutionProvider`）にあたる。GPU 用は別パッケージ `onnxruntime-gpu` だが、**両方を同時に入れるとプロバイダ競合でロードに失敗**するので入れない（落とし穴）。
 
-`SessionOptions` には二大ツマミがある。`graph_optimization_level` は **グラフ最適化の強さ**で、`ORT_DISABLE_ALL`（無効）〜`ORT_ENABLE_ALL`（全部: 定数畳み込み・冗長ノード除去・演算子融合）。`intra_op_num_threads` は **1 演算の内部並列スレッド数**で、CPU の物理コア数に合わせて調整する。`02_ort_session_optimize.py` の実測では、TinyCNN で `DISABLE_ALL` → `ENABLE_ALL` が p50 で約 1.34 倍、スレッドを 1→2→4 と増やすとスループットが約 40k→70k→154k img/s と伸びた。
+この `SessionOptions` には二大ツマミがある。一つは `graph_optimization_level` で、**グラフ最適化の強さ**を `ORT_DISABLE_ALL`（無効）〜`ORT_ENABLE_ALL`（全部: 定数畳み込み・冗長ノード除去・演算子融合）の範囲で切り替える。もう一つは `intra_op_num_threads` で、**1 演算の内部並列スレッド数**を CPU の物理コア数に合わせて調整する。`02_ort_session_optimize.py` の実測では、TinyCNN で `DISABLE_ALL` → `ENABLE_ALL` が p50 で約 1.34 倍、スレッドを 1→2→4 と増やすとスループットが約 40k→70k→154k img/s と伸びた。
 
-ここで肝心なのは、**「最適化レベルを上げれば必ず速い」「スレッドを増やせば必ず速い」は思い込み**だということ。小さなモデルでは最適化の効果が誤差に埋もれたり、スレッド起動コストが勝って 1〜2 スレッドが最速だったりする。だから推測せず計測する。そして **torch 側（`torch.set_num_threads`）と onnxruntime 側（`intra_op_num_threads`）のスレッド数を必ず揃えて**ベンチしないと、比較が不公平になる（第34回の「公平なベンチ」原則の延長）。
+ここで肝心なのは、**「最適化レベルを上げれば必ず速い」「スレッドを増やせば必ず速い」は思い込み**だという点だ。実際、小さなモデルでは最適化の効果が誤差に埋もれたり、スレッド起動コストが勝って 1〜2 スレッドが最速だったりする。だからこそ推測せず計測する。加えて、**torch 側（`torch.set_num_threads`）と onnxruntime 側（`intra_op_num_threads`）のスレッド数を必ず揃えて**ベンチしないと比較が不公平になる（第34回の「公平なベンチ」原則の延長）。
 
 ## 5. グラフ最適化の中身と netron 可視化
 
-onnxruntime の「グラフ最適化」は具体的に何をするのか。代表は **演算子融合（operator fusion）** だ。例えば `Conv → ReLU` や `Gemm → ReLU` のように「重い演算 + 活性化」の並びは、1 つの融合演算（`FusedGemm` など）にまとめられる。融合すると中間結果をメモリに書いて読み直す往復が消え、カーネル呼び出し回数も減るので速くなる。`04_graph_inspect_netron.py` では `SessionOptions.optimized_model_filepath` を使って**最適化後のグラフ**をファイルに書き出し、最適化前後で op の数と種類を比較する。実測では `Relu` が消えてノード数が 10→9 になり、`FusedGemm` が現れる様子が見える。
+では、onnxruntime の「グラフ最適化」は具体的に何をするのか。その代表が **演算子融合（operator fusion）** だ。例えば `Conv → ReLU` や `Gemm → ReLU` のように「重い演算 + 活性化」の並びは、1 つの融合演算（`FusedGemm` など）にまとめられる。融合すると中間結果をメモリに書いて読み直す往復が消え、カーネル呼び出し回数も減るので速くなる。これを確かめるため、`04_graph_inspect_netron.py` では `SessionOptions.optimized_model_filepath` を使って**最適化後のグラフ**をファイルに書き出し、最適化前後で op の数と種類を比較する。実測では `Relu` が消えてノード数が 10→9 になり、代わりに `FusedGemm` が現れる様子が見える。
 
-グラフを**目で見る**定番ツールが **netron** だ。`pip install netron` して `netron.start("model.onnx")` するとブラウザでグラフが綺麗に表示され、各ノードの属性や形を対話的に確認できる（モデルが期待通りの構造か、変な分岐や余計なノードが無いかの点検に便利）。本講座の標準環境には netron を入れていないので、本章では `onnx` の Python API で **「テキスト版 netron」**（入出力・op ヒストグラム・initializer サイズの要約）を作って同じ目的を達する。
+こうしたグラフを**目で見る**定番ツールが **netron** だ。`pip install netron` して `netron.start("model.onnx")` するとブラウザでグラフが綺麗に表示され、各ノードの属性や形を対話的に確認できる（モデルが期待通りの構造か、変な分岐や余計なノードが無いかの点検に便利）。ただし本講座の標準環境には netron を入れていないため、本章では `onnx` の Python API で **「テキスト版 netron」**（入出力・op ヒストグラム・initializer サイズの要約）を作り、同じ目的を達する。
 
-グラフの点検は、**動的軸が意図通り張れているか**の確認にも使える。`04` の出力で `inputs: {'input': ['batch', 3, 32, 32]}` のようにバッチ次元が記号 `'batch'` になっていれば動的バッチ成功。ここが具体的な数値（例 `1`）に固定されていたら `dynamic_axes` の指定ミスを疑う。
+さらにグラフの点検は、**動的軸が意図通り張れているか**の確認にも使える。`04` の出力で `inputs: {'input': ['batch', 3, 32, 32]}` のようにバッチ次元が記号 `'batch'` になっていれば動的バッチは成功だ。逆に、ここが具体的な数値（例 `1`）に固定されていたら `dynamic_axes` の指定ミスを疑う。
 
 ## 6. 動的量子化 — CPU に最も手軽に効く int8 化
 
-CPU 推論で**最も費用対効果が高い**圧縮が **動的量子化（dynamic quantization）** だ。`onnxruntime.quantization.quantize_dynamic(in_path, out_path, weight_type=QuantType.QUInt8)` の一行で、`Linear/MatMul/Conv` の**重みを int8 に量子化**し、**活性は推論時にその場で量子化**する。静的量子化と違って**キャリブレーション用データが不要**なので導入が極めて簡単。`03_dynamic_quant.py` の実測では TinyCNN のファイルサイズが `0.258MB → 0.072MB`（約 3.6 倍縮小）、accuracy はほぼ無劣化だった。
+CPU 推論で**最も費用対効果が高い**圧縮が **動的量子化（dynamic quantization）** だ。`onnxruntime.quantization.quantize_dynamic(in_path, out_path, weight_type=QuantType.QUInt8)` の一行で、`Linear/MatMul/Conv` の**重みを int8 に量子化**し、**活性は推論時にその場で量子化**する。静的量子化と違って**キャリブレーション用データが不要**なため、導入が極めて簡単だ。`03_dynamic_quant.py` の実測では、TinyCNN のファイルサイズが `0.258MB → 0.072MB`（約 3.6 倍縮小）、accuracy はほぼ無劣化だった。
 
-CPU の int8 行列演算は **U8(activation) × S8(weight)** の組み合わせが基本構成なので、`weight_type` には `QuantType.QUInt8` を指定する。注意点として、**`Embedding` テーブルは量子化対象外**なので、語彙の大きいモデルではサイズ削減比が理論上限の 4 倍に届かない（`05` の Transformer は 1.53 倍）。また**極小モデルでは量子化/逆量子化ノードの固定オーバーヘッドが勝ち、逆にサイズや時間が増える**こともある。だからここでも結論は「**必ず実測**」。
+CPU の int8 行列演算は **U8(activation) × S8(weight)** の組み合わせが基本構成なので、`weight_type` には `QuantType.QUInt8` を指定する。ただし注意点もある。まず、**`Embedding` テーブルは量子化対象外**なので、語彙の大きいモデルではサイズ削減比が理論上限の 4 倍に届かない（`05` の Transformer は 1.53 倍）。さらに、**極小モデルでは量子化/逆量子化ノードの固定オーバーヘッドが勝ち、逆にサイズや時間が増える**こともある。だからここでも結論は「**必ず実測**」となる。
 
-最重要の作法は、圧縮を **速度・サイズ・精度の三角関係**で評価することだ。サイズと速度だけ見て **accuracy を測らない**のは最悪のアンチパターン（第35回と共通）。`03` と `mini_project.py` では `torch fp32 / ONNX fp32 / ONNX int8` の 3 者を、**accuracy・latency(p50/p99)・throughput・model size(MB)** の同一指標で並べて比較表にし、初めて「この用途ならどれを出すか」を意思決定できるようにしている。なお **int8 が CPU で必ず速くなるわけではない**（小モデル・少バッチでは fp32 の方が速いことも珍しくない）。int8 の主効果は多くの場合「サイズ・メモリ削減」だと割り切るのが実務的。
+そして最重要の作法は、圧縮を **速度・サイズ・精度の三角関係**で評価することだ。サイズと速度だけ見て **accuracy を測らない**のは最悪のアンチパターンである（第35回と共通）。`03` と `mini_project.py` では `torch fp32 / ONNX fp32 / ONNX int8` の 3 者を、**accuracy・latency(p50/p99)・throughput・model size(MB)** の同一指標で並べて比較表にする。こうして初めて「この用途ならどれを出すか」を意思決定できるようになる。なお **int8 が CPU で必ず速くなるわけではなく**、小モデル・少バッチでは fp32 の方が速いことも珍しくない。int8 の主効果は多くの場合「サイズ・メモリ削減」だと割り切るのが実務的だ。
 
 ## 7. Transformers の ONNX 化 — `optimum`（ORTModel）
 
-HuggingFace Transformers のモデルを ONNX 化する正準ツールが **`optimum` / `optimum-onnx`** だ。`ORTModelForImageClassification.from_pretrained("microsoft/resnet-18", export=True)` のように `export=True` を付けるだけで、**ロード時にその場で ONNX へ変換**し、以降は onnxruntime で推論してくれる。`forward` の使い勝手は transformers のままで裏側だけ ORT に差し替わるので、既存コードからの移行が楽。`save_pretrained(...)` で保存・量子化・配布もできる。
+HuggingFace Transformers のモデルを ONNX 化する正準ツールが **`optimum` / `optimum-onnx`** だ。`ORTModelForImageClassification.from_pretrained("microsoft/resnet-18", export=True)` のように `export=True` を付けるだけで、**ロード時にその場で ONNX へ変換**し、以降は onnxruntime で推論してくれる。`forward` の使い勝手は transformers のままで裏側だけ ORT に差し替わるので、既存コードからの移行が楽だ。さらに `save_pretrained(...)` で保存・量子化・配布もできる。
 
 ```python
 # 概念（optimum は任意依存。導入: uv add --group onnx "optimum[onnx]"）
@@ -102,11 +102,11 @@ ort_model = ORTModelForImageClassification.from_pretrained("microsoft/resnet-18"
 ort_model.save_pretrained("resnet18_onnx")
 ```
 
-`optimum` は重めの任意依存なので、本講座の標準環境には入れていない。`05_optimum_transformers.py` では `import` を `try/except` で守り、**未導入なら概念紹介＋導入案内にフォールバック**しつつ、**同じ原理を自前の小型 Transformer エンコーダで実演**する: `torch.onnx.export → onnx.checker → onnxruntime で数値一致 → 動的量子化`。optimum が内部でやっているのも本質的にはこの **「export → verify → run（→ quantize）」** の流れであり、原理を手で書けることが何より大事。Transformer は `Linear/MatMul` の比率が高いので、CPU では int8 動的量子化の費用対効果が（CNN 以上に）出やすいのも覚えておきたい。
+この `optimum` は重めの任意依存なので、本講座の標準環境には入れていない。そこで `05_optimum_transformers.py` では `import` を `try/except` で守り、**未導入なら概念紹介＋導入案内にフォールバック**しつつ、**同じ原理を自前の小型 Transformer エンコーダで実演**する: `torch.onnx.export → onnx.checker → onnxruntime で数値一致 → 動的量子化`。optimum が内部でやっているのも本質的にはこの **「export → verify → run（→ quantize）」** の流れであり、その原理を手で書けることが何より大事だからだ。なお Transformer は `Linear/MatMul` の比率が高いので、CPU では int8 動的量子化の費用対効果が（CNN 以上に）出やすいことも覚えておきたい。
 
 ## 8. 実務の使い分け（意思決定の順序）
 
-最後に、この章の手法を**いつ使うか**を整理する。推論を速く・軽くしたいとき、いきなり量子化に飛びつくのではなく、**コストの低い順**に試すのが鉄則（第34〜37回を貫く意思決定順序）。
+最後に、この章の手法を**いつ使うか**を整理しておく。推論を速く・軽くしたいときは、いきなり量子化に飛びつくのではなく、**コストの低い順**に試すのが鉄則だ（第34〜37回を貫く意思決定順序）。具体的には次の順序で進める。
 
 1. **まず `eval()` + `inference_mode()` と正しいベンチ**（第34回）。ここを外すと以降の比較が全部崩れる。
 2. **CPU なら bf16 autocast / `torch.compile`** を試す（第34・37回）。
@@ -114,7 +114,7 @@ ort_model.save_pretrained("resnet18_onnx")
 4. **ONNX 動的量子化（int8）**（本章）。サイズ・メモリが課題なら有力。**accuracy を測って**許容内か確認。
 5. それでも精度劣化が大きい/さらに速くしたいなら、**静的 PTQ・QAT**（第35回）や**枝刈り**、**プラットフォーム別ランタイム**（OpenVINO/CoreML/TensorRT、第37回）へ。
 
-各段で必ず **「速度・サイズ・精度」の三角**を同一指標で測り、用途（レイテンシ最優先か、配布サイズ最優先か、精度最優先か）に照らして選ぶ。これがこの章の到達点だ。
+そして各段で必ず **「速度・サイズ・精度」の三角**を同一指標で測り、用途（レイテンシ最優先か、配布サイズ最優先か、精度最優先か）に照らして選ぶ。これがこの章の到達点だ。
 
 ---
 
