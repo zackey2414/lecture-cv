@@ -1,4 +1,4 @@
-"""04: open_clip で MobileCLIP/TinyCLIP に触れ、参照リポの mobileclip_blt.ts に接続する。
+"""04: open_clip で MobileCLIP/TinyCLIP に触れ、効率CLIP の TorchScript 配布形に接続する。
 
 ここまでで「埋め込み蒸留」を自前実装した。実務では、蒸留済みの効率 CLIP が
 open_clip から使える。代表が TinyCLIP（重み継承 + 親和性蒸留）と MobileCLIP/MobileCLIP2
@@ -9,7 +9,7 @@ open_clip から使える。代表が TinyCLIP（重み継承 + 親和性蒸留�
   2) MobileCLIP アーキを *オフラインで* 構築（pretrained=None）し、teacher との
      パラメータ数・推論レイテンシを比較（重み無しでも「効率」は測れる）
   3) 事前学習重みのロードを try/except で試す（ネットがあれば DL、無ければ概念で代替）
-  4) 参照リポ /home/user/cluster-clip の mobileclip_blt.ts（TorchScript）に
+  4) MobileCLIP の TorchScript 配布形（.ts）に
      言及し、エッジ展開（torch.jit.load で Python 非依存配布）の位置づけを説明
 
 実行:
@@ -18,6 +18,7 @@ open_clip から使える。代表が TinyCLIP（重み継承 + 親和性蒸留�
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from pathlib import Path
@@ -27,8 +28,8 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import clip_distill_helpers as H  # noqa: E402
 
-REF_REPO = Path("/home/user/cluster-clip")
-REF_TS = REF_REPO / "mobileclip_blt.ts"
+# 効率CLIP を TorchScript で固めた .ts があれば参照する（環境変数 MOBILECLIP_TS で指定。無ければ概念のみ）。
+REF_TS = Path(os.environ["MOBILECLIP_TS"]) if os.environ.get("MOBILECLIP_TS") else None
 
 # オフライン構築を試す候補（軽い順）。最初に成功したものを使う。
 CANDIDATES = ["MobileCLIP-S1", "MobileCLIP-S2", "MobileCLIP2-S0", "TinyCLIP-ViT-40M-32-Text-19M"]
@@ -109,23 +110,20 @@ def try_pretrained(name: str) -> bool:
 
 
 def reference_repo_note() -> None:
-    """参照リポ mobileclip_blt.ts（TorchScript）への接続を説明する。"""
-    print("\n=== 参照リポ接続: cluster-clip の mobileclip ===")
-    if REF_TS.exists():
+    """効率CLIP の TorchScript(.ts) 配布形（エッジ展開）の位置づけを説明する。"""
+    print("\n=== 効率CLIP のエッジ配布: TorchScript(.ts) ===")
+    if REF_TS is not None and REF_TS.exists():
         mb = REF_TS.stat().st_size / 1e6
         print(f"  {REF_TS}  ({mb:.0f} MB, TorchScript)")
     else:
-        print(f"  {REF_TS} は見つかりません（概念のみ）。")
+        print("  （.ts は未指定。環境変数 MOBILECLIP_TS にパスを設定すると参照します。ここでは概念のみ）")
     print("  - .ts は torch.jit.script/trace で固めた Python 非依存の配布形。")
-    print("    エッジ(Jetson 等)では `m = torch.jit.load('mobileclip_blt.ts')` で読み、")
+    print("    エッジ(Jetson 等)では `m = torch.jit.load('model.ts')` で読み、")
     print("    Python の open_clip 実装が無くても encode_image/encode_text を実行できる。")
-    print("  - 参照リポは src/adaptive_cluster_clip/build/models.py の load_clip_model() で")
-    print("    open_clip.create_model_and_transforms(force_quick_gelu=True) により効率 CLIP を読み、")
-    print("    CenterCrop を排した独自 preprocess で dense 特徴(クラスタリング用)を取り出している。")
+    print("  - 実運用では open_clip.create_model_and_transforms(force_quick_gelu=True) で効率CLIPを読み、")
+    print("    CenterCrop を排した前処理で dense 特徴(クラスタリング用)を取り出す構成が使われる。")
     print("  - 本章の自前 student と同じ『L2 正規化 + logit_scale で温度付与』を共有しており、")
     print("    『小さく速い CLIP をエッジで回す』という同一目的に接続する。")
-    print("  注意: 599MB の TorchScript ロードは重いため本スクリプトでは実ロードしない")
-    print("        （試すなら別途 `torch.jit.load` を inference_mode で）。")
 
 
 def main() -> int:
@@ -162,10 +160,10 @@ def main() -> int:
     if name is not None:
         try_pretrained(name)
 
-    # 4) 参照リポ接続
+    # 4) 参考実装接続
     reference_repo_note()
 
-    print("\n[done] 効率 CLIP の読み方と、自前蒸留 student / 参照リポ mobileclip の接続を確認した")
+    print("\n[done] 効率 CLIP の読み方と、自前蒸留 student / 参考実装 mobileclip の接続を確認した")
     return 0
 
 

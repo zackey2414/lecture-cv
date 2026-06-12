@@ -1,6 +1,6 @@
 """04 Stream — multiprocessing で「取得」と「推論」を分離した擬似ストリーム処理。
 
-参照リポ対応:
+参考実装対応:
   stream/pipeline.py（3 プロセスのオーケストレーション）
   + stream/capture.py（ソース抽象化 + 適応サンプリング + キュー満杯ドロップ）
   + stream/consumer.py（メモリ上画像で推論+クラスタリング）

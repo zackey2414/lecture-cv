@@ -13,7 +13,7 @@
 - teacher の**画像-テキスト類似度行列**を、埋め込みを **L2 正規化**し **`logit_scale`（温度）** を掛けて作り、それを student に **KL（親和性蒸留）** で模倣させられる。
 - **正規化・温度を揃えないと類似度のスケールがずれて蒸留が壊れる**ことを、数値で説明できる。
 - **TinyCLIP（重み継承 + 親和性蒸留）** と **MobileCLIP/MobileCLIP2（DataCompDR によるデータセット強化）** の考え方の違いを言える。
-- `open_clip` で MobileCLIP/TinyCLIP を**CPU ロード**し、参照リポ `cluster-clip` の `mobileclip_blt.ts`（TorchScript）まで接続できる。
+- `open_clip` で MobileCLIP/TinyCLIP を**CPU ロード**し、効率CLIP（MobileCLIP/TinyCLIP）の TorchScript 配布形まで接続できる。
 - 蒸留結果を **ゼロショット精度・検索 Recall@k・teacher との埋め込みコサイン整合度（保持率）** で評価できる。
 
 このモジュールのトイ実験では、**teacher（合計 1.51 億パラメータ、画像タワー 8785 万）→ student（約 16 万パラメータ、x551 圧縮）** という極端な圧縮でも、合成データ上で**ゼロショット精度を 100% 保持**し、teacher 埋め込みとのコサイン整合度 0.99 を達成する様子を観察する。
@@ -85,7 +85,7 @@ with torch.inference_mode():
 
 **`03_similarity_distillation_and_pitfall.py` — 親和性蒸留と落とし穴。** teacher の画像-テキスト類似度行列を softmax したソフトターゲットを、student の行列に `KL(log_softmax(student) ‖ softmax(teacher))`（`reduction='batchmean'`）で合わせる（TinyCLIP 型）。同時に**スケールずれの落とし穴**を数値で再現する: 正規化を忘れると行列がノルムに引きずられて暴走し、`logit_scale` を忘れると softmax の最大確率が 0.996 → 0.35 へと平坦化して teacher の確信が消える。
 
-**`04_open_clip_mobileclip.py` — 効率 CLIP と参照リポ接続。** `list_pretrained()` で MobileCLIP/TinyCLIP のキーを列挙し、アーキを**オフラインで（`pretrained=None`）構築**してパラメータ数と CPU レイテンシを比較する。事前学習重みのロードは `try/except` でガードし、ネットが無ければ概念に切り替える。最後に参照リポ `cluster-clip/mobileclip_blt.ts`（約 600MB TorchScript）に触れ、`build/models.py` の `load_clip_model()`（`force_quick_gelu=True` で効率 CLIP を読み、CenterCrop を排した独自前処理で dense 特徴を取り出す）と、本章の自前 student が**「L2 正規化 + `logit_scale` で温度付与」という同じ約束を共有**していることを確認する。
+**`04_open_clip_mobileclip.py` — 効率 CLIP と参考実装接続。** `list_pretrained()` で MobileCLIP/TinyCLIP のキーを列挙し、アーキを**オフラインで（`pretrained=None`）構築**してパラメータ数と CPU レイテンシを比較する。事前学習重みのロードは `try/except` でガードし、ネットが無ければ概念に切り替える。最後に効率CLIP の TorchScript 配布形（例: MobileCLIP の `.ts`、約 600MB）に触れ、実運用での `load_clip_model()` 相当（`force_quick_gelu=True` で効率 CLIP を読み、CenterCrop を排した独自前処理で dense 特徴を取り出す）と、本章の自前 student が**「L2 正規化 + `logit_scale` で温度付与」という同じ約束を共有**していることを確認する。
 
 ### 5. 落とし穴（このモジュールで必ず踏む）
 
@@ -172,7 +172,7 @@ A. 必須ではない。student はもっと安い入力（本章は 64px・[-1,
 - **TinyCLIP（ICCV 2023）**: 親和性蒸留（affinity mimicking）＋**重み継承（weight inheritance）**＋多段縮約で、CLIP を大幅小型化しつつゼロショットを保つ。本章 `03` の KL 蒸留がその中核。
 - **MobileCLIP / MobileCLIP2（CVPR 2024 ほか）**: **DataCompDR** による dataset reinforcement（teacher のアンサンブル埋め込みと合成キャプションを事前計算しデータに焼き込む）で、アーキ更新より**データで**効率と精度を稼ぐ。`open_clip` 3.x が `MobileCLIP-S0/S1/S2/B` と `MobileCLIP2-*` を同梱。
 - **対照蒸留（contrastive distillation）**: 実データ大規模学習では InfoNCE と teacher 模倣を併用する。本章 (a)/(b) の延長。
-- **次の一手**: 蒸留した student を `36_onnx_runtime`/`37_runtime_edge_optimization` で ONNX 化・動的量子化し、`17_faiss_image_search`/`42_multimodal_vector_search` の検索基盤に載せると、エッジで動く CLIP 検索が完成する。参照リポ `cluster-clip` の `mobileclip_blt.ts` はまさにその実運用形。
+- **次の一手**: 蒸留した student を `36_onnx_runtime`/`37_runtime_edge_optimization` で ONNX 化・動的量子化し、`17_faiss_image_search`/`42_multimodal_vector_search` の検索基盤に載せると、エッジで動く CLIP 検索が完成する。効率CLIP の TorchScript 配布形（例: MobileCLIP）はまさにその実運用形。
 - ドキュメント: open_clip <https://github.com/mlfoundations/open_clip> ／ transformers CLIP <https://huggingface.co/docs/transformers/model_doc/clip> ／ Apple ml-mobileclip <https://github.com/apple/ml-mobileclip>
 
 ---
@@ -190,7 +190,7 @@ uv run python lectures/39_clip_distillation/01_teacher_similarity_matrix.py
 uv run python lectures/39_clip_distillation/02_embedding_distillation.py
 # 3) 親和性(KL)蒸留 + スケールずれの落とし穴
 uv run python lectures/39_clip_distillation/03_similarity_distillation_and_pitfall.py
-# 4) open_clip で MobileCLIP/TinyCLIP・参照リポ接続
+# 4) open_clip で MobileCLIP/TinyCLIP・参考実装接続
 uv run python lectures/39_clip_distillation/04_open_clip_mobileclip.py
 # 章末ミニプロジェクト（保持率の総合評価）
 uv run python lectures/39_clip_distillation/mini_project.py

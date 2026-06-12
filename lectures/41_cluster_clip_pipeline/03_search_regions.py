@@ -1,6 +1,6 @@
 """03 Search — テキスト/領域クエリで「フレームのどの領域が合致するか」を検索・可視化する。
 
-参照リポ対応:
+参考実装対応:
   search/engine.py（CLIP text encode → FAISS 検索 → SQLite でメタ引き）
   + search/visualizer.py（該当クラスタ領域を重畳した可視化）。
 

@@ -1,7 +1,7 @@
 # 40. Cluster-CLIP — dense CLIP 特徴と空間連結クラスタリング（講座の総仕上げ）
 
 > 版: torch 2.12+cpu / open-clip-torch 3.3 / faiss-cpu 1.14 / scikit-learn 1.9（2026-06）
-> 元ネタ: 参照リポ **cluster-clip**（`build/models.py` の dense CLIP + 空間連結クラスタリングが本章の核）
+> 元ネタ: **Cluster-CLIP** という手法（dense CLIP + 空間連結クラスタリングが本章の核）
 
 ---
 
@@ -88,7 +88,7 @@ D, I = index.search(np.ascontiguousarray(query, np.float32), k)
 
 **領域クラスタリングと代表ベクトル（`cc_common.cluster_regions` / 04）**: `[C,H,W]` を `[H*W, C]` に直し、connectivity 付き AgglomerativeClustering で `labels` を得て、クラスタごとに平均 → L2 正規化して **代表ベクトル `reps[k, C]`** を作ります。`04` の出力では、小物体の黄色いボールが自分専用のクラスタを得て、その bbox を **coverage 1.00** で覆えていることが分かります（= dense にした甲斐があった、の数値的裏付け）。
 
-**FAISS + SQLite で検索基盤を作る（mini_project の Build / 17 章の復習）**: 代表ベクトルを `IndexFlatIP + IDMap` に `add_with_ids` し、`faiss_id` を SQLite の `VectorMapping(faiss_id, frame_id, cluster_idx, bbox)` と `Frames(frame_id, image_path, cmap_path)` に対応づけます。参照リポでは `faiss_id` を SQLite の `AUTOINCREMENT` 行 ID として採番しており、本章の mini_project も `cur.lastrowid` を `faiss_id` に使ってこれを再現します。FAISS はベクトルしか持たない（メタは持てない）ので、**インデックス本体（.faiss）とメタ DB（.db）は必ずセットで永続化・整合させる** のが鉄則です。
+**FAISS + SQLite で検索基盤を作る（mini_project の Build / 17 章の復習）**: 代表ベクトルを `IndexFlatIP + IDMap` に `add_with_ids` し、`faiss_id` を SQLite の `VectorMapping(faiss_id, frame_id, cluster_idx, bbox)` と `Frames(frame_id, image_path, cmap_path)` に対応づけます。参考実装では `faiss_id` を SQLite の `AUTOINCREMENT` 行 ID として採番しており、本章の mini_project も `cur.lastrowid` を `faiss_id` に使ってこれを再現します。FAISS はベクトルしか持たない（メタは持てない）ので、**インデックス本体（.faiss）とメタ DB（.db）は必ずセットで永続化・整合させる** のが鉄則です。
 
 **検索と可視化（`search/engine.py` 相当 / 05・mini_project の Search）**: クエリ（テキストは `encode_text`、画像領域はその代表ベクトル）を L2 正規化して `index.search`、返った `faiss_id`（**-1 は近傍不足なので必ずスキップ**）で SQLite を join し、`(frame, cluster, bbox, image_path)` を得て、クラスタマップから該当領域のマスクを作って `cv2.addWeighted` で重畳します。
 
@@ -106,7 +106,7 @@ D, I = index.search(np.ascontiguousarray(query, np.float32), k)
 
 「画像全体で似た画像を引きたい」なら従来の global CLIP + FAISS（17 章）で十分で、dense は不要です。dense + クラスタリングが効くのは、**1 枚に複数物体があり、その中の特定の領域・小物体をテキストで引きたい** ときや、検索結果に「画像のどこがヒットしたか」のマスクを出したいときです。コストは上がります（パッチ forward + クラスタリングがフレームごとに走る）。
 
-クラスタ数 k は「1 フレームあたり何本のベクトルを index に積むか」を直接決めます。k を増やすほど細かい領域を引けますが、index は重く、ノイズ領域も増えます。参照リポは適応的に k を決める実験もしていますが、入門としては固定 k（5〜8）で十分です。ストリームでは、推論が実時間に追いつかない前提で **fps 上限 + キュー満杯ドロップ** を必ず入れ、「全フレームを処理する」のではなく「落としても破綻しない」設計にします。
+クラスタ数 k は「1 フレームあたり何本のベクトルを index に積むか」を直接決めます。k を増やすほど細かい領域を引けますが、index は重く、ノイズ領域も増えます。参考実装は適応的に k を決める実験もしていますが、入門としては固定 k（5〜8）で十分です。ストリームでは、推論が実時間に追いつかない前提で **fps 上限 + キュー満杯ドロップ** を必ず入れ、「全フレームを処理する」のではなく「落としても破綻しない」設計にします。
 
 ---
 
@@ -123,7 +123,7 @@ uv run python lectures/40_cluster_clip_dense_cluster/mini_project.py
 - **Search**: テキストクエリ → `encode_text` → FAISS → SQLite join → ヒット領域をマスク重畳で `mini_project_search.png` に出力。`faiss_id == -1` をスキップし、メタ解決できることを assert で検証。
 - **Stream**: `multiprocessing`（spawn）の capture / consumer / writer。`queue_size=2` の満杯キューに 8 フレームを投入し、推論が追いつかない分はドロップ。実行例では **投入 8 / 処理 2 / ドロップ 6**、実効 FPS と合わせて「取得が推論を追い越すと捨てる」挙動が観察できます。
 
-この 1 本で、参照リポの `split / build / search / stream` の対応関係（`build/models.py`・`indexer.py`・`db_writer.py`・`search/engine.py`・`stream/pipeline.py`）が腑に落ちるはずです。
+この 1 本で、参考実装の `split / build / search / stream` の対応関係（`build/models.py`・`indexer.py`・`db_writer.py`・`search/engine.py`・`stream/pipeline.py`）が腑に落ちるはずです。
 
 ---
 
@@ -166,11 +166,11 @@ A. `cc_common.load_encoder` は CLIP のロードに失敗すると、決定論�
 
 ## 🚀 発展トピック・参考
 
-- **MaskCLIP / dense CLIP の整列改善**: 最後の自己注意の value 射影だけを使うと、パッチトークンがテキストにより整列します。参照リポの ResNet 経路（`attnpool` の `v_proj`/`c_proj` を 1×1 conv 化）はこの発想に近いものです（`build/models.py: dense_clip_embeddings_resnet`）。
-- **適応サンプリング（AFS-MI）**: 参照リポはヒストグラム差分や相互情報量でフレームを間引き、似たフレームの無駄な推論を避けます（`build/producer.py`、`stream/capture.py`）。
+- **MaskCLIP / dense CLIP の整列改善**: 最後の自己注意の value 射影だけを使うと、パッチトークンがテキストにより整列します。参考実装の ResNet 経路（`attnpool` の `v_proj`/`c_proj` を 1×1 conv 化）はこの発想に近いものです（`build/models.py: dense_clip_embeddings_resnet`）。
+- **適応サンプリング（AFS-MI）**: 参考実装はヒストグラム差分や相互情報量でフレームを間引き、似たフレームの無駄な推論を避けます（`build/producer.py`、`stream/capture.py`）。
 - **カバレッジ評価**: GT bbox とクラスタマスクの被覆率で P@k / NDCG を測る評価系（`eval/coverage.py`）。本章の `coverage_ratio` / 演習 Q10 がその最小版です。
 - **エッジ展開**: faiss-cpu と TorchScript 化した小型 CLIP で Jetson まで運ぶ設計（`docs/EDGE_DEPLOYMENT.md`）。35〜37 章（量子化・ONNX・エッジ最適化）とつながります。
-- 参照リポ: `cluster-clip`（`README.md`、`src/adaptive_cluster_clip/build/models.py`、`.../indexer.py`、`.../search/engine.py`、`.../stream/pipeline.py`）。
+- 本章のもとにした構成: dense CLIP 特徴抽出（build/models 相当）→ 空間連結クラスタリング → FAISS 索引（indexer）→ 検索エンジン（search/engine）→ ストリームパイプライン（stream/pipeline）。
 
 関連章: 16（CLIP ゼロショット）/ 17（FAISS 画像検索）/ 33・42（マルチモーダル / ベクトル検索）/ 41（Cluster-CLIP パイプライン）。
 

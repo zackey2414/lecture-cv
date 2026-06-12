@@ -1,5 +1,5 @@
 {
- "overview": "Python既習者が、AIの補助なしに自力でCV関連コードを書き切れる状態を目標とする総合ハンズオン講座。OpenCV/Pillowの画像表現(BGR/RGB・ndarray)と前処理から始め、古典CV(特徴点マッチング→ホモグラフィ→パノラマ、カメラキャリブレーション/ステレオ、watershed/GrabCut/背景差分)、深層CV(ResNet/ViTの分類と転移学習、物体検出、セグメンテーション、単眼深度・姿勢・オプティカルフロー、物体追跡・行動認識、顔検出/認識)、CLIP/SigLIPによるゼロショット分類・画像テキスト検索とFAISSベクトルDB、画像キャプション/VQA/OCR/文書理解、拡散モデルによる生成・編集、異常検知・画像品質、マルチモーダル埋め込み(SigLIP2/ImageBind)までを実装する。さらに各タスクで評価指標を必ず測り(物体検出mAPはnumpyで自力実装しpycocotoolsと突き合わせ)、推論プロファイリング→量子化→枝刈り→ONNX→ランタイム最適化と知識蒸留(CLIP/VLM蒸留含む)のモデル圧縮トラックを通過し、最終的に参照リポジトリ Cluster-CLIP(dense CLIP特徴+空間連結クラスタリング+FAISS+SQLite+multiprocessingストリーム)をCPUで動く小型版として自力再構築できる到達度を目指す。全モジュールがGPU無し(MacBook等CPUのみ)で完走できるよう設計する。",
+ "overview": "Python既習者が、AIの補助なしに自力でCV関連コードを書き切れる状態を目標とする総合ハンズオン講座。OpenCV/Pillowの画像表現(BGR/RGB・ndarray)と前処理から始め、古典CV(特徴点マッチング→ホモグラフィ→パノラマ、カメラキャリブレーション/ステレオ、watershed/GrabCut/背景差分)、深層CV(ResNet/ViTの分類と転移学習、物体検出、セグメンテーション、単眼深度・姿勢・オプティカルフロー、物体追跡・行動認識、顔検出/認識)、CLIP/SigLIPによるゼロショット分類・画像テキスト検索とFAISSベクトルDB、画像キャプション/VQA/OCR/文書理解、拡散モデルによる生成・編集、異常検知・画像品質、マルチモーダル埋め込み(SigLIP2/ImageBind)までを実装する。さらに各タスクで評価指標を必ず測り(物体検出mAPはnumpyで自力実装しpycocotoolsと突き合わせ)、推論プロファイリング→量子化→枝刈り→ONNX→ランタイム最適化と知識蒸留(CLIP/VLM蒸留含む)のモデル圧縮トラックを通過し、最終的にCluster-CLIP(dense CLIP特徴+空間連結クラスタリング+FAISS+SQLite+multiprocessingストリーム)をCPUで動く小型版として自力再構築できる到達度を目指す。全モジュールがGPU無し(MacBook等CPUのみ)で完走できるよう設計する。",
  "level_progression": "入門=各ライブラリの正準APIとデータ表現(BGR/RGB・テンソル形状CHW/HWC・torch.deviceのCPU/MPS/CUDAフォールバック)を把握し、pipeline等の高レベルAPIで最短コードを動かして成功体験を得る段階。初級=pipelineの中身を分解し、前処理(processor/transforms)→推論(eval+inference_mode)→可視化→評価までを自分の手で書ける基礎アプリ実装段階。中級=複数モデルからCPUで現実的なものを選定し、タスク固有の評価指標(mIoU/Dice/Recall@k/CER/AbsRel等)を計算し、解像度低減・フレームスキップ・スレッド/プロセス分離・量子化などCPU最適化を調べながら実務タスクを完遂できる段階。上級=パイプライン統合・モデル圧縮(蒸留/量子化/ONNX)・dense特徴クラスタリング・ストリーム並列処理など、ライブラリ構成を理解した応用設計とCluster-CLIP再構築ができる段階。並びは依存関係順(画像基礎→古典CV→動画/ストリーム→分類/評価→埋め込み/CLIP/FAISS→検出/セグメ/キャプション等の各タスク→生成/異常/マルチモーダル→最適化/蒸留→Cluster-CLIP応用)で、要求された検出・セグメ・キャプションは独立した入門モジュールとして軽量モデルで先に置き、評価(mAP自作含む)と最適化トラックで仕上げる。",
  "modules": [
   {
@@ -1313,7 +1313,7 @@
    "title": "VLM/CLIPの蒸留(b) — TinyCLIP/MobileCLIP・埋め込み模倣",
    "track": "最適化・デプロイ",
    "level": "上級",
-   "goal": "大CLIPを小型エンコーダへ蒸留する手法を理解し、埋め込みをL2正規化しlogit_scaleで温度付与したteacherの画像-テキスト類似度行列をstudentにKL/MSEで模倣させるcontrastive distillation、TinyCLIP(重み継承+親和性蒸留)とMobileCLIP(DataCompDRデータセット強化)の違いを学び、open_clipで小型CLIPをCPUロードしzero-shotを回して参照リポのmobileclip(mobileclip_blt.ts)に接続できる。",
+   "goal": "大CLIPを小型エンコーダへ蒸留する手法を理解し、埋め込みをL2正規化しlogit_scaleで温度付与したteacherの画像-テキスト類似度行列をstudentにKL/MSEで模倣させるcontrastive distillation、TinyCLIP(重み継承+親和性蒸留)とMobileCLIP(DataCompDRデータセット強化)の違いを学び、open_clipで小型CLIPをCPUロードしzero-shotを回して参考実装のmobileclip(mobileclip_blt.ts)に接続できる。",
    "evaluation": "蒸留した小CLIPの品質を、ラベル付き小データでのzero-shot分類accuracyとteacher CLIPとの差で評価し、画像テキスト検索Recall@kも比較する。teacherとstudentの埋め込みコサイン類似度(整合度)を測り、logit_scale/正規化を揃えないとスケールずれが起きることを示す。",
    "deliverable": "teacher CLIPの埋め込み/類似度をstudentに模倣させる蒸留ループ(または小型MobileCLIP/TinyCLIPのロード)と、zero-shot accuracy・Recall@k・埋め込み類似度の評価コード。",
    "needs_groups": [
@@ -1327,7 +1327,7 @@
     "TinyCLIP(重み継承+親和性蒸留)とMobileCLIP/MobileCLIP2(DataCompDRデータセット強化、アーキよりデータ)",
     "open_clip.create_model_and_transforms('MobileCLIP-S0'/'TinyCLIP-...')でCPUロード",
     "encode_image/encode_textとF.normalize、list_pretrainedで事前学習キー確認",
-    "参照リポのmobileclip_blt.ts(TorchScript)とエッジ展開",
+    "参考実装のmobileclip_blt.ts(TorchScript)とエッジ展開",
     "知識蒸留/dataset distillation/dataset reinforcementの用語区別"
    ],
    "key_apis": [

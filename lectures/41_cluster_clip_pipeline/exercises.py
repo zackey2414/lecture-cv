@@ -89,7 +89,7 @@ def ex7_mask_coverage(mask: np.ndarray, bbox: tuple[int, int, int, int]) -> floa
     """Q7(難): クラスタマスク(bool, H x W) が BBox [x1,y1,x2,y2] をどれだけ覆うか（カバレッジ）を返す。
 
     coverage = (BBox 内で mask=True の画素数) / (BBox の面積)。面積 0 のときは 0.0。
-    参照リポの評価（クラスタマスク ∩ BBox / BBox 面積）の最小版。
+    参考実装の評価（クラスタマスク ∩ BBox / BBox 面積）の最小版。
     """
     raise NotImplementedError("Q7: カバレッジ（mask∩bbox / bbox面積）を実装してください")
 

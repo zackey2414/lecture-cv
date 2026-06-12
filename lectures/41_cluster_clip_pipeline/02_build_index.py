@@ -1,6 +1,6 @@
 """02 Build — 各フレームを dense CLIP → 領域クラスタ → 代表ベクトル化し、FAISS+SQLite を作る。
 
-参照リポ対応:
+参考実装対応:
   build/consumer.py（推論+クラスタリング+npy保存）
   + build/indexer.py（FAISS IndexFlatIP+IDMap 構築）
   + build/db_writer.py（SQLite に Frames/VectorMapping 書き込み）

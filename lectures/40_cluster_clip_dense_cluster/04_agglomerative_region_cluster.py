@@ -2,7 +2,7 @@
 
 学ぶこと:
   - dense 特徴 [C,H,W] を空間連結クラスタリングで k 個の領域に割り、各クラスタの
-    平均 -> L2 正規化を「クラスタ代表ベクトル」にする（参照リポ cluster_agglomerative）。
+    平均 -> L2 正規化を「クラスタ代表ベクトル」にする（参考実装 cluster_agglomerative）。
   - 代表ベクトルは k 本だけ。49 パッチを全部 index に入れるより軽く、領域単位で引ける。
   - 小物体（黄色いボール）が自分専用のクラスタを得られているか、bbox とのカバレッジで確認。
 
@@ -29,7 +29,7 @@ import cc_common as C  # noqa: E402
 def coverage_ratio(mask_bool: np.ndarray, bbox: tuple[int, int, int, int]) -> float:
     """クラスタマスクが bbox をどれだけ覆うか = (マスク∩bbox) / bbox面積。
 
-    参照リポ eval/coverage.py のカバレッジ評価の最小版。
+    参考実装 eval/coverage.py のカバレッジ評価の最小版。
     """
     x1, y1, x2, y2 = bbox
     box_area = max(1, (x2 - x1) * (y2 - y1))

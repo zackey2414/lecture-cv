@@ -1,7 +1,7 @@
 """40_cluster_clip_dense_cluster 共通の道具箱（Cluster-CLIP ミニ実装）。
 
 このモジュールは 01〜05 のスクリプト・mini_project.py・exercises 系が import する
-再利用部品をまとめる。設計の元ネタは参照リポ cluster-clip の
+再利用部品をまとめる。設計の元ネタは Cluster-CLIP（手法）の
   - build/models.py … dense CLIP 特徴抽出 + 空間連結クラスタリング
   - build/indexer.py … FAISS IndexIDMap(IndexFlatIP) 構築
   - build/db_writer.py … SQLite メタデータ
@@ -180,7 +180,7 @@ def cluster_regions(
 ) -> tuple[np.ndarray, np.ndarray]:
     """dense 特徴マップ [C,H,W] を「意味の似た連結領域」に分割する。
 
-    手順（参照リポ build/models.py: cluster_agglomerative と同じ勘所）:
+    手順（参考実装 build/models.py: cluster_agglomerative と同じ勘所）:
       1. [C,H,W] を [H*W, C] に並べ替える（各行=1パッチの特徴）。
       2. 空間連結（grid_to_graph）付き AgglomerativeClustering で領域分割。
       3. 各クラスタの平均→L2 正規化を「クラスタ代表ベクトル」にする。
@@ -324,7 +324,7 @@ def dense_vit_tokens(visual, images):
     CLIP の通常 API は「画像全体 1 ベクトル（CLS 由来）」しか返さない。
     領域検索のためにはパッチ単位の特徴が要るので、transformer を自前で通して
     最終トークン列を取り出し、CLS を捨てて空間 (gh,gw) に並べ替える。
-    （参照リポ build/models.py: dense_clip_embeddings_vit と同じ手順。）
+    （参考実装 build/models.py: dense_clip_embeddings_vit と同じ手順。）
     """
     import torch
 

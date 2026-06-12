@@ -38,3 +38,6 @@ hf_cache/
 .idea/
 .DS_Store
 Thumbs.db
+
+# 私的なローカル指示（公開しない）
+CLAUDE.md

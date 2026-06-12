@@ -1,6 +1,6 @@
 """01 Split — 動画を連番フレームに分割する（パイプラインの入口）。
 
-参照リポ対応: src/adaptive_cluster_clip/split/processor.py
+参考実装対応: src/adaptive_cluster_clip/split/processor.py
   実リポは data/videos の mp4 を cv2.VideoCapture で開き、1 フレームずつ JPEG 保存する。
   ここでは入力動画も合成し、「VideoWriter で書く → VideoCapture で読み戻す」で分割を体験する。
 

@@ -1,11 +1,11 @@
 """41_cluster_clip_pipeline 共通ヘルパ — 我々の小さな `adaptive_cluster_clip` パッケージ。
 
-この章は講座の総仕上げ（capstone）。参照リポ `cluster-clip` の
+この章は講座の総仕上げ（capstone）。Cluster-CLIP（手法）の
 Split → Build → Search → Stream を、CPU で完走する小型版として再構築する。
 番号付きスクリプト（01〜04）と mini_project はここの関数を呼ぶだけの薄いドライバにし、
-「Cluster-CLIP の中身」はこのファイルに集約する（= 参照リポの scripts/ と src/ の関係）。
+「Cluster-CLIP の中身」はこのファイルに集約する（= 参考実装の scripts/ と src/ の関係）。
 
-参照リポとの対応:
+参考実装との対応:
   - load_clip / dense_clip_embeddings / cluster_agglomerative
         … src/adaptive_cluster_clip/build/models.py
   - run_split                … src/adaptive_cluster_clip/split/processor.py
@@ -16,7 +16,7 @@ Split → Build → Search → Stream を、CPU で完走する小型版とし�
   - run_stream_pipeline / HistogramDeltaSampler / _capture/_consumer/_writer
         … stream/pipeline.py + stream/capture.py + stream/consumer.py + stream/writer.py
 
-設計の勘所（参照リポと同一）:
+設計の勘所（参考実装と同一）:
   - CLIP は ViT-B-32 を force_quick_gelu=True でロードする。
   - 前処理は CenterCrop を排し、正方形に強制 Resize する（端を切らない＝dense 特徴の品質に直結）。
   - dense 特徴は visual transformer のパッチトークン列（CLS を除く）を空間 (H/ps, W/ps, D) に並べ替える。
@@ -98,7 +98,7 @@ def set_seed(seed: int = 0) -> None:
 
 
 def pick_device() -> torch.device:
-    """本講座は CPU 前提。参照リポと同じく cuda 可用ならそちらを使う書き方にしておく。"""
+    """本講座は CPU 前提。参考実装と同じく cuda 可用ならそちらを使う書き方にしておく。"""
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -147,7 +147,7 @@ def write_synth_frames(frames_dir: Path, n_frames: int, video_name: str = "synth
     paths: list[Path] = []
     for i in range(n_frames):
         frame = synth_frame(i, n_frames)
-        # 参照リポの命名: {video}_frame{n:010d}.jpg を模す（桁は短縮）。
+        # 参考実装の命名: {video}_frame{n:010d}.jpg を模す（桁は短縮）。
         p = frames_dir / f"{video_name}_frame{i:06d}.jpg"
         cv2.imwrite(str(p), frame, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
         paths.append(p)
@@ -324,7 +324,7 @@ def build_faiss_idmap(vectors: np.ndarray, ids: np.ndarray) -> faiss.Index:
 def create_tables(conn: sqlite3.Connection) -> None:
     """Frames（フレームのメタデータ）と VectorMapping（faiss_id ↔ フレーム/クラスタ）を作る。
 
-    参照リポは Segments（適応サンプリングの単位）も持つが、ここでは簡略化して 2 表にする。
+    参考実装は Segments（適応サンプリングの単位）も持つが、ここでは簡略化して 2 表にする。
     """
     cur = conn.cursor()
     cur.execute("""
@@ -352,7 +352,7 @@ def create_tables(conn: sqlite3.Connection) -> None:
 # Split ステージ
 # ---------------------------------------------------------------------------
 def run_split(frames_dir: Path, n_frames: int, video_name: str = "synthA") -> list[Path]:
-    """合成動画を連番フレームに「分割」する（参照リポ split/processor.py の縮小版）。
+    """合成動画を連番フレームに「分割」する（参考実装 split/processor.py の縮小版）。
 
     実リポは VideoCapture で mp4 を読みフレームを JPEG 保存する。ここでは入力動画も合成する。
     """
@@ -380,7 +380,7 @@ def run_build(
 ) -> dict[str, Any]:
     """フレーム群を dense CLIP → 領域クラスタ → 代表ベクトル化し、FAISS + SQLite を構築する。
 
-    生成物（参照リポの Build カプセルに対応）:
+    生成物（参考実装の Build カプセルに対応）:
       build_dir/cluster_maps/*.npy   各フレームのクラスタラベルマップ [H, W]
       build_dir/vectors/*.npy        各フレームのクラスタ代表ベクトル [k, C]
       build_dir/index.faiss          全代表ベクトルの IndexFlatIP(+IDMap)

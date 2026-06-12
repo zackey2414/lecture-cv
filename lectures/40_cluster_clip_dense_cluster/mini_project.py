@@ -2,7 +2,7 @@
 
 統合課題:
   これまで学んだ全要素を 1 本に束ねる、講座の総仕上げ。
-    Split  : 合成動画をフレーム JPEG に分解（参照リポ split/processor.py 相当）
+    Split  : 合成動画をフレーム JPEG に分解（参考実装 split/processor.py 相当）
     Build  : 各フレームを dense CLIP -> 空間連結クラスタリング -> 代表ベクトル化し、
              FAISS IndexIDMap(IndexFlatIP) と SQLite メタDB を構築
              （build/models.py + indexer.py + db_writer.py 相当）

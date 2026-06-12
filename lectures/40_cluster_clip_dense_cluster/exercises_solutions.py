@@ -119,7 +119,7 @@ def ex8_search_regions(index, db_path: str, query_vec: np.ndarray, k: int) -> li
 def ex9_bounded_put(items: list, maxsize: int) -> int:
     """Q9(難): 消費者がいない満杯キューへ put_nowait し、溢れた分をドロップした数を返す。
 
-    リアルタイムストリームでフレームを捨てる方針（参照リポ stream/capture.py）。
+    リアルタイムストリームでフレームを捨てる方針（参考実装 stream/capture.py）。
     """
     q: queue.Queue = queue.Queue(maxsize=maxsize)
     dropped = 0
