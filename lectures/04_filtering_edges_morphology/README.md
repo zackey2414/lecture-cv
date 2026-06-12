@@ -1,6 +1,6 @@
 # 第4回 フィルタ・エッジ・閾値・モルフォロジー・輪郭・ワーピング
 
-> トラック: **画像の基礎** ／ レベル: **中級** ／ 依存: numpy・opencv-python-headless・pillow・matplotlib のみ（torch / faiss は使いません）
+> トラック: **画像の基礎** ／ レベル: **中級** ／ 依存: numpy・opencv-python-headless・matplotlib のみ（torch / faiss / pillow は使いません）
 
 ## 🎯 この章のゴール
 
@@ -242,7 +242,7 @@ uv run python lectures/04_filtering_edges_morphology/mini_project.py
 
 ## 10. 動かし方
 
-このモジュールは `numpy` / `opencv-python-headless` / `pillow` / `matplotlib` だけに依存し、GPU もネット接続も不要です。サンプル画像が無くても合成画像が自動生成されるので、`uv sync` 後すぐ実行できます。プロジェクトルートで以下を順に実行してください（カレントはリポジトリルート前提。`outputs/` は各スクリプトが自動で作ります）。
+このモジュールは `numpy` / `opencv-python-headless` / `matplotlib` だけに依存し、GPU もネット接続も不要です。サンプル画像が無くても合成画像が自動生成されるので、`uv sync` 後すぐ実行できます。プロジェクトルートで以下を順に実行してください（カレントはリポジトリルート前提。`outputs/` は各スクリプトが自動で作ります）。
 
 ```bash
 # 依存をインストール（初回のみ）
@@ -292,5 +292,5 @@ uv run python lectures/04_filtering_edges_morphology/exercises_solutions.py
 ---
 
 > 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
-> Python 3.12 ／ numpy 2.4（2.4.6）／ opencv-python-headless 4.13（`cv2` 4.13.0）／ Pillow 12.2（12.2.0）／ matplotlib 3.10（3.10.9）。本章は torch を使いませんが、講座全体の深層パートでは torch 2.12+cpu を前提とします。
+> Python 3.12 ／ numpy 2.4（2.4.6）／ opencv-python-headless 4.13（`cv2` 4.13.0）／ Pillow 12.2（12.2.0、本章では未使用）／ matplotlib 3.10（3.10.9）。本章は torch を使いませんが、講座全体の深層パートでは torch 2.12+cpu を前提とします。
 > すべて CPU のみ・ネット非依存で動作します（`cv2.imshow` は使わず、結果は `outputs/04_filtering_edges_morphology/` に保存）。

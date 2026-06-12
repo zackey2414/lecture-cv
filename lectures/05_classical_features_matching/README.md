@@ -1,6 +1,6 @@
 # 第5回 特徴点検出とマッチング — SIFT/ORB・BFMatcher/FLANN・テンプレート・Hough
 
-> トラック: **古典CV** ／ レベル: **初級** ／ 依存: numpy・opencv-python-headless・pillow・matplotlib のみ（torch/faiss は使いません・追加依存グループなし）
+> トラック: **古典CV** ／ レベル: **初級** ／ 依存: numpy・opencv-python-headless・matplotlib のみ（torch/faiss は使いません・追加依存グループなし）
 
 ## 🎯 この章のゴール
 
@@ -192,7 +192,7 @@ lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=80,
 
 ## 11. 動かし方
 
-このモジュールは `numpy` / `opencv-python-headless` / `pillow` / `matplotlib` だけに依存し、GPU もネット接続も不要です。サンプル画像が無くても合成画像が自動生成されるので、いきなり実行できます。プロジェクトルートで以下を順に実行してください。
+このモジュールは `numpy` / `opencv-python-headless` / `matplotlib` だけに依存し、GPU もネット接続も不要です。サンプル画像が無くても合成画像が自動生成されるので、いきなり実行できます。プロジェクトルートで以下を順に実行してください。
 
 ```bash
 # 依存をインストール（初回のみ）
@@ -311,4 +311,4 @@ cat outputs/05_classical_features_matching/mini_project_metrics.json
 ---
 
 > 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
-> Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13.0.92（`cv2` 4.13.0）／ Pillow 12.2.0 ／ matplotlib 3.10.9（torch は本章では未使用。深層の回では torch 2.12+cpu を使用）
+> Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13.0.92（`cv2` 4.13.0）／ Pillow 12.2.0（本章では未使用）／ matplotlib 3.10.9（torch は本章では未使用。深層の回では torch 2.12+cpu を使用）

@@ -88,7 +88,7 @@ with torch.inference_mode():
 
 ## 5. 落とし穴（このモジュールで必ず踏む）
 
-最頻の事故は**スケールずれ**だ。teacher と student で「正規化したか」「`logit_scale` を掛けたか」が食い違うと、同じ画像でも類似度の数値が桁で変わり、KL も MSE も意味をなさない。`03` の出力（正しい行列は範囲 [20, 33]、正規化忘れは [13, 21]、`logit_scale` 忘れは [0.2, 0.3]）を必ず自分の目で見ておくこと。次に多いのが **teacher を凍結し忘れる**事故で、`eval()` を呼ばないと BatchNorm/Dropout が動いて教師信号が毎回揺れ、optimizer に teacher のパラメータを渡すと誤って teacher 側を更新してしまう。
+最頻の事故は**スケールずれ**だ。teacher と student で「正規化したか」「`logit_scale` を掛けたか」が食い違うと、同じ画像でも類似度の数値が桁で変わり、KL も MSE も意味をなさない。`03` の出力（正しい行列は範囲 [20, 33]、正規化忘れは [24, 40]（約 [24.5, 40.1]）で正しい行列を 1.21 倍した範囲になり必ず大きくなる、`logit_scale` 忘れは [0.2, 0.3]）を必ず自分の目で見ておくこと。次に多いのが **teacher を凍結し忘れる**事故で、`eval()` を呼ばないと BatchNorm/Dropout が動いて教師信号が毎回揺れ、optimizer に teacher のパラメータを渡すと誤って teacher 側を更新してしまう。
 
 もうひとつは **MobileCLIP は x86 CPU では必ずしも速くない**という現実だ。本章の計測では、ランダム初期化の MobileCLIP-S1（FastViT 系、8497 万パラメータ）の画像エンコードは約 47ms で、teacher の ViT-B/32（約 16ms）より**遅い**。MobileCLIP の真価はモバイル GPU/ANE での再パラメータ化（reparameterization）にあり、PyTorch eager の x86 CPU ではその利得が出ない。「軽量 ＝ どの環境でも速い」ではなく、**どのハードウェアで速いのか**を必ず確認する。
 

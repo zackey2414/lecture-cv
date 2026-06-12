@@ -89,7 +89,7 @@ CPU 推論で**最も費用対効果が高い**圧縮が **動的量子化（dyn
 
 CPU の int8 行列演算は **U8(activation) × S8(weight)** の組み合わせが基本構成なので、`weight_type` には `QuantType.QUInt8` を指定する。ただし注意点もある。まず、**`Embedding` テーブルは量子化対象外**なので、語彙の大きいモデルではサイズ削減比が理論上限の 4 倍に届かない（`05` の Transformer は 1.53 倍）。さらに、**極小モデルでは量子化/逆量子化ノードの固定オーバーヘッドが勝ち、逆にサイズや時間が増える**こともある。だからここでも結論は「**必ず実測**」となる。
 
-そして最重要の作法は、圧縮を **速度・サイズ・精度の三角関係**で評価することだ。サイズと速度だけ見て **accuracy を測らない**のは最悪のアンチパターンである（第35回と共通）。`03` と `mini_project.py` では `torch fp32 / ONNX fp32 / ONNX int8` の 3 者を、**accuracy・latency(p50/p99)・throughput・model size(MB)** の同一指標で並べて比較表にする。こうして初めて「この用途ならどれを出すか」を意思決定できるようになる。なお **int8 が CPU で必ず速くなるわけではなく**、小モデル・少バッチでは fp32 の方が速いことも珍しくない。int8 の主効果は多くの場合「サイズ・メモリ削減」だと割り切るのが実務的だ。
+そして最重要の作法は、圧縮を **速度・サイズ・精度の三角関係**で評価することだ。サイズと速度だけ見て **accuracy を測らない**のは最悪のアンチパターンである（第35回と共通）。`mini_project.py` では `torch fp32 / ONNX fp32 / ONNX int8` の 3 者を **accuracy・latency(p50/p99)・throughput・model size(MB)** で並べて比較表にし、`03` では同じ 3 者を accuracy・p50・size に絞って比較表にする。こうして初めて「この用途ならどれを出すか」を意思決定できるようになる。なお **int8 が CPU で必ず速くなるわけではなく**、小モデル・少バッチでは fp32 の方が速いことも珍しくない。int8 の主効果は多くの場合「サイズ・メモリ削減」だと割り切るのが実務的だ。
 
 ## 7. Transformers の ONNX 化 — `optimum`（ORTModel）
 
@@ -222,6 +222,8 @@ uv run python lectures/36_onnx_runtime/mini_project.py
 uv run python lectures/36_onnx_runtime/exercises.py
 uv run python lectures/36_onnx_runtime/exercises_solutions.py
 ```
+
+なお `01`〜`05`・`mini_project`・`exercises` は、共通土台 `onnx_helpers.py`（export/検証/ベンチ/合成データを提供）を `import` して再利用している。
 
 成果物（図・JSON・`.onnx`）は `outputs/36_onnx_runtime/` に保存される（matplotlib=Agg、OpenCV headless）。
 

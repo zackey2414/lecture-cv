@@ -1,7 +1,7 @@
 # 第45回 手書きスケッチで絵文字を検索する（CLIP＋FAISS のスケッチ画像検索 SBIR）
 
-> トラック: 埋め込み・検索 ／ レベル: 中級 ／ 必要な依存グループ: `dl` `hf` `vector` `metrics`
-> （`uv sync --group dl --group hf --group vector --group metrics`）
+> トラック: 埋め込み・検索 ／ レベル: 中級 ／ 必要な依存グループ: `dl` `hf` `vector`
+> （`uv sync --group dl --group hf --group vector`／`metrics` は発展課題向けの任意グループ）
 > 前提回: 第16回（CLIP ゼロショット検索）・第17回（FAISS 画像検索）
 
 ## 🎯 この章のゴール
@@ -181,7 +181,7 @@ uv run python lectures/45_sketch_emoji_search/mini_project.py
 
 ```bash
 # 依存の用意（初回のみ）
-uv sync --group dl --group hf --group vector --group metrics
+uv sync --group dl --group hf --group vector
 
 # 1) 絵文字コレクションを索引化（.faiss + .json + ギャラリー画像）
 uv run python lectures/45_sketch_emoji_search/01_build_emoji_index.py
@@ -210,5 +210,5 @@ uv run python lectures/45_sketch_emoji_search/exercises_solutions.py
 ---
 
 > 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
-> Python 3.12 ／ numpy 2.4.6 ／ **faiss-cpu 1.14.2** ／ **torch 2.12.0+cpu** ／ torchvision 0.27.0+cpu ／ **transformers 5.11.0** ／ opencv-python-headless 4.13 ／ Pillow 12 系 ／ scikit-learn 1.9.0 ／ matplotlib 3.10 系 ／ tkinter（標準ライブラリ, Tk 8.6）。
+> Python 3.12 ／ numpy 2.4.6 ／ **faiss-cpu 1.14.2** ／ **torch 2.12.0+cpu** ／ torchvision 0.27.0+cpu ／ **transformers 5.11.0** ／ opencv-python-headless 4.13 ／ Pillow 12 系 ／ scikit-learn 1.9.0（本章コードでは未使用）／ matplotlib 3.10 系 ／ tkinter（標準ライブラリ, Tk 8.6）。
 > モデル: `openai/clip-vit-base-patch32`（初回のみ HuggingFace Hub から重みDL→ローカルキャッシュ）。描画ウィンドウは **Tkinter**（OpenCV は headless のため `imshow` 不可）。display 無し環境では合成スケッチへ自動フォールバックして `exit 0`。GPU 版 FAISS は `faiss-gpu-cuvs`（Linux x86_64 + NVIDIA, CUDA 12.4 系限定、`faiss-cpu` と排他）。

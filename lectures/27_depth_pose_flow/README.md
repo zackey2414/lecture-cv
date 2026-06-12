@@ -215,7 +215,7 @@ uv run python lectures/27_depth_pose_flow/exercises.py
 uv run python lectures/27_depth_pose_flow/exercises_solutions.py
 ```
 
-出力はすべて `outputs/27_depth_pose_flow/` に保存されます（`*.png` 可視化と `*.json` メトリクス）。実画像で試すときは `data/27_depth_pose_flow/` に画像を置くと自動で優先されます。
+出力はすべて `outputs/27_depth_pose_flow/` に保存されます（`*.png` 可視化と `*.json` メトリクス）。実画像で試すときは `data/27_depth_pose_flow/` に画像を置くと自動で優先されます。なお `dpf_helpers.py` は合成データ生成・可視化・評価指標の共有ヘルパで、上記の各スクリプトが `import dpf_helpers as H` で利用します（単体実行はしません）。
 
 ---
 

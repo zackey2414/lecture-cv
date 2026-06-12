@@ -237,7 +237,7 @@ CV_YOUTUBE=https://...  uv run python lectures/11_realtime_stream/04_rtsp_youtub
 
 ここまでの部品（背景差分・CPU最適化・スレッド分離＋ドロップ・性能プロファイル）を **1 本のストリームアプリ**に統合する総合課題です。`mini_project.py` を実行すると、合成フレーム（静止背景の上を円が動く）を入力に、次の 4 ステージが順に走ります。
 
-1. **STAGE 1 — 動体検出パイプライン**: 早期 `resize(INTER_AREA)` → `MOG2` 背景差分 → モルフォロジ掃除（影127除去＋open/close）→ 輪郭→外接矩形、という検出の一連を回し、十分に学習済みのフレームを `[入力 | 掃除後マスク | 検出枠]` の 3 枚パネルで保存する。
+1. **STAGE 1 — 動体検出パイプライン**: `MOG2` 背景差分 → モルフォロジ掃除（影127除去＋open/close）→ 輪郭→外接矩形、という検出の一連を**原寸で**回し（STAGE1 は表示用に原寸で検出し、早期 `resize(INTER_AREA)` は STAGE2/3 で実演する）、十分に学習済みのフレームを `[入力 | 掃除後マスク | 検出枠]` の 3 枚パネルで保存する。
 2. **STAGE 2 — CPU 最適化（同期・決定的）**: 「原寸・毎フレーム」と「早期縮小＋3枚に1回」を同じ入力で回し、**ストリーム消化レート [frames/s]** と検出段レイテンシ（p50/p99）を比較する。縮小＋スキップで不要な重い検出を省けるぶん、消化レートが上がることを数値で確認する。
 3. **STAGE 3 — スレッド分離＋フレームドロップ**: 一定間隔でフレームを供給する producer スレッドに対し、「**無制限キュー（捨てない）**」と「**`maxsize=1` ＋ `put_nowait`（最新だけ）**」の 2 つの consumer 戦略を走らせ、各フレームの**齢（age＝生成→処理の遅れ）**とドロップ率を比較する。consumer は実際に背景差分検出を行い、下流の重い推論コストも模擬する。
 4. **STAGE 4 — プロファイル出力**: p50/p99 レイテンシ・処理FPS(EMA)・ドロップ率を JSON とまとめ図に書き出す。
@@ -321,7 +321,7 @@ uv run python lectures/11_realtime_stream/use_case.py
 
 # 出力を確認
 ls outputs/11_realtime_stream/use_case_snapshots/        # alert_0001.png ... 検出枠つきスナップ
-cat outputs/11_realtime_stream/use_case_alerts.csv       # event_id, start_time_s, duration_s, peak_area ...
+cat outputs/11_realtime_stream/use_case_alerts.csv       # event_id, start_time_s, duration_s, peak_area_px ...
 cat outputs/11_realtime_stream/use_case_alerts.jsonl     # 1行1イベントの JSON（プログラム連携向け）
 ```
 

@@ -143,7 +143,7 @@ uv run python lectures/41_cluster_clip_pipeline/mini_project.py
 A. ほぼ仕様だ。本章のフレームは平坦色の合成画像で、CLIP のパッチ特徴は自己注意で文脈が混ざるため、色テキストと領域の意味整合が弱い。**領域→領域**検索（自己一致≈1.0、上位が赤に偏る）が安定して当たることを確認すれば、パイプラインは正しい。実写画像なら text→region も実用になる。
 
 **Q. `RuntimeError: ... could not open index.faiss` が出る。**
-A. Build を先に実行していないか、別ディレクトリを見ている。03・mini は `ensure_build` で自動的に Build するが、手動で消した場合は `02_build_index.py` を回す。`run_build` は冪等なので、再実行すると DB・index・npy を作り直す。
+A. Build を先に実行していないか、別ディレクトリを見ている。03 は `ensure_build`（03 固有）で索引が無い時だけ自動 Build し、mini は実行のたびに `run_build`（冪等）で必ず作り直す。手動で消した場合は `02_build_index.py` を回す。`run_build` は冪等なので、再実行すると DB・index・npy を作り直す。
 
 **Q. ストリームが固まる／終わらない。**
 A. POISON_PILL の流れを確認する。Capture は終了時に `task_queue.put(POISON_PILL)` を送り、Consumer はそれを受けて残バッチを flush して return、main が `result_queue.put(POISON_PILL)` を送って Writer を終わらせる。各キューを最後まで drain する者がいないとデッドロックする。また `spawn` のため、ターゲット関数は**モジュールトップレベル**にあり、起動側に `__main__` ガードが要る。

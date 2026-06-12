@@ -58,7 +58,7 @@ idx = int(logits.argmax(-1).item())
 label = model.config.id2label[idx]                           # インデックス→ラベル名に変換
 ```
 
-ここで `AutoImageProcessor` が内部で行っているのは、**リサイズ → 0-1 への rescale → チャンネルごとの正規化 `(x - mean)/std`** の3段階です（演習2でこの中身を手で再現します）。`return_tensors="pt"` で PyTorch テンソルを受け取り、推論は **`model.eval()` ＋ `torch.inference_mode()`** で囲むのが鉄則です。これを忘れると無駄な勾配計算でメモリと時間を浪費し、特にCPUでは致命的になります。また `argmax` で得た**生のインデックスは人には読めない**ので、必ず `model.config.id2label[idx]` で `envelope` のようなラベル名に直しましょう。`02_resnet_vit_manual.py` は、torchvision の ResNet-18 と HF の ViT-tiny で同じ画像を分類し、`pixel_values` と `logits` の形を表示することで、CNN と ViT が同じ枠組みで動くことを示します。
+ここで `AutoImageProcessor` が内部で行っているのは、**リサイズ → 0-1 への rescale → チャンネルごとの正規化 `(x - mean)/std`** の3段階です（演習2では、このうち rescale と ImageNet 正規化（＋CHW転置）を手で再現します。リサイズは入力済みとして省略します）。`return_tensors="pt"` で PyTorch テンソルを受け取り、推論は **`model.eval()` ＋ `torch.inference_mode()`** で囲むのが鉄則です。これを忘れると無駄な勾配計算でメモリと時間を浪費し、特にCPUでは致命的になります。また `argmax` で得た**生のインデックスは人には読めない**ので、必ず `model.config.id2label[idx]` で `envelope` のようなラベル名に直しましょう。`02_resnet_vit_manual.py` は、torchvision の ResNet-18 と HF の ViT-tiny で同じ画像を分類し、`pixel_values` と `logits` の形を表示することで、CNN と ViT が同じ枠組みで動くことを示します。
 
 一方 torchvision の場合は、`processor` の代わりに**重みに紐づく前処理オブジェクト**を使います。具体的には、`ResNet18_Weights.DEFAULT.transforms()` が正準な前処理（resize/centercrop/normalize、内部は `transforms.v2`）を返し、`weights.meta["categories"]` が ImageNet-1k の1000ラベルを保持します。このように、HuggingFace では `processor` と `id2label` がモデルに、torchvision では前処理とラベルが `weights` オブジェクトに同梱されており、**「前処理とラベルは必ずモデル/重みとセットで管理する」**という発想は両者で共通です。手打ちで平均/分散をズラすと精度が静かに落ちるので、必ず付属の前処理を使ってください。
 
@@ -148,7 +148,7 @@ top1, top5, mf1, conf = acc1(logits, y), acc5(logits, y), f1(logits, y), cm(logi
 
 ## 9. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に「最短で動かす → 中身を分解する → 転移学習で仕上げる」と、理解が積み上がるように並んでいます。いずれも `outputs/13_classification_transfer_learning/` に図と JSON を保存し、画面表示には依存しません。また共通部品（device 判定・合成データ生成・保存）は `dl_helpers.py` にまとめてあり、各スクリプトはこれを import して使います。深層CVトラックの最初の回なので、`dl_helpers.get_device()` の device 判定ロジックは、以降の回でもそのまま再利用できます。
+各スクリプトは単一責務で、上から順に「最短で動かす → 中身を分解する → 転移学習で仕上げる」と、理解が積み上がるように並んでいます。`01`〜`03`・`mini_project.py`・`use_case.py` はいずれも `outputs/13_classification_transfer_learning/` に図と JSON を保存し、画面表示には依存しません（一方 `exercises.py`/`exercises_solutions.py` は出力ファイルを保存せず、採点結果をコンソールに表示する演習スクリプトです）。また共通部品（device 判定・合成データ生成・保存）は `dl_helpers.py` にまとめてあり、各スクリプトはこれを import して使います。深層CVトラックの最初の回なので、`dl_helpers.get_device()` の device 判定ロジックは、以降の回でもそのまま再利用できます。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -255,7 +255,7 @@ cat outputs/13_classification_transfer_learning/mini_project_metrics.json
 - [ ] **ResNet（畳み込み＋残差接続）と ViT（パッチ埋め込み＋CLSトークン）**の発想の違いを、帰納バイアスとデータ量の観点で説明できる。
 - [ ] `pipeline("image-classification")` で最短分類を動かし、`top_k` と `device` の意味を説明できる。
 - [ ] `pipeline` を **`AutoImageProcessor` + `*ForImageClassification` に分解**し、`画像→pixel_values→logits→argmax→id2label` を手書きできる。
-- [ ] `AutoImageProcessor` の中身（**リサイズ → 0-1 rescale → ImageNet 正規化**）を numpy で再現できる（演習2）。
+- [ ] `AutoImageProcessor` の中身のうち（**0-1 rescale → CHW転置 → ImageNet 正規化**。リサイズは省略）を numpy で再現できる（演習2）。
 - [ ] **torchvision / timm / HuggingFace** の3エコシステムから事前学習重みをロードし、「前処理とラベルは重み/モデルとセット」という共通発想を説明できる。
 - [ ] 分類ヘッドを外して**埋め込み**を取り出せる（torchvision `fc=Identity`／timm `num_classes=0`・`forward_features`／ViT の `CLS`・mean-pool）。`pooler_output` と `last_hidden_state` の**形の違い**も言える。
 - [ ] **バックボーン凍結（`requires_grad_(False)`）＋ 新しい `nn.Linear` ヘッド**で転移学習モデルを組み、学習対象がヘッドだけになっていることをパラメータ数で確認できる（演習3）。

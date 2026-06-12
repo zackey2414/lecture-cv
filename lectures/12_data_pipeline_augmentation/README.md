@@ -133,7 +133,7 @@ res = joint(image=scene, mask=mask, bboxes=[bbox], labels=[0])
 
 ## 8. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に読めば「テンソル変換 → データ供給 → 拡張」と理解が積み上がるように並べています。すべて `outputs/12_data_pipeline_augmentation/` に結果（図と JSON）を保存し、画面表示には依存しません。共通の道具（合成データセット生成・正規化統計・逆正規化・格子保存）は `pipeline_helpers.py` にまとめ、各スクリプトはそれを import して使います。
+各スクリプトは単一責務で、上から順に読めば「テンソル変換 → データ供給 → 拡張」と理解が積み上がるように並べています。01〜03 とミニプロジェクトは結果（図と JSON）を `outputs/12_data_pipeline_augmentation/` に保存し、演習スクリプト（`exercises.py`／`exercises_solutions.py`）は採点結果を画面に表示するだけです。共通の道具（合成データセット生成・正規化統計・逆正規化・格子保存）は `pipeline_helpers.py` にまとめ、各スクリプトはそれを import して使います。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
