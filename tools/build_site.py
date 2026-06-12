@@ -41,13 +41,13 @@ img{max-width:100%}
 /* ===== header ===== */
 .site-header{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(255,255,255,.93);backdrop-filter:blur(8px);border-bottom:1px solid var(--g200)}
 .home-link{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--g900);font-weight:800}
-.logo-mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--b600),var(--p500));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px}
+.logo-mark{width:30px;height:30px;border-radius:8px;background:var(--p500);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px}
 .logo-text small{display:block;font-size:10px;font-weight:500;color:var(--g500);letter-spacing:.3px}
 .topnav{display:flex;gap:.3rem}
 .topnav a{text-decoration:none;font-weight:700;font-size:13.5px;color:var(--p700);padding:6px 11px;border-radius:10px;white-space:nowrap}
 .topnav a:hover{background:var(--p100)}
 /* ===== hero (index) ===== */
-.hero{margin-top:56px;background:linear-gradient(135deg,var(--b900),var(--b600) 45%,var(--p500));color:#fff;text-align:center;padding:4.5rem 1.5rem 6rem}
+.hero{margin-top:56px;background:var(--b800);color:#fff;text-align:center;padding:4.5rem 1.5rem 6rem}
 .hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:900;letter-spacing:-.02em}
 .hero p{margin-top:.6rem;font-size:1.1rem;opacity:.92}
 .hero .hero-meta{font-size:.9rem;opacity:.85;margin-top:1rem}
@@ -96,7 +96,7 @@ img{max-width:100%}
 .side-right .toc a:hover,.toc-extra a:hover{background:var(--g100);color:var(--p700);border-left-color:var(--p400)}
 .toc-extra{border-top:1px solid var(--g200);margin-top:.4rem;padding-top:.3rem}
 /* ===== module banner ===== */
-.mod-banner{background:linear-gradient(135deg,var(--b700),var(--p600));color:#fff;border-radius:var(--radius);padding:1.7rem 1.8rem;margin-bottom:1.4rem}
+.mod-banner{background:var(--b700);color:#fff;border-radius:var(--radius);padding:1.7rem 1.8rem;margin-bottom:1.4rem}
 .mod-eyebrow{font-size:.85rem;opacity:.92;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
 .mod-banner h1{font-size:clamp(1.4rem,3vw,1.95rem);font-weight:900;margin:.5rem 0 .6rem;line-height:1.45;overflow-wrap:anywhere}
 .mod-goal{font-size:.95rem;opacity:.96;line-height:1.75}
