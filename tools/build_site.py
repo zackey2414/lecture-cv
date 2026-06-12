@@ -120,7 +120,7 @@ img{max-width:100%}
 .content ul,.content ol{margin:.75rem 0 .75rem 1.4rem}
 .content li{margin:.3rem 0}
 .content strong{color:var(--p700)}
-.content a{text-decoration:underline;text-underline-offset:2px}
+.content a{text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere;word-break:break-word}
 .content blockquote{border-left:4px solid var(--p400);background:var(--p50);padding:.7rem 1rem;border-radius:0 8px 8px 0;margin:1rem 0;color:var(--g700)}
 .content table{border-collapse:collapse;width:100%;margin:1.1rem 0;font-size:.9rem;display:block;overflow-x:auto}
 .content th,.content td{border:1px solid var(--g200);padding:.5rem .75rem;text-align:left;vertical-align:top}
@@ -150,6 +150,11 @@ img{max-width:100%}
 .prevnext a:hover{border-color:var(--p400);transform:translateY(-2px)}
 .prevnext a:last-child{text-align:right}
 .footer{text-align:center;padding:2.5rem 1rem;font-size:.85rem;color:var(--g500)}
+/* ===== figures (inline SVG diagrams) ===== */
+figure.lec-fig{margin:1.4rem 0;padding:1rem 1.1rem .9rem;background:var(--g50);border:1px solid var(--g200);border-radius:12px;overflow-x:auto}
+figure.lec-fig svg{max-width:100%;height:auto;display:block;margin:0 auto}
+figure.lec-fig figcaption{margin-top:.7rem;font-size:.84rem;color:var(--g600);line-height:1.7;text-align:center}
+figure.lec-fig figcaption b,figure.lec-fig figcaption strong{color:var(--p700)}
 /* ===== responsive ===== */
 @media(max-width:1120px){.layout.has-left.has-right{grid-template-columns:230px minmax(0,1fr)}.side-right{display:none}}
 @media(max-width:860px){.layout{grid-template-columns:1fr!important;padding:1rem 1rem 2.5rem}.side-left{display:none}.block{padding:1.1rem 1.15rem}}
