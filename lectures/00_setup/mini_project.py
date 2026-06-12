@@ -14,7 +14,7 @@ JSON レポート・サマリ図を outputs/00_setup/ に出力する。
 
 実行:
     uv run python lectures/00_setup/mini_project.py
-成果物（JSON・PNG）は outputs/00_setup/ に保存される。CPU・合成データ・ネット不要。
+成果物（JSON・PNG）は outputs/00_setup/ に保存される。CPUのみ・合成データ・ネット不要。
 """
 
 from __future__ import annotations

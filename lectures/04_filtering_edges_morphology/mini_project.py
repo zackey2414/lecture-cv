@@ -19,7 +19,7 @@
 
 実行:
   uv run python lectures/04_filtering_edges_morphology/mini_project.py
-すべて CPU・ネット非依存・合成データ。cv2.imshow は使わずファイルに保存する。
+すべて CPUのみ・ネット非依存・合成データ。cv2.imshow は使わずファイルに保存する。
 """
 
 from __future__ import annotations

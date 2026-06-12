@@ -344,4 +344,4 @@ CV_SHOW=1 uv run python lectures/01_image_basics/04_display_headless.py
 
 > 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
 > Python 3.12 ／ numpy 2.4（2.4.6）／ opencv-python-headless 4.13（`cv2` 4.13.0）／ Pillow 12.2（12.2.0）／ matplotlib 3.10（3.10.9）。
-> 本章は torch を使いません（torch を使う回は 2.12+cpu を前提）。すべて CPU・合成データ・ネット不要で動作し、結果は `outputs/01_image_basics/` に保存します（画面表示には依存しません）。
+> 本章は torch を使いません（torch を使う回は 2.12+cpu を前提）。すべて CPUのみ・合成データ・ネット不要で動作し、結果は `outputs/01_image_basics/` に保存します（画面表示には依存しません）。

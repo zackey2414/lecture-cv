@@ -231,7 +231,7 @@ uv run python lectures/09_video_io_basics/mini_project.py
 
 ## 動かし方
 
-これらのスクリプトはすべて CPU・ネット非依存・カメラ不要・追加依存なしで動きます（サンプル動画は各スクリプトが `numpy`/`cv2` で合成生成します）。リポジトリのルートで、以下を順に実行してください。結果はすべて `outputs/09_video_io_basics/` に画像・動画として保存され、画面表示はしません（headless 安全）。
+これらのスクリプトはすべて CPUのみ・ネット非依存・カメラ不要・追加依存なしで動きます（サンプル動画は各スクリプトが `numpy`/`cv2` で合成生成します）。リポジトリのルートで、以下を順に実行してください。結果はすべて `outputs/09_video_io_basics/` に画像・動画として保存され、画面表示はしません（headless 安全）。
 
 ```bash
 # 1) VideoCapture の正準ループ（isOpened/read/ret/release）とフレーム基本操作

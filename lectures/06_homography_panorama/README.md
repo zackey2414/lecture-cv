@@ -193,7 +193,7 @@ score = ssim(gray_ref_masked, gray_aligned_masked)   # 1 に近いほど一致
 
 ここまでの部品（特徴マッチ → `findHomography(RANSAC)` → 再投影誤差 → キャンバス計算 → `warpPerspective` → フェザー合成 → ホモグラフィの合成 → `cv2.Stitcher` 比較 → SSIM 評価 → 平面物体の位置合わせ）を、**1 本のパイプラインに統合する総合課題**が `mini_project.py` です。これにより、この章の学びが「個別の関数」の寄せ集めではなく「つながった一連の処理」として手に入っているかを、実際に動く完成形で確認します。
 
-`mini_project.py` が行うことは次の 5 段です（すべて CPU・合成データ・ネット/カメラ不要・headless 安全）。
+`mini_project.py` が行うことは次の 5 段です（すべて CPUのみ・合成データ・ネット/カメラ不要・headless 安全）。
 
 1. **[A] 4 視点を合成**: 同じ平面シーンを左→右に少しずつ首を振って撮った 4 枚 `mp_view_0..3.png` を生成。
 2. **[B] 手作りパノラマ**: 4 枚を順次つないで `mp_panorama_manual.png` を作り、**ペアごとのインライア数・先頭ペアの再投影誤差・インライア比**を数値化。
@@ -304,7 +304,7 @@ A. OpenCV は BGR、matplotlib は RGB です。`cv2.cvtColor(img, cv2.COLOR_BGR
 
 ## 動かし方
 
-本章のスクリプトは、すべて CPU・ネット非依存・追加依存なしで動きます（サンプル画像は各スクリプトが `numpy`/`cv2` で合成生成します）。結果はすべて `outputs/06_homography_panorama/` に画像・JSON として保存され、画面表示はしません（headless 安全）。
+本章のスクリプトは、すべて CPUのみ・ネット非依存・追加依存なしで動きます（サンプル画像は各スクリプトが `numpy`/`cv2` で合成生成します）。結果はすべて `outputs/06_homography_panorama/` に画像・JSON として保存され、画面表示はしません（headless 安全）。
 
 ### 📂 スクリプト一覧
 

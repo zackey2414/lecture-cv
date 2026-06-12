@@ -5,7 +5,7 @@
 
 ## 🎯 この章のゴール
 
-これまでの章では「画像1枚に1つのラベルを付ける」分類や、「画像全体を1本のベクトルにする」埋め込みを扱ってきました。本章からは一段難しい **物体検出（object detection）** に入ります。物体検出とは、画像の中の「何が」「どこに」あるかを、**クラス名＋確信度＋矩形（バウンディングボックス）** の組として複数同時に答えるタスクです。出力が「1個」ではなく「可変個の箱の集合」になる点が、分類との決定的な違いであり、後処理（閾値・NMS）や評価（mAP）が分類より複雑になる根本理由でもあります。
+これまでの章では「画像1枚に1つのラベルを付ける」分類や、「画像全体を1本のベクトルにする」埋め込みを扱ってきました。本章からは一段難しい **物体検出（object detection）** に入ります。物体検出とは、画像の中の「何が」「どこに」あるかを、**クラス名＋確信度＋矩形（バウンディングボックス）** の組として複数同時に答えるタスクです。出力が「1個」ではなく「可変個の箱の集合」になる——この点こそが分類との決定的な違いであり、後処理（閾値・NMS）や評価（mAP）が分類より複雑になる根本理由でもあります。
 
 この章を終えたとき、あなたは検出の主要3系統 — **torchvision の R-CNN/SSD/RetinaNet**、**HuggingFace の DETR/RT-DETR**、そして概念としての **Ultralytics YOLO** — を、それぞれの「正準的な書き方」で読み書きできるようになります。とくに torchvision の **weights API（4点セット）**、検出モデル特有の **[0,1] float CHW テンソルのリスト入力**、**score 閾値 → NMS → 可視化** の定番パイプライン、DETR の **`post_process_object_detection` と `target_sizes=(H,W)` の罠**、そして COCO ラベルの **index0 = `__background__`** という落とし穴を、すべて自分の手で再現して確認します。
 
@@ -53,7 +53,7 @@ names   = weights.meta["categories"]                      # ④ クラス名（i
 
 ## 3. 検出モデル特有の入力ルール — `[0,1]` float CHW テンソルの「リスト」
 
-分類モデルに慣れた人が最初に戸惑うのが、検出モデルの**入力の作法**です。torchvision の検出モデルは「**`[0,1]` に収まる float の CHW テンソルの *リスト*（可変サイズ画像をバッチにできる）**」を受け取り、**ImageNet 正規化（mean/std を引く処理）はモデルの内部で行います**。つまり `weights.transforms()`（`ObjectDetection` プリセット）がやるのは「PIL → `[0,1]` float テンソル」への変換だけで、分類のように自分で `Normalize(mean, std)` を重ねてはいけません。二重正規化は典型的な精度劣化バグです。
+分類モデルに慣れた人が最初に戸惑うのが、検出モデルの**入力の作法**です。torchvision の検出モデルは「**`[0,1]` に収まる float の CHW テンソルの *リスト*（可変サイズ画像をバッチにできる）**」を受け取り、**ImageNet 正規化（mean/std を引く処理）はモデルの内部で行います**。つまり `weights.transforms()`（`ObjectDetection` プリセット）がやるのは「PIL → `[0,1]` float テンソル」への変換だけで、分類のように自分で `Normalize(mean, std)` を重ねてはいけません。なぜなら、二重正規化は典型的な精度劣化バグだからです。
 
 ```python
 x = preproc(image)              # PIL -> (3, H, W) float, 値域 [0,1]（正規化はまだしない）
@@ -98,11 +98,11 @@ result = Image.fromarray(drawn.permute(1, 2, 0).numpy())  # CHW -> HWC で PIL �
 
 `01` を実行すると `outputs/18_object_detection_intro/01_torchvision_compare.png` に3モデルの比較パネルが保存されます。合成画像なので検出は乏しく、しかも**ラベルが的外れ**（例: 人物図形が `stop sign`）になります。これは故障ではなく、「COCO で学習した検出器は写実的な写真向けに最適化されており、抽象的な合成図形では妥当なクラスを当てられない」という大事な学びです（§10で詳述）。それでもパイプライン（前処理→推論→閾値→NMS→可視化）は完全に動いており、箱・スコア・NMS の挙動を観察するには十分です。
 
-なお matplotlib の図中テキストはあえて ASCII にしています。日本語を入れると headless 環境の DejaVu フォントで「豆腐（□）」になるためです。図の色が反転して見える場合は、合成画像を RGB のまま扱えているか（`cv2.imread/imwrite` 経由で BGR が混ざっていないか）を確認してください。
+なお matplotlib の図中テキストをあえて ASCII にしているのは、日本語を入れると headless 環境の DejaVu フォントで「豆腐（□）」になってしまうためです。また、図の色が反転して見える場合は、合成画像を RGB のまま扱えているか（`cv2.imread/imwrite` 経由で BGR が混ざっていないか）を確認してください。
 
 ## 6. HuggingFace DETR — set prediction と `post_process`、`target_sizes=(H,W)` の罠
 
-`02_detr_huggingface.py` では、Transformer ベースの検出器 **DETR（DEtection TRansformer, `facebook/detr-resnet-50`）** を扱います。DETR は torchvision の R-CNN/SSD/RetinaNet とは設計思想が根本的に異なります。アンカーや NMS を使わず、**N 個（既定100）の「物体クエリ」がそれぞれ「1物体 or 背景(no-object)」を予測**し、学習時の **二部マッチング（Hungarian matching）** で「1物体には1クエリ」を強制します。その結果、**原理上は後段の NMS が不要**になります。これが DETR の最大の特徴です。
+`02_detr_huggingface.py` では、Transformer ベースの検出器 **DETR（DEtection TRansformer, `facebook/detr-resnet-50`）** を扱います。DETR は torchvision の R-CNN/SSD/RetinaNet とは設計思想が根本的に異なります。すなわち、アンカーや NMS を使わず、**N 個（既定100）の「物体クエリ」がそれぞれ「1物体 or 背景(no-object)」を予測**し、学習時の **二部マッチング（Hungarian matching）** で「1物体には1クエリ」を強制します。その結果、**原理上は後段の NMS が不要**になります。これが DETR の最大の特徴です。
 
 transformers v5 の正準フローは次の通りです。生出力 `pred_boxes` は **cxcywh の正規化座標（0〜1）** なので、必ず `post_process_object_detection` を通して **xyxy の絶対座標** に変換してから使います。
 
@@ -126,7 +126,7 @@ DETR の `id2label` は背景クラスを `'N/A'` として持つ（torchvision 
 
 ## 7. 2-stage / 1-stage / DETR の使い分けと CPU 向け軽量モデル
 
-ここまでで3つの設計思想が出そろいました。実務でのモデル選定は、精度・速度・実装の手間のトレードオフです。代表的な系統を下表に整理します。「どれが正解」ではなく、要件（リアルタイム性・小物体精度・後処理の単純さ）で選びます。
+ここまでで3つの設計思想が出そろいました。実務でのモデル選定は、精度・速度・実装の手間のトレードオフであり、「どれが正解」というものはありません。代表的な系統を下表に整理したので、要件（リアルタイム性・小物体精度・後処理の単純さ）に応じて選んでください。
 
 | 系統 | 代表モデル | 特徴 | 後段NMS | CPU向きの軽量版 |
 | --- | --- | --- | --- | --- |
@@ -143,7 +143,7 @@ DETR の `id2label` は背景クラスを `'N/A'` として持つ（torchvision 
 
 物体検出といえば **YOLO** を思い浮かべる人も多いでしょう。Ultralytics の YOLO は `YOLO("yolo11n.pt")` でロードし `model(img)` で即推論、`results[0].boxes.xyxy/.conf/.cls` で結果を取り、`results[0].plot()` で可視化画像（numpy BGR）まで一発、という**圧倒的な手軽さ**が魅力です。CPU でも `yolo11n`/`yolo26n` は実用的に動きます。
 
-それにもかかわらず、**本講座では YOLO を実行経路に入れません**。理由は依存衝突です。`ultralytics` は `opencv-python`（GUI 付きフル版）を引き込みますが、本プロジェクトは headless 環境（Docker/CI）で動くよう `opencv-python-headless` を採用しています。この2つは**同じ `cv2` を提供する排他パッケージ**で、同居させると一方が他方を壊します。そこで YOLO は「概念紹介＋（試したい人向けに）別環境での `uv add` 案内」に留めています。
+それにもかかわらず、**本講座では YOLO を実行経路に入れません**。その理由は依存衝突にあります。`ultralytics` は `opencv-python`（GUI 付きフル版）を引き込みますが、本プロジェクトは headless 環境（Docker/CI）で動くよう `opencv-python-headless` を採用しています。この2つは**同じ `cv2` を提供する排他パッケージ**で、同居させると一方が他方を壊します。そこで YOLO は「概念紹介＋（試したい人向けに）別環境での `uv add` 案内」に留めています。
 
 ```python
 # ── 参考: YOLO の1行推論（本講座では実行しない。別環境で uv add ultralytics）──
