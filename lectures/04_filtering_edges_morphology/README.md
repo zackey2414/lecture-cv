@@ -142,11 +142,103 @@ out = cv2.cvtColor(cv2.merge([h_, s_, clahe.apply(v_)]), cv2.COLOR_HSV2BGR)
 | `01_smoothing.py` | 平滑化の比較。`blur`/`GaussianBlur`/`medianBlur`/`bilateralFilter`/`filter2D` を、ガウス・ごま塩ノイズに対し MSE で評価 |
 | `02_edges_canny.py` | `Sobel`/`Laplacian`/`Canny`。`CV_8U` で負の勾配が消える罠、`CV_64F`+`convertScaleAbs`、Canny の前段ぼかしと2しきい値 |
 | `03_threshold_morphology.py` | 固定/Otsu/適応的の二値化、`getStructuringElement`、`erode`/`dilate`/`morphologyEx`（open/close/gradient/tophat）|
-| `04_contours_warp.py` | **完成物**。`findContours`（4系2返し）・形状解析・`approxPolyDP`→`getPerspectiveTransform`/`warpPerspective` で書類まっすぐ化 |
+| `04_contours_warp.py` | **基礎完成物**。`findContours`（4系2返し）・形状解析・`approxPolyDP`→`getPerspectiveTransform`/`warpPerspective` で書類まっすぐ化 |
 | `05_histogram_clahe.py` | `calcHist`/`equalizeHist`/`createCLAHE`、HSV-V チャンネルでの色を壊さないコントラスト補正 |
-| `exercises.py` | TODO 形式の演習6問（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答）|
+| `mini_project.py` | **章末ミニプロジェクト**。劣化したスマホ写真 → ノイズ除去 → 四隅検出 → 透視変換 → CLAHE → 適応的閾値で「きれいなスキャン」を作る統合課題（PNG/JSON 出力）|
+| `exercises.py` | TODO 形式の演習**10問**（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答）|
+| `exercises_solutions.py` | 全演習の模範解答（実行で全 PASS を確認できる）|
 
-表の通り、`04_contours_warp.py` が deliverable の中核（書類補正）で、`01`〜`03` と `05` が「フィルタ/エッジ/閾値の効果を並べて保存する比較ツール」群に対応します。まず 01 から順に動かし、各 `outputs/04_*.png` を開きながら本文を読み返すと理解が定着します。
+表の通り、`04_contours_warp.py` が deliverable の中核（書類補正）で、`01`〜`03` と `05` が「フィルタ/エッジ/閾値の効果を並べて保存する比較ツール」群に対応します。まず 01 から順に動かし、各 `outputs/04_*.png` を開きながら本文を読み返すと理解が定着します。そして全要素を1本に束ねたのが `mini_project.py` です。
+
+---
+
+## 🛠 章末ミニプロジェクト — スマホ写真からきれいなスキャンを作る（`mini_project.py`）
+
+この章のすべての要素を **1本のパイプラインに統合**する総合課題です。題材は実務頻出の「**スマホで斜めに撮った領収書を、正面のきれいな二値スキャンに変換する**」。`04_contours_warp.py` が「傾きを正す」ところまでだったのに対し、ミニプロジェクトでは入力をさらに劣化させ（照明ムラ＋ガウス＋ごま塩ノイズ＋低コントラスト）、出口を「読みやすい二値スキャン＋定量レポート」まで広げます。つまり **平滑化・エッジ/閾値・モルフォロジー・輪郭・透視変換・CLAHE のすべてが、欠けると破綻する形で1つの目的に奉仕している**ことを体感するのが狙いです。
+
+パイプラインは次の7工程です。各工程が「なぜそこに居るのか」を、入力の劣化要因と対応づけて理解してください。
+
+1. **入力合成** — 理想の書類を透視で傾け、暗い背景に置き、照明ムラ・ガウス/ごま塩ノイズ・低コントラストを乗せて「劣化したスマホ写真」を作る。
+2. **ノイズ除去**（`medianBlur` → `bilateralFilter`）— ごま塩の粒は中央値で確実に潰し、残りはエッジを保つバイラテラルで均す。**ここを飛ばすと後段の二値化と輪郭が荒れる**。
+3. **四隅検出**（Otsu二値化 → クロージング → `findContours` → `approxPolyDP`）— 紙を白に二値化し、文字や朱印で空く穴をクロージングで埋めてから最大輪郭を4点に近似。**4系の2返し**を体に刻む。
+4. **可視化** — 検出した輪郭と4隅（番号付き）を元写真に重ねて、並べ替えが正しいか目視確認。
+5. **透視変換**（`getPerspectiveTransform` → `warpPerspective`）— 4隅を正面の長方形へ起こす。出力サイズは対辺の長い方から決めて潰れを防ぐ。
+6. **コントラスト補正**（`createCLAHE`）— 正面化した紙面の局所コントラストを引き上げ、薄い文字を立たせる。
+7. **二値スキャン化**（`adaptiveThreshold` → `morphologyEx(OPEN)`）— 残った照明ムラに強い適応的閾値で「黒文字・白地」にし、オープニングで地の粒ノイズを掃除して完成。
+
+実行すると `outputs/04_filtering_edges_morphology/` に4つの成果物が出ます。**`mini_project_pipeline.png`**（7工程を並べたグリッド）、**`mini_project_scan.png`**（最終スキャン単体）、**`mini_project_hist.png`**（CLAHE 前後の輝度ヒストグラム）、**`mini_project_report.json`**（四隅座標・最大輪郭面積・正面化サイズ・CLAHE 前後のコントラスト std・インク比率などの定量指標）です。レポートJSONは「検出した四隅が入力の傾きと一致しているか」「CLAHE でコントラスト std が広がったか」を数値で振り返るのに使えます。
+
+```bash
+uv run python lectures/04_filtering_edges_morphology/mini_project.py
+# → mini_project_pipeline.png / mini_project_scan.png / mini_project_hist.png / mini_project_report.json
+```
+
+**腕試し（任意の発展）**: ① `make_phone_photo` の `dst`（傾き）やノイズ量を変えても四隅検出が崩れないか試す。② 工程2のノイズ除去をコメントアウトして、二値化・輪郭がどれだけ荒れるか観察する。③ 工程6の CLAHE を `equalizeHist` に置き換えて、照明ムラが残る画像での差を見る。④ 最終スキャンの読みやすさを `adaptiveThreshold` の `blockSize`/`C` で詰める。どれも「1つの工程の必然性」を逆説的に確かめる良い実験です。
+
+## ✅ 到達チェックリスト
+
+この章を終えたら、次のことが**できる**／**説明できる**状態になっているか確認してください。半分以上に詰まるなら、該当スクリプトをもう一度動かしながら本文を読み返すのがおすすめです。
+
+**手を動かしてできる**
+
+- [ ] ガウスノイズとごま塩ノイズを合成し、`GaussianBlur`/`bilateralFilter`/`medianBlur` の効きの違いを MSE で比較できる。
+- [ ] `Sobel` を `CV_64F` で計算し、`magnitude` → `convertScaleAbs` で勾配強度画像を作れる。
+- [ ] `Canny` の前に `GaussianBlur` を入れ、2つのしきい値を調整して狙ったエッジ量にできる。
+- [ ] 固定・Otsu・適応的の3手法を書き分け、照明ムラの画像で `adaptiveThreshold` を選べる。
+- [ ] `getStructuringElement` でカーネルを作り、`open`/`close` で粒ノイズ除去・穴埋めができる。
+- [ ] `findContours`（**2返し**）→ 最大輪郭 → `approxPolyDP` で四角形を4点に要約できる。
+- [ ] 4隅を `order_corners` で並べ替え、`getPerspectiveTransform`/`warpPerspective` で正面化できる。
+- [ ] カラー画像のコントラスト補正を、HSV の **V チャンネルだけ** CLAHE して色を壊さず行える。
+- [ ] `mini_project.py` を読み、各工程を取り除くと何が破綻するか実験で示せる。
+- [ ] `exercises.py` の**10問を自力で全 PASS** できる。
+
+**言葉で説明できる**
+
+- [ ] なぜごま塩には中央値、ガウスにはガウス/バイラテラルが向くのか。
+- [ ] なぜ `Sobel` を `CV_8U` で計算するとエッジの片側が消えるのか。
+- [ ] Otsu が大域的で、`adaptiveThreshold` が局所的とはどういう意味か。
+- [ ] `open` と `close` が「収縮と膨張のどちらを先にやるか」でなぜ効果が逆になるのか。
+- [ ] OpenCV 4 系で `findContours` の返り値が2つである（3系は3つ）こと。
+- [ ] アフィン変換と透視変換の違い（平行線が保たれるか／台形を長方形にできるか）。
+- [ ] カラーで BGR 各チャンネルを個別に平坦化すると色が崩れる理由。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+実装中に詰まったら、まず症状から原因を引けるようにしておきましょう。下の表は「症状 → ほぼ確実な原因 → 対処」の早見表です（とくに上の2つは、この回で必ず一度は遭遇します）。
+
+| 症状 | ほぼ確実な原因 | 対処 |
+| --- | --- | --- |
+| `ValueError: not enough values to unpack` | `findContours` を3つで受けた（3系の古いサンプル） | OpenCV 4 系は `contours, hierarchy = cv2.findContours(...)` の **2つ**で受ける |
+| Sobel でエッジの片側だけしか出ない | `ddepth=cv2.CV_8U` で負の勾配が 0 に潰れた | `cv2.CV_64F` で計算し `cv2.convertScaleAbs` で 8bit 化 |
+| 照明ムラのある文書で二値化が片側だけ真っ黒/真っ白 | 固定値や Otsu の**大域的**しきい値 | `cv2.adaptiveThreshold`（局所的）を使う |
+| `medianBlur`/`GaussianBlur` で `error` | `ksize` が偶数または非対応 | `ksize` は**奇数**（3,5,7…）。median は int、Gaussian は `(w,h)` のタプル |
+| まっすぐ化したら上下/左右が反転した | 4隅の並べ替え順が違う | `order_corners` で和(x+y)・差(x-y)から TL,TR,BR,BL に揃える |
+| カラーで CLAHE/equalize したら色が変わった | BGR 各 ch を別々に平坦化した | HSV に変換し **V チャンネルだけ**に適用して戻す |
+| matplotlib 保存でエラー/フリーズ | バックエンド未設定（DISPLAY 無し） | `pyplot` を import する前に `matplotlib.use("Agg")` |
+
+さらに、つまずきやすいポイントを Q&A 形式で補足します。
+
+- **Q. `approxPolyDP` が4点にならず、5点や3点になる。** A. `epsilon`（許容誤差）が画像/輪郭ごとに最適値が違うためです。`mini_project.py` のように `epsilon = factor * arcLength` の `factor` を複数（0.02, 0.03, …）試し、`len(approx)==4` になったものを採用するのが堅牢。どうしても駄目なら `cv2.minAreaRect` → `boxPoints` の最小外接矩形で代用します。
+
+- **Q. 書類より大きい外枠（背景）が最大輪郭として拾われる。** A. 二値化の前景/背景が逆になっている可能性大。`THRESH_BINARY` と `THRESH_BINARY_INV`、`THRESH_OTSU` の組み合わせを見直し、「紙が白・背景が黒」になっているか `cv2.imwrite` で途中の二値画像を保存して確認します。
+
+- **Q. デバッグの基本手順は？** A. パイプラインは**途中結果を全部ファイルに保存して目で追う**のが最短です。本章のスクリプトが工程ごとにパネルを並べて保存しているのはこのためです。`print` では `arr.shape` と `arr.dtype`、二値画像なら `np.unique(arr)`（0/255 になっているか）、輪郭なら `len(contours)` を必ず出します。
+
+- **Q. グレースケール画像に色付きで描画しようとしたらエラー/色がつかない。** A. グレーは `(H, W)` の2次元で3チャンネルが無いためです。描画や合成の前に `cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)` で3ch化します（本章の `panel()` がこれをやっています）。
+
+- **Q. `uint8` の足し算で色がおかしくなる。** A. numpy の素の `+` はオーバーフローでラップアラウンド（255+5=4）します。飽和（255で頭打ち）させたいときは `cv2.add` を使います。
+
+## 🚀 発展トピック・参考
+
+この章の古典前処理は、次のトラック以降の土台になります。さらに深めたい人向けの発展テーマと参照先を挙げます。
+
+- **輪郭の階層（hierarchy）と `RETR_*` モード**: `RETR_EXTERNAL` は外枠だけですが、`RETR_TREE`/`RETR_CCOMP` を使うと「穴の中の物体」まで親子関係付きで取れます。ドーナツ状の対象や入れ子図形を数えるときに必要。→ OpenCV [Contours Hierarchy](https://docs.opencv.org/4.x/d9/d8b/tutorial_py_contours_hierarchy.html)
+- **接触した物体の分離（Watershed / 距離変換）**: `open`/`close` では離れない「くっついた円」を、`distanceTransform` + マーカ制御 `watershed` で分けるのが古典の定番。第7回以降のセグメンテーションの前段。
+- **直線・円のパラメトリック検出（Hough 変換）**: Canny エッジ → `HoughLinesP`/`HoughCircles` で「直線・円」を式として取り出す。書類の罫線検出やコイン計数に。次回（第5回）で扱います。
+- **適応的閾値の発展（Sauvola / Niblack）**: 文書二値化では `adaptiveThreshold` より進んだ Sauvola 法が定番。`scikit-image` の `threshold_sauvola` で試せます（任意ライブラリ）。
+- **モルフォロジーの応用（tophat/blackhat による不均一照明除去）**: 大きな構造要素のトップハットで「ゆるい照明ムラ」を引き算する古典テクニック。CLAHE と併せて文書/顕微鏡画像の前処理に。
+- **射影幾何の理解**: `getPerspectiveTransform` が解いているのは 3×3 ホモグラフィです。4点未満では解けない理由、`findHomography`+RANSAC で多数点から頑健に推定する話は、第5回（特徴点マッチング）／パノラマ合成へ直結します。
+- **公式チュートリアル**: OpenCV の [Image Processing in OpenCV](https://docs.opencv.org/4.x/d2/d96/tutorial_py_table_of_contents_imgproc.html) は本章の全 API（smoothing/gradients/canny/thresholding/morphology/contours/geometric transforms/histograms）を網羅しており、関数の引数を1つずつ確認するのに最適です。
 
 ## 10. 動かし方
 
@@ -163,17 +255,21 @@ uv run python lectures/04_filtering_edges_morphology/03_threshold_morphology.py
 uv run python lectures/04_filtering_edges_morphology/04_contours_warp.py
 uv run python lectures/04_filtering_edges_morphology/05_histogram_clahe.py
 
+# 章末ミニプロジェクト（全工程を統合した書類スキャナ）
+uv run python lectures/04_filtering_edges_morphology/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL）
 uv run python lectures/04_filtering_edges_morphology/exercises.py
-# どうしても分からない時だけ、模範解答の挙動を見る
+# どうしても分からない時だけ、模範解答の挙動を見る（2通り）
 SHOW_SOLUTION=1 uv run python lectures/04_filtering_edges_morphology/exercises.py
+uv run python lectures/04_filtering_edges_morphology/exercises_solutions.py
 ```
 
-実行後は `outputs/04_filtering_edges_morphology/` に生成された PNG を画像ビューアで開いてください。とくに `04_document_pipeline.png`（書類補正の全工程）、`02_sobel_dtype_pitfall.png`（`CV_8U` で片側のエッジが消える様子）、`03_threshold_compare.png`（適応的閾値の頑健さ）、`03_morphology.png`（open/close の効果）を解説と照らし合わせると、各操作の役割が腑に落ちます。
+実行後は `outputs/04_filtering_edges_morphology/` に生成された PNG を画像ビューアで開いてください。とくに `mini_project_pipeline.png`（書類スキャナの全工程）、`04_document_pipeline.png`（書類補正の全工程）、`02_sobel_dtype_pitfall.png`（`CV_8U` で片側のエッジが消える様子）、`03_threshold_compare.png`（適応的閾値の頑健さ）、`03_morphology.png`（open/close の効果）を解説と照らし合わせると、各操作の役割が腑に落ちます。
 
-## 11. よくあるエラーと対処（チェックリスト）
+## 11. よくあるエラーと対処（クイック表）
 
-実装中に詰まったら、まずこの表を見てください。この章の不具合の大半は、ここに挙げた数個の原因に集約されます。とくに上の2つは、この回で必ず一度は遭遇します。
+「❓ よくある落とし穴・FAQ・デバッグ」の早見表を再掲します。実装中に詰まったら、まずこの表を見てください。この章の不具合の大半は、ここに挙げた数個の原因に集約されます。とくに上の2つは、この回で必ず一度は遭遇します。
 
 | 症状 | ほぼ確実な原因 | 対処 |
 | --- | --- | --- |
@@ -189,12 +285,12 @@ SHOW_SOLUTION=1 uv run python lectures/04_filtering_edges_morphology/exercises.p
 
 ## 12. まとめ
 
-この章では、平滑化（ノイズ別の使い分け）→ エッジ（`CV_64F` の理由・Canny）→ 閾値（固定/Otsu/適応的）→ モルフォロジー（open/close で整形）→ 輪郭抽出と形状解析（4系の2返し）→ 透視変換（書類まっすぐ化）→ ヒストグラム/CLAHE（色を壊さないコントラスト補正）、という古典CVの前処理連鎖を、すべて「自分で組んで・なぜそうするか説明できる」レベルで扱いました。とくに `findContours` の2返しと `Sobel` の `CV_64F` は、知っているだけで無駄なデバッグ時間を確実に減らせます。
+この章では、平滑化（ノイズ別の使い分け）→ エッジ（`CV_64F` の理由・Canny）→ 閾値（固定/Otsu/適応的）→ モルフォロジー（open/close で整形）→ 輪郭抽出と形状解析（4系の2返し）→ 透視変換（書類まっすぐ化）→ ヒストグラム/CLAHE（色を壊さないコントラスト補正）、という古典CVの前処理連鎖を、すべて「自分で組んで・なぜそうするか説明できる」レベルで扱いました。とくに `findContours` の2返しと `Sobel` の `CV_64F` は、知っているだけで無駄なデバッグ時間を確実に減らせます。そして `mini_project.py` で、これらが1つの目的（劣化写真→きれいなスキャン）のために連鎖する様子を統合的に確認しました。
 
-次のトラックでは、ここで身につけたエッジ・輪郭・幾何変換の感覚を土台に、特徴点検出とマッチング（ORB/SIFT）やホモグラフィ推定（パノラマ合成）へ進みます。それらも結局は「画像という配列を、勾配や対応点を頼りに別の配列へ写す」操作の延長です。まずは演習6問を自力で全問 PASS させ、二値化からワーピングまでの連鎖を手に馴染ませてから次へ進んでください。
+次のトラックでは、ここで身につけたエッジ・輪郭・幾何変換の感覚を土台に、特徴点検出とマッチング（ORB/SIFT）やホモグラフィ推定（パノラマ合成）へ進みます。それらも結局は「画像という配列を、勾配や対応点を頼りに別の配列へ写す」操作の延長です。まずは演習10問を自力で全問 PASS させ、二値化からワーピングまでの連鎖を手に馴染ませてから次へ進んでください。
 
 ---
 
 > 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
-> Python 3.12 ／ numpy 2.4（2.4.6）／ opencv-python-headless 4.13（`cv2` 4.13.0）／ Pillow 12.2（12.2.0）／ matplotlib 3.10（3.10.9）。
+> Python 3.12 ／ numpy 2.4（2.4.6）／ opencv-python-headless 4.13（`cv2` 4.13.0）／ Pillow 12.2（12.2.0）／ matplotlib 3.10（3.10.9）。本章は torch を使いませんが、講座全体の深層パートでは torch 2.12+cpu を前提とします。
 > すべて CPU のみ・ネット非依存で動作します（`cv2.imshow` は使わず、結果は `outputs/04_filtering_edges_morphology/` に保存）。

@@ -162,7 +162,9 @@ assert np.array_equal(bgr, back)              # 1周して一致 = 変換が正�
 | `02_drawing.py` | `line`/`rectangle`/`circle`/`polylines`/`putText`、LINE_AA、検出可視化（枠＋ラベル） |
 | `03_resize_crop_flip.py` | `resize` の `dsize=(W,H)` 罠と補間の使い分け、`flip`、スライスクロップ、整形関数の実演 |
 | `04_exif_transpose.py` | PIL の `resize/crop/rotate/thumbnail`、`size` vs `shape`、EXIF `exif_transpose`、相互変換 |
-| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `mini_project.py` | **章末ミニプロジェクト**。色検出 → bbox 可視化 → 正方形整形 → EXIF/相互変換検証を1本に統合し、図と JSON を出力 |
+| `exercises.py` | TODO 形式の演習10問（易→難・自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `exercises_solutions.py` | 演習の模範解答（実行すると全10問 PASS。答え合わせ・教材検証用） |
 
 `cv_helpers.py` と `preprocess.py` は「読み物」ではなく「再利用する道具」です。とくに `preprocess.py` は本章のゴールそのものなので、最初に一読してから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。
 
@@ -180,10 +182,15 @@ uv run python lectures/03_image_transforms/02_drawing.py
 uv run python lectures/03_image_transforms/03_resize_crop_flip.py
 uv run python lectures/03_image_transforms/04_exif_transpose.py
 
+# 章末ミニプロジェクト: この回の要素を統合した総合課題（図＋JSON を出力）
+uv run python lectures/03_image_transforms/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL）
 uv run python lectures/03_image_transforms/exercises.py
 # どうしても分からない時だけ、模範解答の挙動を見る
 SHOW_SOLUTION=1 uv run python lectures/03_image_transforms/exercises.py
+# 模範解答そのもの（実行すると全10問 PASS）
+uv run python lectures/03_image_transforms/exercises_solutions.py
 ```
 
 実行後は `outputs/03_image_transforms/` の画像を開き、解説と照らし合わせてください。特に `01_mask_red.png`（赤の2区間抽出）、`03_interpolation_compare.png`（補間の差）、`03_square_letterbox.png` と `03_square_centercrop.png`（正方形整形の2方式）、`04_exif_naive.png` と `04_exif_fixed.png`（EXIF 向きの違い）を見比べると、本章の要点が一目で腑に落ちます。
@@ -213,5 +220,62 @@ SHOW_SOLUTION=1 uv run python lectures/03_image_transforms/exercises.py
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
-> Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13.0.92（`cv2` 4.13.0）／ Pillow 12.2.0 ／ matplotlib 3.10.9
+## 🛠 章末ミニプロジェクト — 色で物体を検出して「可視化 → モデル入力前処理」まで一気通貫
+
+ここまでの部品はバラバラに学んできました。最後に、それらを**1 本のパイプライン**へ束ね、この章の技能が「単独で使える」だけでなく「つながって動く」ことを体感します。題材は **HSV 色域による簡易物体検出**。後段の検出・分類の章でそのまま雛形になる「前処理 ＋ 結果の可視化」の最小完成形です。実装は `mini_project.py` にあり、実行すると図と総合レポート（JSON）が `outputs/03_image_transforms/` に出ます。
+
+パイプラインは次の6段で、この章で扱った要素を順に踏みます。**(1) 色で抜く**——`preprocess.extract_color` で赤・黄・緑・青それぞれの HSV マスクを作る（赤は `0/179` の2区間合成）。**(2) bbox を取る**——マスクの白画素に `np.where` をかけ、`(ys, xs)` の**軸順 `[y, x]`** から外接矩形 `(x0, y0, x1, y1)` を求める。**(3) 可視化する**——`draw_label_box` で「枠＋ラベル帯＋白文字」を重ねる（座標は `(x, y)`、色は BGR）。**(4) 整形する**——各検出物体を切り出し（スライス `[y0:y1, x0:x1]`）、`resize_to_square` で歪ませずに正方形のモデル入力へ。**(5) EXIF 検証**——`Orientation=6` を付けた JPEG を作り、`exif_transpose` で `(W,H)` が入れ替わり向きタグが消えることを確認。**(6) 相互変換**——`cv2(BGR) → PIL(RGB) → numpy → cv2(BGR)` のラウンドトリップ一致を確認。
+
+```bash
+uv run python lectures/03_image_transforms/mini_project.py
+# → mini_detections.png（色検出＋ラベル）、mini_summary.png（入力→検出→前処理の総合パネル）、
+#    mini_exif_naive.png / mini_exif_fixed.png（EXIF 向きの違い）、mini_report.json（機械可読の総合レポート）
+```
+
+`mini_report.json` には、検出した各色の `bbox` と画素数、3方式の前処理 shape、EXIF 正規化の成否、相互変換の一致が機械可読でまとまります。**発展課題**として、(a) `extract_color` の `s_min`/`v_min` を変えて背景グレーの拾い方がどう変わるか、(b) `resize_to_square` を `center_crop_square` に差し替えると検出パッチがどう変わるか、(c) `data/sample.jpg` に自分の写真を置いて実画像で検出が動くか、を試してみてください。
+
+## ✅ 到達チェックリスト
+
+この章を「できた」と言える基準です。手を動かして、できる／説明できるの両方を確認してください。
+
+- [ ] **できる**: `cv2.cvtColor` で BGR を Gray／HSV に変換でき、Gray の `shape` が `(H, W)` の2次元になる（次元が1つ減る）ことを自分で確かめられる。
+- [ ] **できる**: `inRange` で色マスクを作れる。とくに**赤**は `[0,10]` と `[170,179]` の2区間を `bitwise_or` で合成できる。
+- [ ] **できる**: `rectangle`／`putText` と `getTextSize` を組み合わせ、「枠＋ラベル帯＋白文字」を自分で描ける。
+- [ ] **できる**: `cv2.resize` を `dsize=(W, H)` の正しい順で呼び、縮小に `INTER_AREA`・拡大に `INTER_CUBIC` を選べる。
+- [ ] **できる**: numpy スライス `[y0:y1, x0:x1]` でクロップでき、`flip` の `1/0/-1` を取り違えない。
+- [ ] **できる**: アスペクト比保持リサイズ・正方形レターボックス・中央正方形クロップを書ける（`preprocess.py` をそらで再現できる）。
+- [ ] **できる**: `ImageOps.exif_transpose` で写真の向きを正規化し、`cv2 ↔ PIL ↔ numpy` をラウンドトリップで色を崩さず往復できる。
+- [ ] **説明できる**: なぜ OpenCV の HSV は `H=0-179` なのか（`uint8` に色相を収めるため）。
+- [ ] **説明できる**: `dsize=(W,H)` と `shape=(H,W)`、PIL の `size=(W,H)` という**軸順の食い違い**がどこで効くか。
+- [ ] **説明できる**: EXIF Orientation とは何で、放置すると検出・認識精度がなぜ落ちるか。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+実装中に詰まったら、まずここを見てください。この章のバグはほぼ「軸順」「数値スケール」「色順」のどれかに集約されます。
+
+- **Q. 色マスクで赤が半分しか取れない。** → 赤は色相環の `0/179` をまたぎます。`[0,10]` の1区間だけでは取りこぼすので、`[170,179]` のマスクも作って `cv2.bitwise_or` で合成してください（`mini_project.py` の検出が赤も拾えるのはこのためです）。
+- **Q. `inRange` で背景まで白くなる。** → `S`・`V` の下限が低すぎます。背景の灰色は**彩度が低い**ので、`s_min`/`v_min` を `80/60` 程度まで上げると低彩度のグレーを弾けます。
+- **Q. HSV の色域指定がまったく効かない。** → 一般的な色相環の角度（0–360）をそのまま入れていませんか。OpenCV の `H` は `0-179` なので、**角度を半分**にした値を使います。
+- **Q. リサイズしたら縦横が入れ替わった／エラーになる。** → `cv2.resize` の `dsize` は `(W, H)` 順です。`shape=(H, W)` と逆と覚え、計算した `(new_w, new_h)` を必ずこの順で渡します。
+- **Q. クロップ位置や描画位置がずれる。** → numpy スライスは `[y0:y1, x0:x1]`（行=y, 列=x）、`cv2` の描画系は座標 `(x, y)`。**スライスと描画で x/y の順が逆**なのを混同していないか確認してください。
+- **Q. グレースケール画像を他の画像と並べると形が合わずに落ちる。** → Gray は `(H, W)` の2次元でチャンネル軸がありません。連結・重ね合わせの前に `cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)` で3チャンネルへ戻します。
+- **Q. PIL に渡したら赤と青が入れ替わった。** → OpenCV だけが BGR です。境界で `cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)` してから `Image.fromarray` に渡してください。
+- **Q. スマホ写真が横倒しで処理される。** → EXIF Orientation を無視しています。`ImageOps.exif_transpose` で画素を実際に回してから使います（`preprocess.load_image_oriented` がこれを内側で行います）。
+- **Q. `Image.ANTIALIAS` でエラーになる。** → Pillow 10 以降で削除済みです。高品質縮小は `Image.Resampling.LANCZOS` を使います。
+- **デバッグの定石**: 形が合わない・色が変なときは、まず `print(img.shape, img.dtype)` を挟む。`shape` の長さで Gray/カラーを、先頭2要素の並びで軸順を、一目で確認できます。
+
+## 🚀 発展トピック・参考
+
+この章の先に広がるテーマです。興味のある方向へ掘り進めてください。
+
+- **`filter2D` と任意カーネル畳み込み**: 平滑化・シャープ化・エッジ抽出はすべて「カーネルとの畳み込み」で統一的に書けます（次章 `04_filtering_edges_morphology` で詳説）。
+- **輪郭抽出による物体検出**: 本章のミニプロジェクトは bbox を `np.where` で素朴に求めましたが、`cv2.findContours` を使えば面積・周囲長・凸包・近似多角形まで形状解析できます（次章）。OpenCV 4 系では返り値が `(contours, hierarchy)` の**2つ**である点に注意。
+- **`Lab`／`YCrCb` 色空間**: HSV 以外にも、知覚的な色差に強い `Lab`、輝度と色差を分ける `YCrCb` があり、肌色検出やコントラスト補正で使い分けます。
+- **アフィン・透視変換（ワーピング）**: 回転・せん断・台形補正は `getRotationMatrix2D`／`getPerspectiveTransform` ＋ `warpAffine`／`warpPerspective` で行列として扱います（次章で書類のまっすぐ化を実装）。
+- **データ拡張ライブラリ**: 本章の幾何変換は `albumentations` や `torchvision.transforms.v2` が高速・宣言的に提供します（第2回・第12回）。まず素の OpenCV で「中で何が起きているか」を理解してからライブラリに移ると、パラメータの意味が腑に落ちます。
+- 公式ドキュメント: [OpenCV Image Processing](https://docs.opencv.org/4.x/d2/d96/tutorial_py_table_of_contents_imgproc.html) ／ [Pillow Handbook](https://pillow.readthedocs.io/en/stable/handbook/index.html) ／ [Pillow EXIF/ImageOps](https://pillow.readthedocs.io/en/stable/reference/ImageOps.html)
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
+> Python 3.12 ／ numpy 2.4.x ／ opencv-python-headless 4.13（`cv2` 4.13.0）／ Pillow 12.2 ／ matplotlib 3.10 ／（深層トラックで使う torch は 2.12+cpu。本章では未使用）

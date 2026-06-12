@@ -184,9 +184,11 @@ lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=80,
 | `01_sift_orb_match.py` | SIFT/ORB の検出・記述、`knnMatch`＋比率テスト、FLANN/crossCheck、RANSAC でインライア率、比率スイープ |
 | `02_template_matching.py` | `matchTemplate`/`minMaxLoc`、手法の最大/最小、回転・スケール限界、マルチスケール探索 |
 | `03_hough_lines_circles.py` | `Canny`→`HoughLinesP`/`HoughCircles`、直線・円のパラメータスイープ（過敏性） |
-| `exercises.py` | TODO 形式の演習（自己採点付き。`SHOW_SOLUTION=1` で模範解答） |
+| `mini_project.py` | 章末ミニプロジェクト（散らかったシーンからの平面物体検出。特徴→比率テスト→RANSAC→四隅投影の統合） |
+| `exercises.py` | TODO 形式の演習 9 問（自己採点付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
+| `exercises_solutions.py` | 演習 9 問の完全な模範解答（実行すると全 PASS を assert で保証） |
 
-演習は 5 問で、いずれも本章の核心スキルに対応します。演習 1 は比率テストの実装、演習 2 は RANSAC インライア率の計算、演習 3 は検出器に合った距離種別の選択、演習 4 はテンプレートの最良位置検出、演習 5 は HoughLinesP の線分カウントです。まず TODO を自力で埋め、`exercises.py` を実行して全問 PASS を目指してください。
+演習は易→難の 9 問で、いずれも本章の核心スキルに対応します。演習 1 は比率テストの実装、演習 2 は RANSAC インライア率の計算、演習 3 は検出器に合った距離種別の選択、演習 4 はテンプレートの最良位置検出、演習 5 は HoughLinesP の線分カウント、演習 6 は `findHomography` 用の対応点配列 `(N,1,2)` の構築、演習 7 は crossCheck（相互最近傍）の対応数、演習 8 はマルチスケール探索による最良倍率の特定、演習 9 は HoughCircles の円数カウントです。まず TODO を自力で埋め、`exercises.py` を実行して全問 PASS を目指してください。
 
 ## 11. 動かし方
 
@@ -201,10 +203,15 @@ uv run python lectures/05_classical_features_matching/01_sift_orb_match.py
 uv run python lectures/05_classical_features_matching/02_template_matching.py
 uv run python lectures/05_classical_features_matching/03_hough_lines_circles.py
 
+# 章末ミニプロジェクト（統合課題。検出結果図と指標 JSON を出力）
+uv run python lectures/05_classical_features_matching/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL）
 uv run python lectures/05_classical_features_matching/exercises.py
 # どうしても分からない時だけ、模範解答の挙動を見る
 SHOW_SOLUTION=1 uv run python lectures/05_classical_features_matching/exercises.py
+# 完全な模範解答（全 9 問 PASS を確認）
+uv run python lectures/05_classical_features_matching/exercises_solutions.py
 ```
 
 実行後は `outputs/05_classical_features_matching/` に生成された画像を確認してください。特に `01_sift_matches.png` / `01_orb_matches.png`（インライア対応を緑線で結んだ図）を見比べると、両手法の対応の張られ方の違いが一目で分かります。`02_found_multiscale.png` では拡大シーン上で正しい大きさの枠が当たる様子を、`03_summary.png` では Canny エッジと直線・円の検出結果を 4 枚並べて確認できます。なお本講座は headless 版 OpenCV のため `cv2.imshow` は使わず、結果はすべてファイル保存で確認します。
@@ -235,5 +242,73 @@ SHOW_SOLUTION=1 uv run python lectures/05_classical_features_matching/exercises.
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
-> Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13.0.92（`cv2` 4.13.0）／ Pillow 12.2.0 ／ matplotlib 3.10.9
+## 🛠 章末ミニプロジェクト — 散らかったシーンからの平面物体検出
+
+ここまでの部品（特徴抽出・比率テスト・RANSAC・四隅投影）を **1 本のパイプライン**に統合する総合課題です。`mini_project.py` を実行すると、次の流れが一気に走ります。
+
+1. **課題生成**: 特徴に富んだ「物体画像（object）」を、既知のホモグラフィ `H_place` で**回転＋遠近変形**し、妨害物（ランダム図形）だらけの背景に貼り込んで「散らかったシーン（scene）」を作る。貼り込んだ 4 隅の真値を保持しておく（評価の物差し）。
+2. **検出**: ORB と SIFT の両方で `object → scene` をマッチングし、`knnMatch` ＋ 比率テスト（0.75）で良マッチを選び、`findHomography(RANSAC)` で変換 `H` を推定する。
+3. **投影**: `object` の 4 隅を `cv2.perspectiveTransform` で `scene` 座標へ飛ばし、検出枠（多角形）を描く。
+4. **評価**: 投影 4 隅と真の 4 隅の**平均コーナー誤差（px）**と**インライア率**を算出して数値で良し悪しを判断する。
+5. **対比**: 素朴な**テンプレートマッチング**を同じ scene に当て、回転＋遠近の物体には**スコアが伸びず破綻**することを確認する（＝局所特徴量が必要な理由がここで閉じる）。
+
+この課題は「平面物体を散らかった画像から頑健に見つける」という、看板・書影・商品パッケージ検出や AR マーカ認識の最小核です。`object` を実物の画像に、`scene` をカメラ画像に差し替えれば、そのまま実運用のひな形になります。
+
+**到達の目安**: ORB・SIFT のいずれもコーナー誤差が概ね数 px 以内に収まり、インライア率が高い一方で、テンプレートマッチングのベストスコアは低く張り付くこと。出力は `outputs/05_classical_features_matching/` に以下が保存されます。
+
+| 生成物 | 内容 |
+| --- | --- |
+| `mini_project_object.png` / `mini_project_scene.png` | 探す物体と、それを貼り込んだ散らかったシーン |
+| `mini_project_detect_orb.png` / `mini_project_detect_sift.png` | 各検出器の投影枠（白線が真の四隅、色線が推定四隅） |
+| `mini_project_summary.png` | 物体・シーン・ORB/SIFT 検出結果を 1 枚に並べたまとめ図 |
+| `mini_project_metrics.json` | 検出点数・良マッチ数・インライア率・コーナー誤差・テンプレ法スコアの数値ログ |
+
+```bash
+uv run python lectures/05_classical_features_matching/mini_project.py
+cat outputs/05_classical_features_matching/mini_project_metrics.json
+```
+
+## ✅ 到達チェックリスト
+
+この章を終えたら、次が**できる／説明できる**ことを確認してください。
+
+- [ ] `detectAndCompute` で**キーポイントと記述子**を取り出し、SIFT（128 次元 `float32`）と ORB（32 バイト `uint8`）の**記述子の違いと対応する距離種別**（`NORM_L2` / `NORM_HAMMING`）を説明できる。
+- [ ] `knnMatch(k=2)` ＋ **Lowe の比率テスト（0.75）**を、`len(pair) < 2` ガード込みで自力で書ける。
+- [ ] 良マッチから `(N,1,2)` の対応点配列を組み、`findHomography(RANSAC)` で **`H` と `mask`** を得て**インライア率**を計算できる。
+- [ ] 比率しきい値を振ると「**数 vs 純度**」のトレードオフが起きること、0.75 がその妥協点であることを実験結果で説明できる。
+- [ ] `FlannBasedMatcher` の index 種別（SIFT=KDTree / ORB=LSH）と `crossCheck` を、**比率テストと併用しない**前提で使い分けられる。
+- [ ] `matchTemplate` ＋ `minMaxLoc` で物体位置を求め、**手法ごとの最大/最小の向き**（CCOEFF/CCORR=max、SQDIFF=min）を正しく選べる。
+- [ ] テンプレートマッチングが**回転・スケールに不変でない**ことを示し、**マルチスケール探索**でスケールだけは吸収できると説明できる。
+- [ ] `Canny → HoughLinesP`（直線はエッジ画像）と `HoughCircles`（円は**グレー画像**）の**入力の違い**を理由とともに説明できる。
+- [ ] Hough の `threshold` / `param2` を変えると検出数が激変する**パラメータ過敏性**を、実験で示せる。
+- [ ] ミニプロジェクトを実行し、**コーナー誤差・インライア率**で検出の良し悪しを数値評価できる。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+実装中に詰まったら、まずここを見てください。多くの不具合はこの数個の原因に集約されます（第12節の症状別チェックリストと併せて参照）。
+
+- **Q. `ValueError: not enough values to unpack (expected 2, got 1)` が出る。** A. `knnMatch` が近傍 1 個のとき**長さ 1 のペア**を返すためです。比率テストでは `m, n = pair` の前に必ず `if len(pair) < 2: continue` を入れます。本章の `ratio_test` はこの定石を踏襲しています。
+- **Q. マッチがほぼ全部おかしい／インライア率が極端に低い。** A. **記述子の型と距離種別の不一致**が筆頭原因です。SIFT は `NORM_L2`、ORB は `NORM_HAMMING`。ORB に `NORM_L2` を渡すと 2 進列を実数距離で測ってしまい無意味になります。
+- **Q. `findHomography` が `None` を返す／落ちる。** A. **良マッチが 4 組未満**です。`len(good) >= 4` を確認してから呼び、足りなければ比率しきい値を少し緩める（0.75→0.8）か、`nfeatures` を増やします。
+- **Q. `cv2.xfeatures2d` が無いと言われる。** A. 古い SIFT の呼び方です。特許失効で本体に同梱されたので `cv2.SIFT_create()` を使います（headless 版でも contrib なしで動く）。
+- **Q. FLANN が ORB でエラー／結果が壊れる。** A. 2 進記述子に KD-Tree を指定しているからです。ORB は `algorithm=6`（LSH）、SIFT は `algorithm=1`（KDTree）。型に合った index を選びます。
+- **Q. 比率テストと crossCheck を併用したら挙動がおかしい。** A. **両者は併用しません**。`crossCheck=True` は内部で k=1 を前提とし `knnMatch(k=2)` と相性が悪いです。どちらか一方の戦略を選びます（一般には比率テストが調整しやすい）。
+- **Q. `matchTemplate` の検出位置が毎回ずれる。** A. **手法の最大/最小の取り違え**です。`TM_CCOEFF_NORMED`/`TM_CCORR_NORMED` は `max_loc`、`TM_SQDIFF`/`TM_SQDIFF_NORMED` は `min_loc` が答えです。
+- **Q. `HoughCircles` が何も返さない／幻の円が大量に出る。** A. 入力に**エッジ画像を渡している**（円はグレー画像を渡す）か、`param2` が高過ぎ／低過ぎです。`param2` を下げると検出が緩くなり、上げると厳しくなります。
+- **Q. matplotlib に渡したら色が反転した。** A. cv2 は **BGR**、matplotlib は RGB です。`cv2.cvtColor(img, cv2.COLOR_BGR2RGB)` を挟んでから `imshow` します。headless では `matplotlib.use("Agg")` を `pyplot` import 前に呼び、`savefig` で保存します。
+- **Q. 結果が実行のたびに変わって再現しない。** A. 合成画像の乱数 `seed` を固定し、ORB の `nfeatures` を明示します。RANSAC はわずかにぶれますが、インライア率の桁が変わるほどではありません。
+
+## 🚀 発展トピック・参考
+
+- **AKAZE / BRISK / KAZE**: ORB と SIFT の中間にあたる特徴量。`cv2.AKAZE_create()` などで作れ、2 進記述子なら `NORM_HAMMING` を使います。回転・スケール頑健性と速度のバランスが ORB と少し違うので、同じパイプラインで差し替え比較すると学びが深いです。
+- **`goodFeaturesToTrack`（Shi-Tomasi）と Harris コーナー**: 記述子を持たない「コーナー検出だけ」の古典。追跡（Lucas-Kanade オプティカルフロー）の起点として後の回で再登場します。
+- **比率テストの自動調整**: 難しい視点ペアでは 0.75 固定より、良マッチ数が一定本数（例: 30 本）を超える最小しきい値を二分探索する、といった適応戦略もあります。
+- **`cv2.Stitcher` と高レベル API**: 本章の「良マッチ＋ `findHomography`」を内部で行う完成品。次回の第6回でパノラマ合成として手組みパイプラインと比較します。
+- **RANSAC の代替**: `cv2.findHomography` には `cv2.RANSAC` の他に `cv2.LMEDS`・`cv2.RHO` が選べます。外れ値割合が高い／低いで向き不向きがあるので、`ransacReprojThreshold` と併せて挙動を観察すると理解が進みます。
+- **スケール不変テンプレートマッチング**: マルチスケール探索は本章で扱いましたが、回転まで含めるとコストが爆発します。これが「だから回転・スケール不変な局所特徴量が要る」という設計判断の出発点です。
+- 参考ドキュメント: OpenCV 公式チュートリアル「Feature Detection and Description」 https://docs.opencv.org/4.x/db/d27/tutorial_py_table_of_contents_feature2d.html ／ Lowe, D. (2004) "Distinctive Image Features from Scale-Invariant Keypoints"（比率テストの原典）。
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
+> Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13.0.92（`cv2` 4.13.0）／ Pillow 12.2.0 ／ matplotlib 3.10.9（torch は本章では未使用。深層の回では torch 2.12+cpu を使用）

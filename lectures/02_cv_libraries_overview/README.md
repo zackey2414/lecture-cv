@@ -163,9 +163,63 @@ augmented = transform(image=rgb)["image"]   # 入力は RGB の ndarray、戻り
 | `01_library_map.py` | 主要ライブラリの早見表＋2軸の地図を生成。導入状況を点検し、未導入には導入コマンドを案内 |
 | `02_same_op_across_libs.py` | resize/blur/rotate を OpenCV/Pillow/scikit-image で書き比べ、比較図と数値差を出す |
 | `03_augmentation_albumentations.py` | 自作拡張パイプライン＋分布の可視化＋albumentations/torchvision v2/kornia の実演（任意） |
-| `exercises.py` | TODO形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `mini_project.py` | 章末ミニプロジェクト。書き比べ・相互変換・拡張・選定を統合し JSON＋図でレポート |
+| `exercises.py` | TODO形式の演習10問（易→難・自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `exercises_solutions.py` | 全演習の模範解答（実行すると全 PASS。答え合わせ用） |
 
 表の通り、`cv_helpers.py` だけは「読み物」ではなく「再利用する道具」です。とくに `probe()` は「入っていれば使う・無ければ案内してスキップ」を一手に引き受ける関数で、本講座が main 依存だけで完走できる仕掛けの中心です。最初に `cv_helpers.py` を一読してから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。
+
+## 🛠 章末ミニプロジェクト — ライブラリ選定レポート生成器（`mini_project.py`）
+
+この回の学び（地図・相互運用・書き比べ・拡張）を 1 本に束ねる総合課題です。`mini_project.py` は合成画像 1 枚を入力に、**「どのライブラリをどう選び・どう橋渡しするか」を実測してレポート化**します。具体的には次の 4 つを統合します。
+
+1. **同一処理の書き比べ（速度＋数値差）** — まったく同じ「正準リサイズ（半分に縮小）」を OpenCV（`INTER_AREA`）・Pillow（`LANCZOS`）・scikit-image（任意）で実行し、**1 回あたりの処理時間**と、OpenCV を基準にした**平均絶対差（MAD）**を測ります。第5節「同一処理の書き比べ」を、速度という新しい軸まで広げた発展版です。
+2. **相互変換の無損失チェック（色順・軸順の自動検証）** — `cv2(BGR) → PIL(RGB) → numpy → cv2(BGR)` の往復、および torch があれば `cv2 → Tensor(C,H,W) → cv2` の往復が**画素まで完全一致するか**を検証します。第4節で学んだ「境界をまたぐたびに色順と軸順を意識する」を、合格/不合格で機械的に確かめます。
+3. **拡張が分布を広げる度合いの定量化** — 自作の小さな拡張パイプライン（反転・明るさ/コントラスト・回転）を 300 回かけ、平均明るさの **std / range** を計算します。第7節の「拡張は分布をどう広げるか」を、ヒストグラムに加えて数値（広がりの大きさ）でも押さえます。
+4. **意思決定表の自己整合チェック** — 「課題 → まず選ぶライブラリ」の対応表が一貫して引けること、未知の課題が既定の OpenCV に落ちることを点検します。
+
+実行すると、結果は機械可読な `outputs/02_cv_libraries_overview/mini_project_report.json`（時間・MAD・往復可否・分布統計・環境のライブラリ版）と、`mini_project_summary.png`（左＝ライブラリ別リサイズ時間の棒グラフに MAD を注記／右＝拡張後の明るさ分布ヒストグラム）に出力されます。OpenCV が最速・MAD=0（基準）で、Pillow は数階調ぶん値がズレる——という「速度も画素値もライブラリで違う」事実を、図と JSON の両方で確認してください。`uv run python lectures/02_cv_libraries_overview/mini_project.py` で実行できます（CPU 完結・ネット不要・任意ライブラリは未導入でも動く）。
+
+実務では、このレポートがそのまま**ライブラリ選定の判断材料**になります。「速度が効くホットパスは OpenCV」「学習と一体化したいなら torchvision/kornia」「往復で色が壊れていないか CI で機械チェック」——といった意思決定を、地図（定性）と実測（定量）の両面から下せるようになるのがゴールです。
+
+## ✅ 到達チェックリスト
+
+このモジュールを終えたら、次が「できる／説明できる」状態かを確認してください。
+
+- [ ] 主要ライブラリ（OpenCV/Pillow/NumPy/scikit-image/imageio/PyAV/torchvision v2/albumentations/kornia/matplotlib）の**役割分担**を一言で言える。
+- [ ] 各ライブラリの**色順（OpenCV だけ BGR）・データ表現（ndarray/PIL.Image/Tensor）・GPU/微分可能性**を早見表で見分けられる。
+- [ ] 「低レベル⇔高レベル」「CPU⇔GPU/微分可能」の 2 軸で、任意のライブラリが地図のどの象限に来るかを説明できる。
+- [ ] `cv2(BGR) ⇄ PIL(RGB) ⇄ numpy ⇄ Tensor(C,H,W)` の相互変換を、**色順と軸順**を正しく入れて書ける。
+- [ ] `shape=(H,W)` / PIL `size=(W,H)` / `dsize=(W,H)` / skimage の `(H,W)` 順 / Tensor の `(C,H,W)` の**軸順の違い**を区別できる。
+- [ ] 同じ resize/blur/rotate を OpenCV/Pillow/scikit-image で書き分けられ、**補間や値域（float[0,1]）の違い**を説明できる。
+- [ ] uint8 の**オーバーフロー（numpy `+`）と飽和（`cv2.add`／clip）**の違いを説明し、意図どおりに書ける。
+- [ ] データ拡張の目的（多様性の水増し→過学習抑制）と、albumentations/torchvision v2/kornia の**住み分け**を言える。
+- [ ] 課題を見て「まず試すライブラリ」を即答でき、行き詰まったら地図上で隣のライブラリへ乗り換えられる。
+- [ ] `mini_project.py` を動かし、JSON とサマリ図から**速度・数値差・往復可否・分布の広がり**を読み取れる。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+第12節の「症状→原因→対処」表に加えて、ライブラリをまたぐときに実際に詰まりやすい点を Q&A 形式で補足します。
+
+- **Q. ライブラリを変えたら画像の色が変わった（赤青反転）。** → A. ほぼ確実に BGR/RGB の取り違えです。**OpenCV だけ BGR**、Pillow・matplotlib・scikit-image・torchvision はすべて RGB。境界をまたぐ前に `cv2.cvtColor(x, cv2.COLOR_BGR2RGB)`（戻すときは `RGB2BGR`）を入れます。`mini_project.py` の往復チェックが FAIL なら、まずここを疑います。
+- **Q. リサイズで縦横が入れ替わった／scikit-image だけ結果が変。** → A. 軸順です。`cv2.resize` と `PIL.resize` の引数は **(幅, 高さ)**、`skimage.transform.resize` は **(高さ, 幅)**。`shape` は `(H,W)`、`size` は `(W,H)`。「いま触っているのは幅・高さどちらが先か」を毎回声に出して確認します。
+- **Q. scikit-image の結果が真っ白／真っ黒になる。** → A. skimage は内部で `float[0,1]` を使います。`img_as_float` で 0〜1 に正規化してから処理し、保存・表示前に `img_as_ubyte` で 0〜255 の uint8 へ戻します。clip を忘れると範囲外で破綻します。
+- **Q. 明るさを足したら暗い点が混じる（一部が真っ黒）。** → A. uint8 のまま `img + 50` するとオーバーフローして 255 超が 0 へ回り込みます。`cv2.add` を使うか、`int16`/`float32` に広げて加算 → `np.clip(0,255)` → `uint8` に戻します（演習7・ex7 参照）。
+- **Q. `ModuleNotFoundError: albumentations`（または skimage/kornia）。** → A. これらは**任意グループ**です。`uv add --group aug albumentations scikit-image` 等で導入するか、案内に従ってスキップしてください。本講座の実行コードは未導入でも必ず最後まで動きます（`cv_helpers.probe()` がガード）。
+- **Q. Tensor に変換したら形が合わない（チャンネルが画像に化ける）。** → A. numpy/OpenCV は `(H,W,C)`、PyTorch Tensor は `(C,H,W)`。`torch.from_numpy(rgb).permute(2,0,1)` で軸を入れ替え、戻すときは `permute(1,2,0)`（演習6・ex6 参照）。
+- **Q. `cv2.imshow` が Docker/SSH で固まる・エラーになる。** → A. headless 環境では GUI が無く、`opencv-python-headless` には `imshow` 自体がありません。`plt.imshow`（Agg）か `cv2.imwrite`/`savefig` でファイルに保存して確認します。本モジュールは全スクリプトがファイル保存方式です。
+- **Q. 拡張したら画像が崩れすぎて学習が悪化した。** → A. 拡張は「やるほど良い」わけではありません。`03_aug_distribution.png` や `mini_project.py` の std/range で**分布の広がり**を見て、真っ黒/真っ白や画面外への流出が混じらない強度に調整します。
+- **Q. `opencv-python` と `opencv-python-headless`（や `opencv-contrib-python`）を一緒に入れたら挙動が変。** → A. これらは同じ `cv2` 名前空間を共有するため**同時インストール禁止**。どれか一つに統一します（本講座は headless 一本）。
+
+## 🚀 発展トピック・参考
+
+- **scikit-image を地図に加える**: セグメンテーション（`segmentation.slic`/`felzenszwalb`）、計測（`measure.regionprops`）、復元（`restoration`）など、OpenCV にない研究寄りアルゴリズムが豊富。論文再現や定量計測では第一候補になります（第8回以降の古典CVで再登場）。
+- **torchvision transforms v2 の真価**: v2 は画像だけでなく **bounding box / mask / keypoint を同じ変換で同時に動かせる**よう設計されています（検出・セグメの学習で必須）。`tv_tensors` でラベル種別を保ったまま `Compose` に通すのが正準形。第12回「データパイプラインと拡張」で本格的に扱います。
+- **albumentations のターゲット連動**: `A.Compose([...], bbox_params=...)` や `mask`/`keypoints` を渡すと、幾何変換が画像とアノテーションに**一貫して**適用されます。検出/セグメの拡張で albumentations が標準になる理由がここにあります。
+- **kornia と微分可能 CV**: kornia は拡張だけでなく、特徴点・ホモグラフィ・エッジ等を**微分可能・GPU バッチ**で提供します。拡張を学習ループの内側に置く（テスト時拡張 TTA や敵対的訓練）用途で効きます。
+- **動画 I/O の地図（第9回以降）**: まず `cv2.VideoCapture`、精密なタイムスタンプ/コーデック制御が要れば PyAV(`av`)、多形式を手軽になら imageio。torchvision 0.26+ は内蔵デコーダを廃止したため、動画読込は `VideoCapture` を基本にします。
+- **公式ドキュメント**: OpenCV `https://docs.opencv.org/4.x/` ／ Pillow `https://pillow.readthedocs.io/` ／ scikit-image `https://scikit-image.org/` ／ torchvision transforms v2 `https://docs.pytorch.org/vision/stable/transforms.html` ／ albumentations `https://albumentations.ai/docs/` ／ kornia `https://kornia.readthedocs.io/`。
+- **発展課題**: `mini_project.py` の書き比べに **blur と rotate** の列を足して 3 処理 × 速度/MAD を比較する／scikit-image・torch を導入して往復チェックと skimage 列が増える様子を確認する／自分の写真を `data/sample.jpg` に置いて実画像で同じレポートを出す、など。
 
 ## 11. 動かし方
 
@@ -180,10 +234,14 @@ uv run python lectures/02_cv_libraries_overview/01_library_map.py
 uv run python lectures/02_cv_libraries_overview/02_same_op_across_libs.py
 uv run python lectures/02_cv_libraries_overview/03_augmentation_albumentations.py
 
-# 演習: まずは TODO を自分で埋める（最初は全部 FAIL）
+# 章末ミニプロジェクト（書き比べ・相互変換・拡張・選定を統合し JSON＋図でレポート）
+uv run python lectures/02_cv_libraries_overview/mini_project.py
+
+# 演習: まずは TODO を自分で埋める（最初は全部 FAIL・10問・易→難）
 uv run python lectures/02_cv_libraries_overview/exercises.py
-# どうしても分からない時だけ、模範解答の挙動を見る
+# どうしても分からない時だけ、模範解答の挙動を見る（全 PASS を確認）
 SHOW_SOLUTION=1 uv run python lectures/02_cv_libraries_overview/exercises.py
+uv run python lectures/02_cv_libraries_overview/exercises_solutions.py
 
 # （任意）比較対象ライブラリを入れると 02/03 の出力が増える
 uv add --group aug scikit-image albumentations   # 02 に skimage 列 / 03 に albumentations グリッド
@@ -214,6 +272,6 @@ uv add --group aug scikit-image albumentations   # 02 に skimage 列 / 03 に a
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
-> Python 3.12 ／ numpy 2.4.6 ／ opencv-python-headless 4.13.0.92（`cv2` 4.13.0）／ Pillow 12.2.0 ／ matplotlib 3.10.9。
-> 本文で言及した任意ライブラリ（実行コードは未導入でもスキップ）: scikit-image ／ imageio 2.37 ／ PyAV(`av`) 17.1 ／ torchvision 0.27（transforms v2）／ albumentations 1.4+ ／ kornia。
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
+> Python 3.12 ／ numpy 2.4 ／ opencv-python-headless 4.13（`cv2` 4.13.0）／ Pillow 12.2 ／ matplotlib 3.10。
+> 本文で言及した任意ライブラリ（実行コードは未導入でもスキップ）: scikit-image ／ imageio 2.37 ／ PyAV(`av`) 17.1 ／ torch 2.12+cpu ／ torchvision 0.27（transforms v2）／ albumentations 1.4+ ／ kornia。

@@ -7,10 +7,17 @@
      全問が pass すれば "ALL PASS" と表示される。
   3. どうしても分からない時は、模範解答を実行して挙動を確認する:
          SHOW_SOLUTION=1 uv run python lectures/05_classical_features_matching/exercises.py
-     （ファイル末尾の「模範解答」セクションが使われる。まずは自力で！）
+     または別ファイルの完全な模範解答を実行する:
+         uv run python lectures/05_classical_features_matching/exercises_solutions.py
+     （まずは自力で！）
+
+問題は易→難の 9 問:
+  ex1 比率テスト / ex2 インライア率 / ex3 距離種別 / ex4 テンプレ最良位置 /
+  ex5 線分カウント / ex6 対応点配列の構築 / ex7 crossCheck 対応数 /
+  ex8 マルチスケール最良倍率 / ex9 円の個数カウント
 
 ヒント: サンプル画像は cv_helpers の make_scene_bgr / warp_to_view / make_object_scene /
-make_shapes_bgr で合成できる（すべて BGR uint8）。
+make_shapes_bgr で合成できる（すべて BGR uint8）。未実装でも採点は最後まで走る（落ちない）。
 """
 
 from __future__ import annotations
@@ -31,7 +38,7 @@ from cv_helpers import make_object_scene, make_scene_bgr, make_shapes_bgr, warp_
 # =====================================================================
 
 def ex1_ratio_test(knn_matches: list, ratio: float = 0.75) -> list:
-    """演習1: Lowe の比率テストで「良いマッチ」だけを残したリストを返す。
+    """演習1【易】: Lowe の比率テストで「良いマッチ」だけを残したリストを返す。
 
     knn_matches は各クエリ点ごとの近傍ペア [m, n]（cv2.DMatch が 2 個）のリスト。
     条件 m.distance < ratio * n.distance を満たす m（最近傍 DMatch）だけを集めて返す。
@@ -42,7 +49,7 @@ def ex1_ratio_test(knn_matches: list, ratio: float = 0.75) -> list:
 
 
 def ex2_inlier_ratio(src_pts: np.ndarray, dst_pts: np.ndarray) -> float:
-    """演習2: 対応点から RANSAC でホモグラフィを推定し、インライア率を返す。
+    """演習2【中】: 対応点から RANSAC でホモグラフィを推定し、インライア率を返す。
 
     src_pts / dst_pts は形状 (N, 1, 2) の float32 対応点。
     cv2.findHomography(..., cv2.RANSAC, 5.0) の返す mask の合計をインライア数とし、
@@ -53,7 +60,7 @@ def ex2_inlier_ratio(src_pts: np.ndarray, dst_pts: np.ndarray) -> float:
 
 
 def ex3_norm_for(detector_name: str) -> int:
-    """演習3: 検出器に合った BFMatcher の距離種別（norm type）を返す。
+    """演習3【易】: 検出器に合った BFMatcher の距離種別（norm type）を返す。
 
     "SIFT" は浮動小数記述子なので cv2.NORM_L2、"ORB" は 2 進記述子なので cv2.NORM_HAMMING。
     それ以外の名前なら ValueError を投げること。
@@ -63,7 +70,7 @@ def ex3_norm_for(detector_name: str) -> int:
 
 
 def ex4_template_topleft(scene: np.ndarray, template: np.ndarray) -> tuple[int, int]:
-    """演習4: TM_CCOEFF_NORMED でテンプレートを探し、最良一致の左上座標 (x, y) を返す。
+    """演習4【中】: TM_CCOEFF_NORMED でテンプレートを探し、最良一致の左上座標 (x, y) を返す。
 
     cv2.matchTemplate(scene, template, cv2.TM_CCOEFF_NORMED) の結果に cv2.minMaxLoc を使い、
     CCOEFF 系は「最大」が答えなので max_loc（=左上の (x, y)）を返す。
@@ -73,12 +80,59 @@ def ex4_template_topleft(scene: np.ndarray, template: np.ndarray) -> tuple[int, 
 
 
 def ex5_count_line_segments(edges: np.ndarray, threshold: int) -> int:
-    """演習5: エッジ画像に HoughLinesP をかけ、検出された線分の本数を返す。
+    """演習5【中】: エッジ画像に HoughLinesP をかけ、検出された線分の本数を返す。
 
     cv2.HoughLinesP(edges, 1, np.pi/180, threshold, minLineLength=40, maxLineGap=10) を使う。
     検出が 0 本のとき返り値は None になる点に注意（その場合は 0 を返す）。
     """
     # TODO: HoughLinesP を呼び、None なら 0、そうでなければ len(lines) を返す
+    raise NotImplementedError
+
+
+def ex6_matched_points(kp1: list, kp2: list, good: list) -> tuple[np.ndarray, np.ndarray]:
+    """演習6【中】: 良マッチ列から findHomography 用の対応点配列 (src, dst) を作る。
+
+    各 DMatch m について、画像1側の点は kp1[m.queryIdx].pt、画像2側の点は kp2[m.trainIdx].pt。
+    返り値は (src_pts, dst_pts)。どちらも dtype=float32・形状 (N, 1, 2)。
+    （この形が cv2.findHomography / cv2.perspectiveTransform が要求する正準形。）
+    """
+    # TODO: kp1/kp2 から queryIdx/trainIdx で座標を引き、float32 の (N,1,2) で返す
+    raise NotImplementedError
+
+
+def ex7_cross_check_count(des1: np.ndarray, des2: np.ndarray, norm_type: int) -> int:
+    """演習7【中】: crossCheck マッチング（相互最近傍）で残る対応数を返す。
+
+    cv2.BFMatcher(norm_type, crossCheck=True) を作り、match()（knnMatch ではない）を呼ぶ。
+    crossCheck=True は「1→2 の最近傍」と「2→1 の最近傍」が一致した対応だけを返す。
+    返り値はその対応数（len）。比率テストとは併用しない別系統の誤対応除去であることに注意。
+    """
+    # TODO: crossCheck=True の BFMatcher で match() し、対応数 len を返す
+    raise NotImplementedError
+
+
+def ex8_best_template_scale(scene: np.ndarray, template: np.ndarray,
+                            scales: list[float]) -> float:
+    """演習8【難】: マルチスケール探索で、最も一致スコアの高いテンプレ倍率を返す。
+
+    各 scale について template を fx=fy=scale でリサイズし（縮小は INTER_AREA、
+    拡大は INTER_CUBIC）、TM_CCOEFF_NORMED で scene を探索して最大スコアを得る。
+    リサイズ後テンプレが scene より大きい倍率はスキップする。全 scale 中で最大スコアの倍率を返す。
+    （有効な候補が 1 つも無ければ -1.0 を返す。）
+    """
+    # TODO: scales を回し、各倍率の最大スコアを比較して最良の scale を返す
+    raise NotImplementedError
+
+
+def ex9_count_hough_circles(gray: np.ndarray, param2: int) -> int:
+    """演習9【中】: HoughCircles で円を検出し、その個数を返す。
+
+    cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, dp=1, minDist=40, param1=120,
+                     param2=param2, minRadius=20, maxRadius=80) を使う。
+    入力は「グレー画像」を渡すこと（エッジ画像を渡すと内部 Canny と二重になり失敗する）。
+    検出ゼロのとき返り値は None になる点に注意（その場合は 0 を返す）。
+    """
+    # TODO: HoughCircles を呼び、None なら 0、そうでなければ res.shape[1] を返す
     raise NotImplementedError
 
 
@@ -103,7 +157,12 @@ def _grade() -> None:
     knn = cv2.BFMatcher(cv2.NORM_HAMMING).knnMatch(d1, d2, k=2)
 
     obj_scene, template, true_tl, _true_br = make_object_scene()
-    edges = cv2.Canny(cv2.cvtColor(make_shapes_bgr(), cv2.COLOR_BGR2GRAY), 50, 150)
+    # ex8 用: シーンを 1.3 倍に拡大（正しい倍率は 1.3）。
+    big_scene = cv2.resize(obj_scene, None, fx=1.3, fy=1.3, interpolation=cv2.INTER_CUBIC)
+    scale_grid = [round(s, 2) for s in np.linspace(0.6, 1.6, 21)]
+
+    shapes_gray = cv2.cvtColor(make_shapes_bgr(), cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(shapes_gray, 50, 150)
 
     results: list[tuple[str, bool, str]] = []
 
@@ -157,6 +216,41 @@ def _grade() -> None:
         return (got == ref and ref > 0, f"線分数={got} (期待 {ref})")
     check("ex5_count_line_segments", _c5)
 
+    # ex6: 対応点配列の形・型・中身が模範解答と一致するか。
+    def _c6():
+        good = _sol_ex1(knn, 0.75)
+        src, dst = ex6_matched_points(k1, k2, good)
+        rsrc, rdst = _sol_ex6(k1, k2, good)
+        shape_ok = (src.shape == rsrc.shape == (len(good), 1, 2)
+                    and dst.shape == rdst.shape)
+        dtype_ok = (src.dtype == np.float32 and dst.dtype == np.float32)
+        val_ok = (np.allclose(src, rsrc) and np.allclose(dst, rdst))
+        return (bool(shape_ok and dtype_ok and val_ok),
+                f"src.shape={src.shape} dtype={src.dtype}")
+    check("ex6_matched_points", _c6)
+
+    # ex7: crossCheck の対応数が模範解答と一致するか（決定的）。
+    def _c7():
+        got = ex7_cross_check_count(d1, d2, cv2.NORM_HAMMING)
+        ref = _sol_ex7(d1, d2, cv2.NORM_HAMMING)
+        return (got == ref and ref > 0, f"対応数={got} (期待 {ref})")
+    check("ex7_cross_check_count", _c7)
+
+    # ex8: マルチスケール最良倍率が正しい 1.3 付近か（模範解答とも一致）。
+    def _c8():
+        got = ex8_best_template_scale(big_scene, template, scale_grid)
+        ref = _sol_ex8(big_scene, template, scale_grid)
+        return (abs(got - ref) < 1e-6 and abs(got - 1.3) <= 0.1,
+                f"最良scale={got} (期待 {ref}, 真値1.3)")
+    check("ex8_best_template_scale", _c8)
+
+    # ex9: 円の個数が模範解答と一致するか（決定的）。
+    def _c9():
+        got = ex9_count_hough_circles(shapes_gray, 30)
+        ref = _sol_ex9(shapes_gray, 30)
+        return (got == ref and ref > 0, f"円数={got} (期待 {ref})")
+    check("ex9_count_hough_circles", _c9)
+
     print("=== 採点結果 ===")
     all_ok = True
     for name, ok, detail in results:
@@ -168,7 +262,7 @@ def _grade() -> None:
 
 # =====================================================================
 # 模範解答（SHOW_SOLUTION=1 のときに本体へ差し替えて実行）
-# まずは自力で解いてから見ること。
+# まずは自力で解いてから見ること。完全版は exercises_solutions.py にもある。
 # =====================================================================
 
 def _sol_ex1(knn_matches, ratio=0.75):
@@ -211,6 +305,37 @@ def _sol_ex5(edges, threshold):
     return 0 if lines is None else len(lines)
 
 
+def _sol_ex6(kp1, kp2, good):
+    src = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+    dst = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+    return src, dst
+
+
+def _sol_ex7(des1, des2, norm_type):
+    bf = cv2.BFMatcher(norm_type, crossCheck=True)
+    return len(bf.match(des1, des2))
+
+
+def _sol_ex8(scene, template, scales):
+    best_score, best_scale = -1.0, -1.0
+    for scale in scales:
+        interp = cv2.INTER_AREA if scale < 1.0 else cv2.INTER_CUBIC
+        tmpl = cv2.resize(template, None, fx=scale, fy=scale, interpolation=interp)
+        if tmpl.shape[0] >= scene.shape[0] or tmpl.shape[1] >= scene.shape[1]:
+            continue
+        res = cv2.matchTemplate(scene, tmpl, cv2.TM_CCOEFF_NORMED)
+        _min_v, max_v, _min_l, _max_l = cv2.minMaxLoc(res)
+        if max_v > best_score:
+            best_score, best_scale = float(max_v), float(scale)
+    return best_scale
+
+
+def _sol_ex9(gray, param2):
+    res = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, dp=1, minDist=40,
+                           param1=120, param2=param2, minRadius=20, maxRadius=80)
+    return 0 if res is None else res.shape[1]
+
+
 def _install_solutions() -> None:
     """模範解答で TODO 関数を差し替える（教材検証・答え合わせ用）。"""
     g = globals()
@@ -219,6 +344,10 @@ def _install_solutions() -> None:
     g["ex3_norm_for"] = _sol_ex3
     g["ex4_template_topleft"] = _sol_ex4
     g["ex5_count_line_segments"] = _sol_ex5
+    g["ex6_matched_points"] = _sol_ex6
+    g["ex7_cross_check_count"] = _sol_ex7
+    g["ex8_best_template_scale"] = _sol_ex8
+    g["ex9_count_hough_circles"] = _sol_ex9
 
 
 if __name__ == "__main__":

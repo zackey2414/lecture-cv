@@ -1,6 +1,6 @@
 # 第1回 画像の基礎 — ndarray表現・BGR/RGB・OpenCV/Pillow I/O・headless表示
 
-> トラック: 画像の基礎 ／ レベル: 入門 ／ 依存: numpy・opencv-python・pillow・matplotlib のみ（torch/faiss は使いません）
+> トラック: 画像の基礎 ／ レベル: 入門 ／ 依存: numpy・opencv-python-headless・pillow・matplotlib のみ（torch/faiss は使いません）
 
 ## 🎯 この章のゴール
 
@@ -146,7 +146,7 @@ naive     = bgr + add          # 255 を超えると巻き戻る（オーバー�
 saturated = cv2.add(bgr, add)  # 255 で頭打ち（飽和）
 ```
 
-このポイントの本質は「`uint8` の演算では値域を意識せよ」ということです。安全策として、複雑な計算をするときは一度 `astype(np.int16)` や `astype(np.float32)` で広い型に変換し、計算し終えてから `np.clip(x, 0, 255).astype(np.uint8)` で戻す、というパターンもよく使います。「画像の足し算・掛け算は型のことを考える」——これを忘れると、原因不明の汚い画像に悩まされます。
+このポイントの本質は「`uint8` の演算では値域を意識せよ」ということです。安全策として、複雑な計算をするときは一度 `astype(np.int16)` や `astype(np.float32)` で広い型に変換し、計算し終えてから `np.clip(x, 0, 255).astype(np.uint8)` で戻す、というパターンもよく使います（演習9でこれを手作りします）。「画像の足し算・掛け算は型のことを考える」——これを忘れると、原因不明の汚い画像に悩まされます。
 
 ## 9. Pillow 入門と PIL ↔ numpy ↔ cv2 の相互変換
 
@@ -174,7 +174,7 @@ assert np.array_equal(bgr, back)              # 1周して一致 = 変換が正�
 
 ## 10. headless 表示 — `cv2.imshow` の罠と安全な代替
 
-最後は「結果をどう見るか」です。チュートリアルでよく出てくる `cv2.imshow(name, img)` + `cv2.waitKey(0)` は、**GUI バックエンド（GTK や Qt）が動く環境でしか使えません**。Docker コンテナ、SSH 越しのサーバ、CI、そして多くの「ディスプレイの無い」環境では、ウィンドウを開けずにエラーになるか、最悪の場合 **Qt が `try/except` でも捕まえられない強制終了（abort）を起こしてプロセスごと落ちます**。本講座が CPU・headless 前提である以上、`imshow` を既定の表示手段にしてはいけません。
+最後は「結果をどう見るか」です。チュートリアルでよく出てくる `cv2.imshow(name, img)` + `cv2.waitKey(0)` は、**GUI バックエンド（GTK や Qt）が動く環境でしか使えません**。Docker コンテナ、SSH 越しのサーバ、CI、そして多くの「ディスプレイの無い」環境では、ウィンドウを開けずにエラーになるか、最悪の場合 **Qt が `try/except` でも捕まえられない強制終了（abort）を起こしてプロセスごと落ちます**。本講座が CPU・headless 前提である以上、`imshow` を既定の表示手段にしてはいけません（そもそも `opencv-python-headless` には `imshow` 自体が含まれません）。
 
 そこで本講座の方針は明快です。**結果は「画面に出す」のではなく「`outputs/` に保存して後で見る」**。保存手段は2つあり、`cv2.imwrite`（BGR のまま渡せる・最も手軽）と、matplotlib です。matplotlib を使うときは、**import の前に** `matplotlib.use("Agg")` で画面不要の Agg バックエンドに固定するのが肝心で、これで `DISPLAY` が無くても `savefig` が確実に動きます。matplotlib は RGB 前提なので、`imshow` に渡す前に `BGR2RGB` を忘れないでください。
 
@@ -201,13 +201,113 @@ plt.imsave("out2.png", rgb)    # 方法B: matplotlib で保存（RGB に変換�
 | `02_bgr_rgb_pitfall.py` | BGR↔RGB の食い違いを目で確認、`cvtColor`、`uint8` オーバーフロー vs `cv2.add` 飽和 |
 | `03_pillow_numpy_interop.py` | Pillow の `size`/`mode`、PIL↔numpy↔cv2 ラウンドトリップ、`resize`/`crop`/`rotate`/`ImageDraw`/filter |
 | `04_display_headless.py` | `imshow` の罠、matplotlib(Agg) と `imwrite` での保存、`CV_SHOW`/`DISPLAY` 二重ガード、コンタクトシート |
-| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `mini_project.py` | **章末ミニプロジェクト**。この回の全要素を統合した「画像 I/O ＆ 色順サニティ・ツールキット」 |
+| `exercises.py` | TODO 形式の演習10問（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `exercises_solutions.py` | 演習の完全な模範解答（実行すると全10問 PASS） |
 
 表の通り、`cv_helpers.py` だけは「読み物」ではなく「再利用する道具」です。中身も豊富にコメントしてあるので、最初に一読してから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。
 
+---
+
+## 🛠 章末ミニプロジェクト — 画像 I/O ＆ 色順サニティ・ツールキット（`mini_project.py`）
+
+この回で学んだ要素を1本に統合する総合課題です。「1枚の画像を入口に、自分一人で・画面が無くても・確実に I/O と色順を検証できる小さな健康診断ツール」を完成させます。`mini_project.py` を実行すると、`get_sample_bgr()` で得た画像（`data/sample.jpg` があればそれを優先）に対して、次の検証を一気通貫で行います。
+
+1. **素性の観察** — `shape` / `dtype` / 値域 / カラーかグレーかを JSON 化（`inspect_image`）。
+2. **3経路の正しい保存** — `cv2.imwrite`（BGR のまま）/ Pillow（RGB へ変換）/ matplotlib（RGB へ変換）で保存し、わざと変換し忘れた失敗例（`mini_pil_wrong.png`）も並べる（`save_three_libraries`）。
+3. **ラウンドトリップ検証** — `cv2(BGR)→PIL(RGB)→numpy→cv2(BGR)` が完全一致するか（`verify_roundtrip`）。
+4. **日本語パス検証** — `ミニ_日本語パス.png` で保存→読み戻しが画素一致で往復できるか（`verify_unicode_io`）。
+5. **オーバーフロー実演** — 明るさ `+120` を numpy `+`（巻き戻り）と `cv2.add`（飽和）で比較し、数値と画像で示す（`overflow_demo`）。
+6. **比較パネル** — 上の要点を2行×3列の1枚（`mini_panel.png`）にまとめ、JSON とテキストのレポートも出力する。
+
+```
+=== 画像 I/O ＆ 色順サニティ・ツールキット ===
+  画像: shape=[240, 320, 3] dtype=uint8 min/max=0/255 color=True
+  検証:
+    [OK] roundtrip_equal
+    [OK] pil_color_preserved
+    [OK] unicode_io_equal
+  uint8 +120: numpy+=[119, 119, 119] (巻き戻り) / cv2.add=[255, 255, 255] (飽和)
+  全検証パス: True
+```
+
+ねらいは「**この章の地雷（色順・次元・型）をすべて自動で踏み抜いて、踏まずに済む書き方を1つのツールに固める**」こと。出力は `outputs/01_image_basics/mini_panel.png` ／ `mini_report.json` ／ `mini_report.txt` に保存されます。`mini_panel.png` を開いて、「正しい色 / 赤青が入れ替わった失敗例 / グレー / オーバーフロー / 飽和 / R チャンネル」を目で見比べてください。
+
+---
+
+## ✅ 到達チェックリスト
+
+自分の言葉で説明でき、AI 補助なしでコードを書ける状態を目指します。
+
+- [ ] 画像が `(H, W, 3)` の `uint8` numpy 配列であることを、`shape` / `dtype` / 値域の観点で説明できる。
+- [ ] `img[y, x]` が「行(y)→列(x)」の順であり、`img[x, y]` ではないと説明できる。
+- [ ] OpenCV の画素並びが **BGR**（R は index 2）であることを言え、`img[:, :, 2]` が R だと分かる。
+- [ ] `cv2.imread` の `IMREAD_COLOR` / `GRAYSCALE` / `UNCHANGED` で戻り値の次元が変わることを説明できる。
+- [ ] `cv2.imread` が失敗時に **例外でなく `None`** を返すことを知り、読み込み直後の `None` チェックを書ける。
+- [ ] 日本語(非ASCII)パスを `np.fromfile`+`imdecode` / `imencode`+`tofile` で安全に読み書きできる。
+- [ ] **BGR↔RGB** の食い違いを説明でき、PIL / matplotlib へ渡す前に `cv2.cvtColor(BGR2RGB)` を入れられる。
+- [ ] グレースケールが `(H, W)` の2次元であること、`GRAY2BGR` で3chへ戻せることを使い分けられる。
+- [ ] `uint8` の `numpy +`（巻き戻り）と `cv2.add`（飽和）の違いを説明し、用途で選べる。
+- [ ] 広い型 + `np.clip` で飽和を手作りでき、`cv2.add` と一致させられる。
+- [ ] `cv2(BGR)→PIL(RGB)→numpy→cv2(BGR)` のラウンドトリップが一致することを確認できる。
+- [ ] `cv2.imshow` が headless で危険な理由を説明し、`imwrite` / matplotlib(Agg) 保存に切り替えられる。
+
+---
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+まず「症状 → 原因 → 対処」の早見表です。実装中に詰まったら最初にここを見てください。第1回でつまずく原因は、ほぼこの6つに集約されます。
+
+| 症状 | ほぼ確実な原因 | 対処 |
+| --- | --- | --- |
+| `AttributeError: 'NoneType' object has no attribute 'shape'` | `imread` が `None` を返している（パス間違い・ファイル破損） | 読み込み直後に `None` チェック。`load_bgr_checked` を使う |
+| 赤と青が入れ替わって見える | BGR の配列を RGB として渡した | 外部へ渡す前に `cv2.cvtColor(BGR2RGB)` |
+| 明るくしたら一部が暗くなった/ノイズが出た | `uint8` オーバーフロー（numpy の `+`） | `cv2.add` を使う、または広い型で計算して `clip` |
+| `(240, 320)` と `(240, 320, 3)` で形が合わず落ちる | グレー(2次元)とカラー(3次元)の取り違え | `cvtColor(GRAY2BGR)` で揃える。`shape` を確認 |
+| 日本語パスで読み書きが失敗する | `imread`/`imwrite` が非ASCIIパス非対応 | `np.fromfile`+`imdecode` / `imencode`+`tofile` |
+| `imshow` でフリーズ/プロセスごと落ちる | headless 環境で GUI バックエンドが無い | `imwrite`/matplotlib(Agg) で保存。`DISPLAY` を確認 |
+
+**Q. `module 'cv2' has no attribute 'imshow'` と言われた**
+A. `opencv-python-headless` を入れているからです。これは仕様（GUI 機能を除いた軽量版）で、本講座は headless 前提です。表示は `cv2.imwrite` か matplotlib(Agg) の保存に切り替えてください。`opencv-python`（full）と headless を**同時にインストールしてはいけません**（`cv2` 名前空間が衝突します）。
+
+**Q. `cv2.add(img, 100)` が思った色にならない**
+A. スカラー `100` は**第0チャンネル（B）だけ**に足されます。全チャンネルへ一様に足したいときは `cv2.add(img, np.full_like(img, 100))` のように配列で渡すか、`(100, 100, 100, 0)` のように4要素のスカラータプルを渡してください。
+
+**Q. `Image.fromarray(arr)` で `TypeError` / 色がおかしい**
+A. (1) `arr` の `dtype` が `uint8` でない（`float64` のまま）と失敗します。`arr.astype(np.uint8)`（必要なら `clip` 後）にしてください。(2) `dtype` が合っていても色が変なら、BGR を渡している可能性大。`cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)` してから渡します。
+
+**Q. `np.asarray(pil)` を書き換えようとしたら `ValueError: assignment destination is read-only`**
+A. `np.asarray` は多くの場合コピーを作らず読み取り専用ビューを返します。書き換えたいときは `np.array(pil)`（コピー）を使うか `.copy()` してください。
+
+**Q. `cv2.resize` のサイズ指定で縦横が逆になった**
+A. `cv2.resize(img, (W, H))` の `dsize` は **(幅, 高さ)** の順で、numpy の `shape=(H, W)` とは逆です。第3回で詳しく扱いますが、「PIL の `size` と cv2 の `dsize` は (W, H)、numpy の `shape` は (H, W)」と覚えてください。
+
+**Q. matplotlib で `savefig` しても画像が出ない / エラーになる**
+A. `import matplotlib.pyplot` より**前に** `matplotlib.use("Agg")` を呼べているか確認してください。順序が逆だと、DISPLAY の無い環境で別のバックエンドが選ばれて失敗します。
+
+**Q. JPEG を編集して保存し直すたびに画質が落ちる**
+A. JPEG は非可逆圧縮なので、開く→保存を繰り返すと劣化が蓄積します。加工途中は PNG（可逆）で持ち回り、最後だけ JPEG にするのが鉄則です。
+
+---
+
+## 🚀 発展トピック・参考
+
+- **値域の正規化**: 深層学習の前処理では `uint8`(0–255) を `float32`(0.0–1.0、さらに mean/std で標準化) へ変換します。`img.astype(np.float32) / 255.0` が基本形。逆に保存時は `(x*255).clip(0,255).astype(np.uint8)` で戻します（第12回で本格的に扱います）。
+- **チャンネルの軸位置（HWC vs CHW）**: OpenCV/PIL は `(H, W, C)` ですが、PyTorch のテンソルは `(C, H, W)`。`np.transpose(img, (2,0,1))` や `torch.from_numpy(img).permute(2,0,1)` で並べ替えます。色順(BGR/RGB)と軸順(HWC/CHW)は**別の問題**なので、両方を区別して意識してください。
+- **EXIF Orientation**: スマホ写真は画素を回さず「向き情報」だけを EXIF に持つことがあり、無視すると横倒しで読まれます。`PIL.ImageOps.exif_transpose` で正規化します（第3回で扱います）。
+- **16bit / float 画像**: 医療・HDR・深度などでは `uint16` や `float32` の画像も登場します。`uint8` 前提の表示・保存コードはそのままだと破綻するので、`dtype` を必ず確認する癖を。
+- **ICC プロファイル・色管理**: 厳密な色再現が要る用途では sRGB 等のカラープロファイルも絡みますが、本講座の範囲では「BGR/RGB の入れ替え」に集中すれば十分です。
+- 公式ドキュメント:
+  - OpenCV-Python チュートリアル: https://docs.opencv.org/4.x/d6/d00/tutorial_py_root.html
+  - Pillow（PIL）ハンドブック: https://pillow.readthedocs.io/en/stable/
+  - NumPy 配列の基礎: https://numpy.org/doc/stable/
+  - Matplotlib（画像表示）: https://matplotlib.org/stable/
+
+---
+
 ## 12. 動かし方
 
-このモジュールは `numpy` / `opencv-python` / `pillow` / `matplotlib` だけに依存し、GPU もネット接続も不要です。サンプル画像が無くても合成画像が自動生成されるので、いきなり実行できます（`data/sample.jpg` を置けば、そちらが優先して使われます）。プロジェクトルートで以下を順に実行してください。
+このモジュールは `numpy` / `opencv-python-headless` / `pillow` / `matplotlib` だけに依存し、GPU もネット接続も不要です。サンプル画像が無くても合成画像が自動生成されるので、いきなり実行できます（`data/sample.jpg` を置けば、そちらが優先して使われます）。プロジェクトルートで以下を順に実行してください。
 
 ```bash
 # 依存をインストール（初回のみ）
@@ -219,39 +319,29 @@ uv run python lectures/01_image_basics/02_bgr_rgb_pitfall.py
 uv run python lectures/01_image_basics/03_pillow_numpy_interop.py
 uv run python lectures/01_image_basics/04_display_headless.py
 
-# 演習: まずは TODO を自分で埋める（最初は全部 FAIL）
+# 章末ミニプロジェクト（統合課題。図/JSON/テキストを outputs/ に出す）
+uv run python lectures/01_image_basics/mini_project.py
+
+# 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
 uv run python lectures/01_image_basics/exercises.py
-# どうしても分からない時だけ、模範解答の挙動を見る
-SHOW_SOLUTION=1 uv run python lectures/01_image_basics/exercises.py
+# どうしても分からない時だけ、模範解答の挙動を見る（全 PASS）
+uv run python lectures/01_image_basics/exercises_solutions.py
+#   または: SHOW_SOLUTION=1 uv run python lectures/01_image_basics/exercises.py
 
 # （任意）ローカルにGUIがある場合のみ、ウィンドウ表示を試す
 CV_SHOW=1 uv run python lectures/01_image_basics/04_display_headless.py
 ```
 
-実行後は `outputs/01_image_basics/` に生成された PNG/JPEG を画像ビューアで開き、解説と照らし合わせてください。特に `02_pil_wrong_swapped.png`（赤青が入れ替わった失敗例）と `02_pil_correct.png`（正しい色）、`02_matplotlib_compare.png`（左右比較）を見比べると、BGR/RGB の食い違いが一目で腑に落ちます。`02_overflow_numpy_plus.png` と `02_overflow_cv2_add.png` の違いからは、オーバーフローと飽和の差を視覚的に確認できます。
+実行後は `outputs/01_image_basics/` に生成された PNG/JPEG を画像ビューアで開き、解説と照らし合わせてください。特に `02_pil_wrong_swapped.png`（赤青が入れ替わった失敗例）と `02_pil_correct.png`（正しい色）、`02_matplotlib_compare.png`（左右比較）を見比べると、BGR/RGB の食い違いが一目で腑に落ちます。`02_overflow_numpy_plus.png` と `02_overflow_cv2_add.png` の違いからは、オーバーフローと飽和の差を視覚的に確認できます。仕上げに `mini_panel.png` を開けば、この章の要点が1枚に集約されています。
 
-## 13. よくあるエラーと対処（チェックリスト）
-
-最後に、この章の内容を「症状 → 原因 → 対処」の形で一覧にまとめます。実装中に詰まったら、まずここを見てください。多くの不具合は、この章で扱った数個の原因に集約されます。
-
-| 症状 | ほぼ確実な原因 | 対処 |
-| --- | --- | --- |
-| `AttributeError: 'NoneType' object has no attribute 'shape'` | `imread` が `None` を返している（パス間違い・ファイル破損） | 読み込み直後に `None` チェック。`load_bgr_checked` を使う |
-| 赤と青が入れ替わって見える | BGR の配列を RGB として渡した | 外部へ渡す前に `cv2.cvtColor(BGR2RGB)` |
-| 明るくしたら一部が暗くなった/ノイズが出た | `uint8` オーバーフロー（numpy の `+`） | `cv2.add` を使う、または広い型で計算して `clip` |
-| `(240, 320)` と `(240, 320, 3)` で形が合わず落ちる | グレー(2次元)とカラー(3次元)の取り違え | `cvtColor(GRAY2BGR)` で揃える。`shape` を確認 |
-| 日本語パスで読み書きが失敗する | `imread`/`imwrite` が非ASCIIパス非対応 | `np.fromfile`+`imdecode` / `imencode`+`tofile` |
-| `imshow` でフリーズ/プロセスごと落ちる | headless 環境で GUI バックエンドが無い | `imwrite`/matplotlib(Agg) で保存。`DISPLAY` を確認 |
-
-この表の6項目が、第1回でつまずく原因のほぼ全てです。逆に言えば、この6つを自分で説明でき・回避コードを書けるようになれば、この章のゴールに到達しています。
-
-## 14. まとめ
+## 13. まとめ
 
 この章では、画像が `(H, W, 3)` の `uint8` numpy 配列であるという根本から出発し、OpenCV/Pillow の入出力、`IMREAD_*` フラグ、`None` 戻り値、日本語パス、そして最重要の BGR/RGB の食い違い、グレースケールの次元、`uint8` オーバーフロー、PIL↔numpy↔cv2 の相互変換、headless での安全な表示までを、すべて「自分で再現し回避できる」レベルで扱いました。派手さはありませんが、ここが今後すべての画像処理の地盤になります。
 
-次回以降は、この地盤の上に色空間変換・閾値処理・フィルタ・幾何変換などを積み上げていきます。本章の `cv_helpers.py` のような「自分の手に馴染んだ I/O ヘルパ」を一つ持っておくと、以降の学習でいちいち定型処理に煩わされずに済みます。まずは演習を自力で全問 PASS させて、I/O と色順の感覚を体に入れてから次へ進んでください。
+次回以降は、この地盤の上に色空間変換・閾値処理・フィルタ・幾何変換などを積み上げていきます。本章の `cv_helpers.py` のような「自分の手に馴染んだ I/O ヘルパ」を一つ持っておくと、以降の学習でいちいち定型処理に煩わされずに済みます。まずは演習を自力で全問 PASS させ、章末ミニプロジェクトの全検証を緑にしてから次へ進んでください。
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
-> Python 3.12 ／ numpy 2.4.6 ／ opencv-python 4.13.0.92（`cv2` 4.13.0）／ Pillow 12.2.0 ／ matplotlib 3.10.9
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
+> Python 3.12 ／ numpy 2.4（2.4.6）／ opencv-python-headless 4.13（`cv2` 4.13.0）／ Pillow 12.2（12.2.0）／ matplotlib 3.10（3.10.9）。
+> 本章は torch を使いません（torch を使う回は 2.12+cpu を前提）。すべて CPU・合成データ・ネット不要で動作し、結果は `outputs/01_image_basics/` に保存します（画面表示には依存しません）。
