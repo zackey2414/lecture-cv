@@ -176,9 +176,70 @@ feat = model.get_image_features(pixel_values=pv).pooler_output  # .pooler_output
 | `01_zeroshot_pipeline.py` | `pipeline("zero-shot-image-classification")` で最短ゼロショット。candidate_labels・top-1 accuracy・スコア棒グラフ |
 | `02_clip_siglip_manual.py` | `CLIPProcessor`+`CLIPModel` 手書き、埋め込みの非対称（未正規化）検証、CLIP softmax vs SigLIP sigmoid（該当なし比較） |
 | `03_text_image_retrieval.py` | 正規化＋コサイン＋topk で text→image / image→image 検索、Recall@k・mAP・MRR、高ノルム distractor 実験 |
-| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `mini_project.py` | 章末の統合課題。プロンプト・アンサンブル → 検索評価 → 正規化アブレーション → 開集合の棄却（CLIP コサイン閾値 / SigLIP sigmoid）を1本に通す完成形 |
+| `exercises.py` | TODO 形式の演習9問（易→難、自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
+| `exercises_solutions.py` | 演習の模範解答（全問 PASS）。採点ロジックは `exercises.py` を再利用し、解答実装だけを保持（重複なし） |
 
 表のとおり `clip_helpers.py` だけは「読み物」ではなく「再利用する道具」です。とくに `clip_image_embeds`/`clip_text_embeds`（`.pooler_output` を返すだけ＝**未正規化**）と `build_collection`（色×形の12枚）が、3スクリプト全部の土台になっています。まず helper を一読してから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。
+
+## 🛠 章末ミニプロジェクト — ゼロショット検索＆タグ付けエンジン（棄却つき）
+
+ここまでの学び（埋め込み → 正規化 → コサイン → 確率解釈 → 評価）を**1本に統合**するのが `mini_project.py` です。合成コレクション（色×形の12枚）に対して、実運用の検索エンジンが踏む4ステージを通しで実行し、`outputs/16_clip_zeroshot_retrieval/mini_project_summary.png`（4パネル要約）と `mini_project_report.json`（全数値）を出力します。CPU で数十秒、ネットは初回のモデル重みDLのみです。
+
+- **Stage A: プロンプト・アンサンブル**（§2/§3 の発展）。ラベルを `"a photo of a {x}"` 1本で埋め込む「単一テンプレ」と、5種のテンプレ（`"an image of a {x}"`, `"a {x} on a plain background"` …）を**各々正規化 → 平均 → 再正規化**した「アンサンブル」を比較します。実測は単一/アンサンブルとも **accuracy = 0.917**、平均マージン（top1−top2）は **0.0355 / 0.0337** とほぼ互角。この合成セットは易しいので差は僅少ですが、CLIP 論文が80テンプレを平均するのは、**実データ・曖昧なクラス・語彙のゆらぎで分散を均す**ためだ、という勘所を体感します（「単純な手法ほど効く場面を見極める」のが master の視点）。
+- **Stage B: text→image 検索エンジン**（§6/§7）。アンサンブル重みをクエリに使い、正規化＋コサイン＋topk で検索して **Recall@1 = 0.917 / Recall@5 = 1.00 / mAP = 0.958 / MRR = 0.958**。
+- **Stage C: 正規化アブレーション**（§4/§8）。1枚だけ埋め込みノルムを6倍にした distractor を入れ、**コサイン（mAP 0.958）** と **生内積（mAP 0.528）** を比べて「大きさに釣られる」崩壊を再現します。
+- **Stage D: 開集合と棄却**（§5）。語彙に**無い**クエリ（`cat` / `wooden chair` / `purple star`）を「該当なし」と判定できるかを2方式で検証します。**CLIP のコサイン最大値**は in-vocab `[0.30, 0.34, 0.34]` と oov `[0.23, 0.22, 0.25]` に**綺麗に分離**し（gap=0.043）、中点 0.276 を閾値に棄却できます。**SigLIP の sigmoid** は in-vocab `[0.93, 0.96, 0.99]` に対し oov は**すべて 0.00**で、固定閾値 0.5 で自然に棄却できます。softmax は必ずどれかを選ぶ＝棄却できない、という第5節の含意を「検索の棄却」という実用文脈で締めくくります。
+
+```bash
+uv run python lectures/16_clip_zeroshot_retrieval/mini_project.py
+# → outputs/16_clip_zeroshot_retrieval/mini_project_summary.png, mini_project_report.json
+```
+
+このミニプロジェクトを自分の手で読み解き、4つの数字（margin・mAP・mAP崩壊・棄却の分離 gap）が**何を測っているか**を説明できれば、本章のゴールに到達しています。
+
+## ✅ 到達チェックリスト
+
+次の項目をすべて「コードで再現でき、理由を一言で説明できる」状態を目標にしてください。
+
+- [ ] **ゼロショットの原理**: CLIP が画像と文を同じ空間に射影し、候補ラベルを**文に変換**してコサインで照合する流れを説明できる。
+- [ ] **pipeline → 手書き**: `pipeline("zero-shot-image-classification")` の結果を、`CLIPProcessor`＋`CLIPModel`＋`softmax` で**再現**できる（§2→§3）。
+- [ ] **埋め込みの非対称**: `get_*_features(...).pooler_output` は**未正規化**、`forward` の `logits_per_image` は**正規化済み**、という差を `torch.allclose` で確認できる（§4）。
+- [ ] **正規化の必須性**: `F.normalize` を入れた**コサイン**と、入れない**生内積**でスコア値域・ランキングが変わることを示せる（§8）。
+- [ ] **softmax vs sigmoid**: CLIP の `softmax`（合計1・相互排他）と SigLIP の `sigmoid`（独立・該当なしを表現）の違いを、「該当なし」ケースで説明できる（§5）。
+- [ ] **検索の実装**: 画像コレクションを埋め込み・正規化し、テキスト/画像クエリで `topk` 検索（image→image は自己除外）を書ける（§6）。
+- [ ] **評価指標**: Recall@k・mAP・MRR を `torchmetrics.functional.retrieval` で**クエリ別→平均**して算出できる（§7）。
+- [ ] **温度 logit_scale**: 正規化埋め込みの内積に `logit_scale.exp()` を掛けると `forward` の logits に一致することを再構成できる（演習8）。
+- [ ] **棄却**: コサイン閾値や sigmoid で「該当なし（-1）」を返せる＝**開集合**を扱える（演習9・ミニプロジェクト Stage D）。
+- [ ] **v5 の作法**: `AutoImageProcessor`（fast 専用・torchvision 必須）、`.pooler_output`、`HF_HOME` キャッシュを把握している（§10）。
+- [ ] **演習**: `exercises.py` を9問すべて自力で PASS させた（`exercises_solutions.py` で答え合わせ）。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+§13 に「症状 → 原因 → 対処」の早見表があります。ここではその表に載らない**判断の指針**と、つまずいたときの**切り分け手順**を補足します。
+
+**Q1. 検索結果がそれっぽいのに、ときどき変なものが上位に来る。** まず `F.normalize` を**画像・クエリの両方**に掛けているか確認します。次に、埋め込み行列の各行ノルムを `emb.norm(dim=-1)` で出し、`1.0` に揃っているかを見ます。揃っていなければ正規化漏れです。ミニプロジェクト Stage C のように、1枚だけノルムが大きいと**そのアイテムが検索を乗っ取る**のが典型です。
+
+**Q2. CLIP の確率が「該当なし」でも高く出る。これは壊れている?** いいえ、仕様です。CLIP の `softmax` は**候補内で相互排他**なので、正解が候補に無くても「一番マシ」に確率を寄せます（§5）。「該当なし」を扱いたいなら、SigLIP の `sigmoid` か、コサインの**閾値**（ミニプロジェクト Stage D）で棄却を実装します。
+
+**Q3. `get_image_features(...)` の戻り値に `.norm()` を呼んだら AttributeError。** v5 では戻り値が `BaseModelOutputWithPooling` オブジェクトです。`.pooler_output` でテンソルを取り出してから演算します（§4/§10）。
+
+**Q4. SigLIP だけ結果がおかしい / エラーになる。** SigLIP の processor は `padding="max_length"` を期待します（CLIP の `padding=True` とは別）。また確率は `sigmoid()` で読みます（`softmax` ではない）。トークナイザに `sentencepiece` が要るので `hf` グループを入れてください。
+
+**Q5. 毎回モデルがダウンロードされて遅い（特に Docker / CI）。** `~/.cache/huggingface`（`HF_HOME`）をボリュームマウント or 永続化します。完全オフラインなら `HF_HUB_OFFLINE=1`。再現性重視なら `from_pretrained(..., revision="<commit>")` でコミット固定も検討します。
+
+**デバッグの切り分け順**: ①`emb.shape` と `emb.norm(dim=-1)`（次元・正規化の確認）→ ②スコア行列 `sims` の値域（コサインなら −1〜1、外れていれば正規化漏れ）→ ③`sims` の `argsort` 上位を**画像で目視**（数字だけ見ない）→ ④指標は**1クエリずつ**手計算と突き合わせ（§7 の Recall@1 と mAP を1本で検算）。この順で見ると、たいていの「検索が変」は正規化か device か padding に行き着きます。
+
+## 🚀 発展トピック・参考
+
+本章の骨格（埋め込み → 正規化 → コサイン → 評価/棄却）は、そのまま次章以降と実務に伸びます。
+
+- **大規模化（第17回 FAISS）**: 12枚の総当たりは行列積で済みますが、件数が増えると `faiss.IndexFlatIP` ＋ `faiss.normalize_L2`（本章のコサインそのもの）→ さらに `IVF`/`HNSW`/`PQ` で近似検索へ。本章の正規化の作法が前提知識になります。
+- **プロンプト設計**: ゼロショット精度はプロンプトに敏感です。CLIP 論文の80テンプレ平均、クラス名の言い換え（`"a photo of a dog"` vs `"a dog"`）、ドメイン特化テンプレ（`"a satellite photo of {x}"`）など。ミニプロジェクト Stage A を土台に、テンプレ集を差し替えて効果を測ってみましょう。
+- **他アーキ/重み**: SigLIP2・MetaCLIP・MobileCLIP（CPU 向け軽量）など。`open-clip`（`embed` グループ）で LAION 学習や蒸留版を同じ作法で扱えます。第39回（CLIP 蒸留）に接続します。
+- **高レベル API**: `sentence-transformers` の `SentenceTransformer("clip-ViT-B-32").encode(..., normalize_embeddings=True)` は本章の手書きを薄く包んだもの（§9）。素早くプロダクトを組むときの選択肢です。
+- **指標の深掘り（第14回）**: nDCG・Precision@k・retrieval mAP の補間方式など。`torchmetrics.retrieval` の各クラスを参照。
+- **公式ドキュメント**: [transformers CLIP](https://huggingface.co/docs/transformers/en/model_doc/clip) ／ [SigLIP](https://huggingface.co/docs/transformers/en/model_doc/siglip) ／ [torchmetrics retrieval](https://lightning.ai/docs/torchmetrics/stable/) ／ [OpenAI CLIP 論文](https://arxiv.org/abs/2103.00020) ／ [SigLIP 論文](https://arxiv.org/abs/2303.15343)。
 
 ## 12. 動かし方
 
@@ -194,10 +255,14 @@ uv run python lectures/16_clip_zeroshot_retrieval/01_zeroshot_pipeline.py
 uv run python lectures/16_clip_zeroshot_retrieval/02_clip_siglip_manual.py
 uv run python lectures/16_clip_zeroshot_retrieval/03_text_image_retrieval.py
 
+# 章末ミニプロジェクト（4ステージを統合した完成形。図 + JSON を出力）
+uv run python lectures/16_clip_zeroshot_retrieval/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
 uv run python lectures/16_clip_zeroshot_retrieval/exercises.py
-# どうしても分からない時だけ、模範解答の挙動を見る
+# どうしても分からない時だけ、模範解答の挙動を見る（2通りとも同じ採点ロジックを使う）
 SHOW_SOLUTION=1 uv run python lectures/16_clip_zeroshot_retrieval/exercises.py
+uv run python lectures/16_clip_zeroshot_retrieval/exercises_solutions.py   # 全問 PASS の確認
 
 # （任意）実画像で試す: data/16_clip_zeroshot_retrieval/ に .png/.jpg を置くと自動で使われる
 ```
@@ -230,6 +295,6 @@ SHOW_SOLUTION=1 uv run python lectures/16_clip_zeroshot_retrieval/exercises.py
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
+> 本教材で参照・検証したライブラリとバージョン（torch 2.12+cpu / torchvision 0.27+cpu / transformers 5.11 / faiss-cpu、2026-06 時点の安定版で動作確認）:
 > Python 3.12 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ transformers 5.11.0 ／ huggingface-hub 1.18.0 ／ timm 1.0.27 ／ safetensors 0.8.0 ／ sentencepiece 0.2.1 ／ torchmetrics 1.9.0 ／ scikit-learn 1.9.0 ／ faiss-cpu 1.14.2（第17回で使用）／ numpy 2.4.6 ／ Pillow 12.2.0 ／ matplotlib 3.10.9 ／ opencv-python-headless 4.13.0（合成画像の描画）
 > 使用モデル: `openai/clip-vit-base-patch32`（CLIP）／ `google/siglip2-base-patch16-224`（SigLIP2）。初回のみ HuggingFace から重みを取得しキャッシュします。

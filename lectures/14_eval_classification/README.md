@@ -147,9 +147,76 @@ device の扱いも実務的なポイントです。評価指標はすべて CPU
 | `01_confusion_matrix_prf.py` | 混同行列の自作、TP/FP/FN/TN、precision/recall/F1、macro/micro/weighted、top-k、不均衡の accuracy 罠 |
 | `02_roc_pr_auc.py` | ROC/PR 曲線の自作、台形則の ROC-AUC、ステップ和の AP、不均衡での ROC と PR の違い |
 | `03_torchmetrics_vs_manual.py` | torchmetrics の update→compute→reset、自作/sklearn/torchmetrics の三者一致、device の揃え方 |
-| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
+| `mini_project.py` | 章末ミニプロジェクト。評価指標を統合した「モデル評価レポート」を生成（モデル選択・しきい値最適化・ブートストラップ信頼区間・6 パネルのダッシュボード） |
+| `exercises.py` | TODO 形式の演習 8 問（易→難。自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
+| `exercises_solutions.py` | 演習の模範解答（全 PASS）。採点ロジックは `exercises.py` の `grade()` を再利用（二重定義なし） |
 
 表の通り `eval_helpers.py` だけは「読み物」ではなく「再利用する道具」です。中身も厚くコメントしてあるので、最初に一読してから 01 へ進むと、各スクリプトが何のデータで実験しているかが腑に落ちます。実データで試したい人は、自分の `(y_true, proba)` を作って同じ関数に流せばそのまま動きます。
+
+## 🛠 章末ミニプロジェクト — 「分類モデル評価レポート」を一枚にまとめる
+
+ここまでの 01〜03 は指標を一つずつ分解して学ぶ「部品」でした。`mini_project.py` は、それらを統合して**実務でそのまま提出できる評価レポートを 1 枚（6 パネルのダッシュボード）＋ JSON で吐く**総合課題です。題材は合成データ（完全 CPU・数秒で完走）ですが、設計は実プロジェクトの評価フローそのものです。digit 始まりの 01〜03 は import できないため、必要な計算は本ファイル内に自己完結で書き（共通の `eval_helpers` だけ借用）、自作値はすべて scikit-learn と `assert` で一致を確認しています。
+
+このミニプロジェクトには、本編 01〜03 には無い**マスター要素を3つ**足してあります。
+
+1. **モデル選択（accuracy の落とし穴の実演）** — 同じ正解データに対し「強い分類器（signal 大）」と「弱い分類器（signal 小）」を用意し、`accuracy` で選ぶのと `macro-F1 / macro-AP` で選ぶのを並べて表示します。不均衡では accuracy が多数派をなぞるだけで上振れするため、**少数クラスを対等に見る macro 系を主指標にする**、という選定の作法を数値で体感します。
+2. **しきい値最適化（目的で最適点は変わる）** — 二値サブタスクでスコアを降順に掃引し、`TP/FP` の累積から全しきい値の `precision/recall/F1` と `TPR/FPR` を一気に評価します。そのうえで **F1 を最大化するしきい値**と **Youden-J（`TPR−FPR`）を最大化するしきい値**を別々に求め、両者が一致しないこと・既定の `0.5` が最適とは限らないことを示します。「陽性を当てたい」のか「誤受入(FPR)を抑えたい」のかで選ぶしきい値が変わる、という運用判断を学びます。
+3. **ブートストラップ信頼区間（点推定で断じない）** — 評価セットを復元抽出して `macro-F1` を 500 回計算し、**95% 信頼区間**を求めます。評価値には必ずブレがあるため、0.001 の差で勝敗を言わず**区間で実力を語る**——これがマスター水準の評価作法です。
+
+```bash
+uv run python lectures/14_eval_classification/mini_project.py
+```
+
+出力は `outputs/14_eval_classification/mini_project_dashboard.png`（混同行列・クラス別 F1・ROC・PR・しきい値 vs F1・ブートストラップ分布の 6 枚）と `mini_project_report.json`（全指標・選定結果・最適しきい値・信頼区間）です。コンソールには上の3要素の要約が表示されます。**到達目標は「このレポートを自分で再現でき、各数値が何を意味し、なぜその指標で結論を出したかを説明できる」こと**です。
+
+## ✅ 到達チェックリスト
+
+この章を「マスターした」と言える基準です。すべて**手を動かして**確認してください（読んで分かった気にならない）。
+
+- [ ] 混同行列 `C[i,j]` の向き（行＝正解・列＝予測）を説明でき、`np.add.at` で自作して sklearn と一致させられる。
+- [ ] 混同行列から one-vs-rest で TP/FP/FN/TN を取り出し、precision/recall/F1 を**式から**計算できる（`FP は列・FN は行`）。
+- [ ] macro / micro / weighted の3平均が「何を平等に扱うか」を即答でき、不均衡で macro を主指標に選ぶ理由を言える。
+- [ ] top-k accuracy を `argsort` 1 行で書け、top-1 ≤ top-2 ≤ … となる理由を説明できる。
+- [ ] 「不均衡で accuracy が嘘をつく」例（常に多数派予測で高 accuracy・少数派 recall=0）を自分で再現できる。
+- [ ] ROC 曲線を降順掃引で打点し、台形則（`np.trapezoid`）で ROC-AUC を自作して `roc_auc_score` と一致させられる。
+- [ ] AP（PR-AUC）が**ステップ和**（`Σ(recall差)×precision`）であることを知り、台形則の `auc(recall,precision)` と区別できる。
+- [ ] 「ROC-AUC は不均衡に鈍感・AP は prevalence を映す」非対称を、曲線とベースライン（=陽性割合）で説明できる。
+- [ ] torchmetrics の `update→compute→reset` を回し、2 バッチに分けても全件計算と一致することを確認できる。`reset()` の必要性を言える。
+- [ ] F1 最適しきい値と Youden-J 最適しきい値を**別々に**求められ、両者が一致しないことを説明できる。
+- [ ] ブートストラップで指標の 95% 信頼区間を出せ、「CI が重なる2モデルは誤差の範囲で同等」と判断できる。
+- [ ] 演習 `exercises.py` を 8 問すべて自力で PASS させ、各自作値が scikit-learn と一致することを確認した。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+セクション 11 に「症状 → 原因 → 対処」の早見表があります。ここではそれを補う **Q&A** と、詰まったときの **デバッグ手順** をまとめます。
+
+**FAQ**
+
+- **Q. macro-F1 と weighted-F1、結局どっちを報告すべき？** — 「少数クラスの出来も同じ重みで評価したい」なら macro、「全体傾向を1値で代表したい・support の偏りを反映したい」なら weighted。**どちらか一方ではなく両方**出し、論文・他者比較では必ず `average` を明記します。多クラス単一ラベルでは micro-F1 = accuracy です。
+- **Q. 自作 AP が `average_precision_score` と微妙に合わない。** — ほぼ確実に**台形則で積んでいる**のが原因です。AP は短冊（ステップ）和 `Σ(recall_i − recall_{i−1})·precision_i`。`auc(recall, precision)`（台形）とは別物で、正準は前者です。`02_roc_pr_auc.py` / `ex7` の実装と見比べてください。
+- **Q. しきい値はどう決めればいい？** — 目的次第です。F1 を上げたいなら F1 最適しきい値、誤受入(FPR)を一定以下に抑えたいなら「FAR を固定して閾値を探索」、ROC 上で総合的にバランスを取りたいなら Youden-J。既定 `0.5` は確率較正済みでない限り最適とは限りません（`mini_project.py` で実演）。
+- **Q. ROC-AUC が高いのにモデルが使い物にならない。** — 不均衡が原因のことが多いです。ROC-AUC は順位指標で頻度に鈍感なので、**PR-AUC(AP) とベースライン（=陽性割合）を併記**し、少数クラスの recall / F1 を必ず見ます。
+- **Q. torchmetrics の値がエポックをまたいで増え続ける。** — `reset()` 忘れです。エポックの頭で `metric.reset()` を呼びます。`compute()` は状態を消さない点に注意。
+- **Q. `np.trapz` が無いと言われる。** — numpy 2.x で廃止されました。`np.trapezoid(y, x)` を使います（本講座は numpy 2.4）。
+
+**デバッグの定石**
+
+- 指標が想定とズレたら、**まず混同行列を print** する。precision と recall が入れ替わって見えるなら `axis` の取り違え（`cm.sum(0)`=列=予測側、`cm.sum(1)`=行=正解側）。
+- 自作値とライブラリ値を必ず `assert np.isclose(a, b, atol=1e-6)` で突き合わせる。落ちたら「定義違い（AP のステップ和 vs 台形）」「同点スコアの扱い」「`average` の不一致」を順に疑う。
+- 二値指標が `nan` になるなら、陽性 or 陰性が 0 件のバッチ（`n_pos=0` で 0 除算）を疑う。サブセット分割やしきい値掃引の端で起きやすい。
+- torchmetrics で `RuntimeError`（device 不一致）が出たら、`preds.device` と `target.device` を print。CPU なら両方 `cpu` に揃える。
+- 演習で FAIL が出たら、`exercises_solutions.py` を実行して**模範解答が PASS する採点条件**を確認し、自分の出力 shape / dtype / 0除算処理を見直す。
+
+## 🚀 発展トピック・参考
+
+この章の骨格（**混同行列 → PR 曲線 → 面積**）は、CV の評価のほぼ全てに展開できます。さらに深掘りするなら次の方向があります。
+
+- **確率較正（calibration）と ECE** — AUC は順位の指標で、出力確率が「本当の確率」とは限りません。信頼度ビンごとに精度を比べる Reliability Diagram と ECE（Expected Calibration Error）、温度スケーリングによる較正は、しきい値設計の前提を整える重要トピックです。
+- **多ラベル分類の評価** — 1 画像に複数ラベルが付く設定では、サンプル単位 / ラベル単位の平均（micro/macro/samples）や mAP（ラベルごとの AP 平均）を使います。本章の OvR 分解がそのまま土台になります。
+- **コスト考慮・運用しきい値** — 誤検出と見逃しのコストが非対称なとき、期待コスト最小のしきい値や `TAR@FAR`（顔認証）など、運用 FAR を固定して閾値を決める指標を使います（`mini_project.py` のしきい値最適化の発展）。
+- **統計的有意差** — ブートストラップ CI に加え、McNemar 検定（対応のある2分類器の差）や符号検定で「モデル差が偶然か」を検定できます。
+- **物体検出 mAP への接続（第19回）** — 検出評価は「予測を confidence 降順に並べ、IoU マッチングで TP/FP を決め、PR 曲線→AP→クラス平均=mAP」という流れで、まさに本章の `02_roc_pr_auc.py` の構造の拡張です。`mAP@0.5` と `mAP@[.5:.95]` の違い、PASCAL 11点 / COCO 101点補間まで進みます。
+- **参考ドキュメント** — scikit-learn [Model evaluation](https://scikit-learn.org/stable/modules/model_evaluation.html) ／ torchmetrics [Classification](https://lightning.ai/docs/torchmetrics/stable/) ／ 検索・埋め込みの Recall@k は第17回、CLIP zero-shot の評価は第16回で扱います。
 
 ## 10. 動かし方
 
@@ -164,13 +231,18 @@ uv run python lectures/14_eval_classification/01_confusion_matrix_prf.py
 uv run python lectures/14_eval_classification/02_roc_pr_auc.py
 uv run python lectures/14_eval_classification/03_torchmetrics_vs_manual.py
 
+# 章末ミニプロジェクト（評価レポートのダッシュボード＋JSON を生成）
+uv run python lectures/14_eval_classification/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL。それでも exit 0 で落ちない）
 uv run python lectures/14_eval_classification/exercises.py
-# どうしても分からない時だけ、模範解答の挙動を見る
+# どうしても分からない時だけ、模範解答（全 PASS）を見る
+uv run python lectures/14_eval_classification/exercises_solutions.py
+# あるいは exercises 側の採点ロジックで模範解答を確認（採点共有）
 SHOW_SOLUTION=1 uv run python lectures/14_eval_classification/exercises.py
 ```
 
-実行後は `outputs/14_eval_classification/` に生成された画像と JSON を確認してください。`01_confusion_matrix.png`（対角が濃いほど良い）、`02_roc_curve.png` と `02_pr_curve.png`（不均衡 vs 均衡の曲線。PR にはベースラインの点線）、`03_multiclass_compare.png`（torchmetrics と sklearn の棒が重なる＝一致）を、本文の解説と照らし合わせると理解が定着します。各 JSON には自作とライブラリ双方の数値が記録されているので、値の一致を自分の目でも確かめられます。
+実行後は `outputs/14_eval_classification/` に生成された画像と JSON を確認してください。`01_confusion_matrix.png`（対角が濃いほど良い）、`02_roc_curve.png` と `02_pr_curve.png`（不均衡 vs 均衡の曲線。PR にはベースラインの点線）、`03_multiclass_compare.png`（torchmetrics と sklearn の棒が重なる＝一致）、`mini_project_dashboard.png`（評価レポートの 6 パネル）を、本文の解説と照らし合わせると理解が定着します。各 JSON には自作とライブラリ双方の数値が記録されているので、値の一致を自分の目でも確かめられます。
 
 ## 11. よくある落とし穴（チェックリスト）
 
@@ -197,6 +269,6 @@ SHOW_SOLUTION=1 uv run python lectures/14_eval_classification/exercises.py
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点・CPU で動作確認）:
-> Python 3.12 ／ numpy 2.4.6 ／ scikit-learn 1.9.0 ／ torch 2.12.0+cpu ／ torchmetrics 1.9.0 ／ matplotlib 3.10.9。
-> 本講座の評価トラックの想定スタック（2026-06 時点）は torch 2.12+cpu / torchvision 0.27+cpu / scikit-learn 1.9 / torchmetrics 1.9 で、後続回では transformers 5.11・faiss-cpu も併用します（本回では未使用）。
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点・CPU で動作確認）:
+> Python 3.12 ／ numpy 2.4.6 ／ scikit-learn 1.9.0 ／ torch 2.12.0+cpu ／ torchvision 0.27+cpu ／ torchmetrics 1.9.0 ／ transformers 5.11 ／ faiss-cpu ／ matplotlib 3.10.9。
+> 本講座の評価トラックの想定スタック（2026-06 時点）は torch 2.12+cpu / torchvision 0.27+cpu / transformers 5.11 / faiss-cpu / scikit-learn 1.9 / torchmetrics 1.9 です（本回の計算は numpy・scikit-learn・torchmetrics で完結し、transformers・faiss は後続回で併用します）。

@@ -103,10 +103,12 @@ loss = -(same_mask * F.log_softmax(sim, 1)).sum(1) / same_mask.sum(1)
 | `embed_helpers.py` | 共有部品。`get_device`（cpu/mps/cuda 判定）、合成ラベル付きデータセット、`l2_normalize` / `knn_accuracy` / `recall_at_k` |
 | `01_vit_resnet_embeddings.py` | `ViTModel` / `ResNetModel` / `timm` から埋め込み抽出。`last_hidden_state` と `pooler_output` の形の違い、ViT pooler 未学習の罠、コサイン類似度ヒートマップ |
 | `02_knn_recall_eval.py` | kNN 分類精度と Recall@k で埋め込み品質を評価。4 手法の横並び比較、L2 正規化（コサイン）の効果、PCA 散布図 |
-| `03_triplet_infonce.py` | **完成物**。凍結特徴 + 2D 射影ヘッドを Triplet / ハードネガティブ / InfoNCE で学習。学習前後の kNN/Recall 比較と収束曲線 |
-| `exercises.py` | TODO 形式の演習 6 問（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答）。numpy だけで完結しモデル DL 不要 |
+| `03_triplet_infonce.py` | メトリック学習の核。凍結特徴 + 2D 射影ヘッドを Triplet / ハードネガティブ / InfoNCE で学習。学習前後の kNN/Recall 比較と収束曲線 |
+| `mini_project.py` | **章末ミニプロジェクト（統合の完成物）**。抽出 → 評価 → メトリック学習を「コンパクト検索エンジン」に統合。圧縮スイープ・検索グリッド・metrics.json を出力 |
+| `exercises.py` | TODO 形式の演習 9 問（自己採点ランナー `grade()` 付き）。numpy だけで完結しモデル DL 不要 |
+| `exercises_solutions.py` | 演習 9 問の模範解答（全 PASS）。`exercises.py` の `grade()` を再利用して採点（採点ロジックは重複なし） |
 
-表の通り `03` が deliverable の中核（メトリック学習で空間を改善）で、`01`・`02` がその前提（取り出しと評価）です。まず `01` から順に実行し、各 `outputs/15_*.png` を開きながら本文を読み返すと理解が定着します。
+表の通り `mini_project.py` が deliverable の中核（埋め込み抽出・評価・メトリック学習の統合）で、`03` がそのメトリック学習部分、`01`・`02` が前提（取り出しと評価）です。まず `01` から順に実行し、各 `outputs/15_*.png` を開きながら本文を読み返すと理解が定着します。
 
 ## 7. 動かし方
 
@@ -121,10 +123,13 @@ uv run python lectures/15_image_embeddings_metric_learning/01_vit_resnet_embeddi
 uv run python lectures/15_image_embeddings_metric_learning/02_knn_recall_eval.py
 uv run python lectures/15_image_embeddings_metric_learning/03_triplet_infonce.py
 
+# 章末ミニプロジェクト（統合の完成物）: コンパクト検索エンジン + 圧縮スイープ
+uv run python lectures/15_image_embeddings_metric_learning/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL でも exit 0）
 uv run python lectures/15_image_embeddings_metric_learning/exercises.py
-# どうしても分からない時だけ、模範解答の挙動を見る
-SHOW_SOLUTION=1 uv run python lectures/15_image_embeddings_metric_learning/exercises.py
+# どうしても分からない時だけ、模範解答（全 PASS）の挙動を見る
+uv run python lectures/15_image_embeddings_metric_learning/exercises_solutions.py
 ```
 
 実画像で試したい人は、`data/` に画像を置き、`embed_helpers.make_dataset` の代わりに `PIL.Image.open(path).convert("RGB")` で読み込んで同じ抽出関数へ渡せば、そのまま kNN / Recall / メトリック学習が動きます。初回のモデルダウンロードを避けたい場合は、キャッシュ済みなら `HF_HUB_OFFLINE=1` を付けてオフライン実行できます。Docker では `HF_HOME`（既定 `~/.cache/huggingface`）をボリュームマウントすると再ダウンロードを防げます。
@@ -149,7 +154,59 @@ SHOW_SOLUTION=1 uv run python lectures/15_image_embeddings_metric_learning/exerc
 
 この章では、`ViTModel` / `ResNetModel` / `timm` からの埋め込み抽出（`last_hidden_state` と `pooler_output` の形の違い、ViT pooler 未学習の罠）→ L2 正規化とコサイン類似度（なぜ向きで測るか）→ kNN 分類精度と Recall@k での品質評価 → Triplet / InfoNCE / ハードネガティブによるメトリック学習、までを「自分で書いて・なぜそうするか説明できる」レベルで扱いました。とくに「出力の形を取り違えない」「コサインの前に必ず L2 正規化」「ViT は CLS か mean、pooler は使わない」の 3 点は、知っているだけで無駄なデバッグを確実に減らせます。
 
-次章（16 回）では、ここで手書きした InfoNCE がそのまま `openai/clip-vit-base-patch32` の対照学習として現れ、画像とテキストを同一空間で結ぶゼロショット分類・検索へ進みます。続く 17 回では、本章の「L2 正規化 → コサイン類似度」を FAISS の `IndexFlatIP` で大規模・高速に回し、Recall@k を自前で測ります。本章の埋め込みと評価の感覚が、その全ての前提です。まずは演習 6 問を自力で全問 PASS させ、ベクトルの扱いを手に馴染ませてから次へ進んでください。
+次章（16 回）では、ここで手書きした InfoNCE がそのまま `openai/clip-vit-base-patch32` の対照学習として現れ、画像とテキストを同一空間で結ぶゼロショット分類・検索へ進みます。続く 17 回では、本章の「L2 正規化 → コサイン類似度」を FAISS の `IndexFlatIP` で大規模・高速に回し、Recall@k を自前で測ります。本章の埋め込みと評価の感覚が、その全ての前提です。まずは演習 9 問を自力で全問 PASS させ、ベクトルの扱いを手に馴染ませてから次へ進んでください。
+
+---
+
+## 🛠 章末ミニプロジェクト — コンパクト埋め込み検索エンジン（`mini_project.py`）
+
+この章の総まとめとして、`01`（取り出す）→ `02`（測る）→ `03`（作り変える）を **1 本の検索エンジン**へ統合します。テーマは実務直結の問い——**「埋め込みはどこまで小さくできるか。メトリック学習でどこまで攻めた圧縮が許されるか」**です。検索インデックス（17 回の FAISS）はベクトルが小さいほどメモリ・速度で有利なので、「品質を保ったまま次元を削る」ことには大きな価値があります。
+
+`mini_project.py` がやることは 4 段です。(1) 合成 6 クラスを **timm resnet18(512 次元)** と **ViT CLS(768 次元)** の 2 バックボーンで埋め込み、ギャラリー/クエリに分けて素の検索性能（kNN 精度・Recall@5）を測る。(2) 凍結した resnet18 特徴を、いろいろな小次元 `d ∈ {2,4,8,16,32}` へ射影し、**ランダム射影（学習なし）** と **InfoNCE 学習済み射影（メトリック学習）** を比較する圧縮スイープを回す。(3) 「Recall@5 ≥ 0.95 を保てる最小次元」をランダム/学習で比べる。(4) スイープ曲線・学習前後の 2D 散布図・検索結果グリッド（緑＝正解/赤＝不正解）・`mini_metrics.json` を保存する。
+
+実測のハイライト（CPU・数十秒）は次の通りです。素の 512/768 次元はどちらも kNN 1.00 / Recall@5 1.00。しかし **2 次元まで圧縮すると、ランダム射影は Recall@5 が 0.71 まで崩れる**のに対し、**InfoNCE で並べ替えた 2 次元は 0.98 を保ちます**。「Recall@5 ≥ 0.95 を保てる最小次元」はランダム射影が `d=4`、メトリック学習が `d=2`——**同じ検索品質を半分の次元で達成**できるわけです。これが「メトリック学習は強い圧縮に効く」という本章のメッセージの完成形です。`mini_compression_sweep.png`（2 本の曲線）と `mini_retrieval_grid.png`（2 次元埋め込みでの実検索）を開いて、圧縮と品質のトレードオフを目で確かめてください。
+
+| 出力ファイル | 内容 |
+| --- | --- |
+| `mini_compression_sweep.png` | 射影次元 d に対する Recall@5（random vs InfoNCE、512 次元の水準線つき） |
+| `mini_pca_before_after.png` | 最小次元での学習前後の埋め込み（重なり → 分離） |
+| `mini_retrieval_grid.png` | コンパクト埋め込みでの上位 K 検索（緑＝正解クラス/赤＝不正解） |
+| `mini_metrics.json` | 素の埋め込み・圧縮スイープ・最小保持次元の全数値 |
+
+## ✅ 到達チェックリスト
+
+次の問いに「コードを見ずに口頭で説明できる」なら、この章のゴールに到達しています。詰まった項目があれば、対応する節・スクリプトに戻って手を動かしてください。
+
+- [ ] `ViTModel` の `last_hidden_state` と `ResNetModel` の `last_hidden_state` が**なぜ形（次元数）が違うのか**を説明できる（系列 vs 特徴マップ）。
+- [ ] ViT の埋め込みに **CLS か mean pooling を使い、`pooler_output` を避ける理由**（CKPT 由来で未学習）を言える。
+- [ ] ResNet/timm でベクトル埋め込みが欲しいとき、**どの出力をどう変形するか**（`pooler_output.flatten(1)` / `num_classes=0`）を即答できる。
+- [ ] **L2 正規化 → 内積 = コサイン類似度**であること、なぜ「長さ」でなく「向き」で測るのかを説明できる。
+- [ ] **kNN 分類精度と Recall@k の違い**（多数決で当てる vs 上位 k に仲間が出るか）を定義から言える。
+- [ ] **Triplet 損失（`d(a,p)+margin < d(a,n)`）** と **ハードネガティブ・マイニング**の狙い（サンプル効率）を説明できる。
+- [ ] **InfoNCE が CLIP の画像-テキスト対照学習と同型**であることを言える。
+- [ ] `mini_project.py` の圧縮スイープで、**メトリック学習がより小さい次元で同じ Recall を保つ**ことを自分の言葉で要約できる。
+- [ ] 演習 9 問すべてを `exercises.py` で **自力 PASS** できる（`exercises_solutions.py` を見る前に）。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+§8 のエラー表（症状 → 原因 → 対処）に加え、つまずきやすい論点を Q&A で補足します。
+
+- **Q. ヒートマップの対角が 1.0 にならない / 同クラスブロックが暗い。** A. 正規化前に内積を取っているか、ViT の `pooler_output`（未学習）を使っている可能性が高い。`F.normalize(x, p=2, dim=-1)` を必ず先に通し、ViT は CLS/mean を使う。
+- **Q. kNN 精度は 1.00 なのに Recall@k が下がる（またはその逆）。** A. 別物の指標なので不一致は正常。kNN は近傍 k 件の**多数決で 1 ラベルに当てる**厳しめの指標、Recall@k は上位 k に**同クラスが 1 件でもあれば hit** の緩い検索指標。`k` を変えると両者の差が広がる。
+- **Q. メトリック学習しても精度が上がらない（`03`/mini で +0.000）。** A. 圧縮が弱い（次元が大きい）と素の埋め込みで既に満点のため伸び代が無い。`mini_project.py` のように **強く圧縮（2〜4 次元）して headroom を作る**と効果が見える。逆に過圧縮（極端な低次元）+高 LR は不安定化するので LR/温度を下げる。
+- **Q. `np.bincount` でエラー / kNN の多数決がおかしい。** A. `np.bincount` は**非負整数ラベル**前提。ラベルが連続 int でない場合は `np.unique(..., return_inverse=True)` で詰めてから使う。
+- **Q. バッチハード Triplet の損失が常に 0 になる。** A. クラスが完全分離していると `d(a,p) < d(a,n)` が常に成立し hinge=0 になる（これ自体は正常）。学習挙動を観察したいなら、わざと重なるデータか大きめ margin で試す（演習 7 の採点サンプルは重なりを入れてある）。
+- **Q. `transformers` で `AutoFeatureExtractor` が無い / `use_fast=` でエラー。** A. v5 で廃止。`AutoImageProcessor`（torchvision バックエンドの fast がデフォルト）に置き換える。
+- **デバッグの定石**: 埋め込みが壊れたら **(1) 形 `emb.shape` を print**（ベクトル `(B, D)` か、特徴マップ `(B,C,H,W)` を渡していないか）→ **(2) ノルム `np.linalg.norm(emb,axis=1)`** が極端でないか → **(3) 正規化後に同クラスのコサインが高い**か、の順で切り分ける。
+
+## 🚀 発展トピック・参考
+
+- **損失の発展**: ここで触れた Triplet / InfoNCE の他に、**ArcFace / CosFace**（角度マージンを分類ヘッドに埋め込む顔認証の定番）、**Proxy-Anchor / Proxy-NCA**（各クラスの代理点で計算量を削減）、**SupCon**（教師ありコントラストの一般形）がある。`pytorch-metric-learning` ライブラリにこれらが揃っている。
+- **ハードネガティブの加減**: 最難例に過集中すると崩壊（collapse）しやすい。**semi-hard**（`d(a,p) < d(a,n) < d(a,p)+margin` の負例だけ使う）や、バッチ全体を使う **multi-similarity loss** が実務では安定。
+- **次元削減の選択肢**: 学習で射影する以外に、**PCA / 教師あり次元削減**で軽量化する手もある。`mini_project.py` の圧縮スイープと突き合わせて、学習射影が PCA をどれだけ上回るか試すと面白い。
+- **大規模検索への橋渡し**: 本章の「L2 正規化 → コサイン類似度」は、17 回の **FAISS `IndexFlatIP`** にそのまま載る。さらに `IVF`/`HNSW`/`PQ` で近似最近傍にすれば、数百万件規模でも実時間で検索できる（精度-速度のトレードオフは Recall@k で測る）。
+- **CLIP への接続**: `03` と mini の InfoNCE は、16 回の `openai/clip-vit-base-patch32` の画像-テキスト対照学習そのもの。本章で手書きした損失が、次章のゼロショット分類・クロスモーダル検索の中身になる。
+- 公式ドキュメント: [transformers ViT/ResNet](https://huggingface.co/docs/transformers/en/index) ／ [timm feature extraction](https://huggingface.co/docs/timm/feature_extraction) ／ [torchmetrics retrieval](https://lightning.ai/docs/torchmetrics/stable/) ／ [FAISS wiki](https://github.com/facebookresearch/faiss/wiki)。
 
 ---
 

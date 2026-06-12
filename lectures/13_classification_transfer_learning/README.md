@@ -156,7 +156,9 @@ top1, top5, mf1, conf = acc1(logits, y), acc5(logits, y), f1(logits, y), cm(logi
 | `01_pipeline_classify.py` | `pipeline("image-classification")` で最短分類、top-k 表示、予測パネル/JSON 保存 |
 | `02_resnet_vit_manual.py` | processor+model 手書き（CNN vs ViT）、埋め込み取り出し（penultimate/CLS/forward_features）、コサイン類似度 |
 | `03_transfer_finetune.py` | 凍結＋ヘッド付け替えで転移学習、特徴キャッシュ、top-1/top-5・混同行列・macro-F1 で評価 |
-| `exercises.py` | TODO形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `mini_project.py` | 章末ミニプロジェクト：3バックボーン横並びベンチ（凍結特徴→線形プローブ／重心分類／近傍検索）。比較図・混同行列・検索図・JSON を保存 |
+| `exercises.py` | TODO形式の演習9問（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `exercises_solutions.py` | 演習の完全な模範解答（実行すると全9問 PASS。採点は `exercises.py` 側を再利用） |
 
 表の通り `dl_helpers.py` だけは「読み物」ではなく「再利用する道具」です。最初に一読してから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。とりわけ合成データ生成（`make_shape_image` / `make_dataset`）が、分類デモ・埋め込み・転移学習のすべての練習台になっている点に注目してください。
 
@@ -173,10 +175,15 @@ uv run python lectures/13_classification_transfer_learning/01_pipeline_classify.
 uv run python lectures/13_classification_transfer_learning/02_resnet_vit_manual.py
 uv run python lectures/13_classification_transfer_learning/03_transfer_finetune.py
 
-# 演習: まずは TODO を自分で埋める（最初は全部 FAIL）
+# 章末ミニプロジェクト（3バックボーン横並びベンチ。CPU で十数秒）
+uv run python lectures/13_classification_transfer_learning/mini_project.py
+
+# 演習: まずは TODO を自分で埋める（最初は全部 FAIL でも exit 0）
 uv run python lectures/13_classification_transfer_learning/exercises.py
 # どうしても分からない時だけ、模範解答の挙動を見る
 SHOW_SOLUTION=1 uv run python lectures/13_classification_transfer_learning/exercises.py
+# 完全な模範解答（実行すると全9問 PASS）
+uv run python lectures/13_classification_transfer_learning/exercises_solutions.py
 
 # （任意）実写真で試す: data/13_classification_transfer_learning/ に *.jpg/*.png を置いて 01/02 を再実行
 ```
@@ -209,5 +216,77 @@ SHOW_SOLUTION=1 uv run python lectures/13_classification_transfer_learning/exerc
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
-> Python 3.12 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ transformers 5.11.0 ／ timm 1.0.27 ／ huggingface_hub 1.18.0 ／ safetensors 0.8.0 ／ torchmetrics 1.9.0 ／ scikit-learn 1.9.0 ／ numpy 2.4.6 ／ Pillow 12.2.0 ／ matplotlib 3.10.9。使用モデル: `microsoft/resnet-18`・`WinKawaks/vit-tiny-patch16-224`・torchvision `ResNet18_Weights.DEFAULT`・timm `resnet18`（すべて CPU・初回のみ重みDL）。
+## 🛠 章末ミニプロジェクト — バックボーン比べ × 転移学習 × 画像検索
+
+本章で別々に学んだ部品（**埋め込みの取り出し**・**凍結＋線形ヘッドの転移学習**・**複数指標での評価**・**コサイン類似度**）を、**1 本のパイプライン**に統合する総合課題です。`mini_project.py` を実行すると、合成図形9クラス(色×形)を題材に、**3 つの事前学習バックボーンを「特徴抽出器」として横並びでベンチマーク**します。
+
+対象バックボーンは `resnet18_tv`（torchvision・penultimate 512次元）・`resnet18_timm`（timm・pooled 512次元）・`vit_tiny_cls`（HuggingFace ViT-tiny の CLS トークン 192次元）の3つ。各バックボーンについて次を一気通貫で実施します。
+
+1. **凍結特徴の前計算**: 学習用・テスト用・「**強ノイズ**」テスト用の画像を埋め込みに変換する。ここは `inference_mode` ではなく `no_grad`（後で線形ヘッド学習に使うため。第7節の落とし穴）。
+2. **線形プローブ（linear probe）**: 凍結特徴の上に `nn.Linear` だけを学習する＝転移学習の本質。
+3. **評価**: `top-1` と `macro-F1` を、**クリーンなテスト**と**ノイズを強めたテスト**の両方で計測する（学習時より厳しい分布へどれだけ頑健か＝分布シフト耐性）。
+4. **学習不要ベースライン**: 各クラスの特徴の重心（centroid）への**コサイン類似度で最近傍分類**した精度を出す。「埋め込みが既にクラスを分離していれば、ヘッドを学習しなくてもそこそこ当たる」を体感する。
+5. **画像検索デモ**: ベストなバックボーンの埋め込みで、クエリ画像に近い学習画像を**コサイン類似度で上位3件**取り出す（第16〜17回への布石）。
+
+実行すると、**線形プローブはどのバックボーンもクリーンでほぼ満点**になる一方、**強ノイズ下では差が開き**、また**学習ゼロの重心分類でも高い精度が出る**（＝凍結特徴がそのままクラスを分離している）という、本章の主張が数値で立ち上がります。出力は `outputs/13_classification_transfer_learning/` に保存されます。
+
+| 生成物 | 内容 |
+| --- | --- |
+| `mini_project_backbone_comparison.png` | 3バックボーン × （クリーン線形プローブ／強ノイズ線形プローブ／学習不要の重心分類）の棒グラフ |
+| `mini_project_confusion_best.png` | ベストバックボーンの線形プローブ混同行列（クリーンテスト） |
+| `mini_project_retrieval.png` | クエリ画像と、コサイン近傍トップ3の学習画像（各近傍のクラス名・cos 値・正誤付き） |
+| `mini_project_metrics.json` | 各バックボーンの埋め込み次元・抽出時間・top-1/macro-F1・強ノイズ精度・重心精度・検索 precision@1 の数値ログ |
+
+```bash
+uv run python lectures/13_classification_transfer_learning/mini_project.py
+cat outputs/13_classification_transfer_learning/mini_project_metrics.json
+```
+
+**発展のヒント**: バックボーンを増やす（`mobilenetv3_small_100` などの極小モデルを timm から追加）／`HARD_NOISE` を上げて頑健性の差を強調する／`data/13_classification_transfer_learning/` に実写真を置いて「自分のデータでの少データ分類」に置き換える。これらはどれも数行の変更で試せます。
+
+## ✅ 到達チェックリスト
+
+この章を終えたら、次が**できる／説明できる**ことを確認してください。
+
+- [ ] **ResNet（畳み込み＋残差接続）と ViT（パッチ埋め込み＋CLSトークン）**の発想の違いを、帰納バイアスとデータ量の観点で説明できる。
+- [ ] `pipeline("image-classification")` で最短分類を動かし、`top_k` と `device` の意味を説明できる。
+- [ ] `pipeline` を **`AutoImageProcessor` + `*ForImageClassification` に分解**し、`画像→pixel_values→logits→argmax→id2label` を手書きできる。
+- [ ] `AutoImageProcessor` の中身（**リサイズ → 0-1 rescale → ImageNet 正規化**）を numpy で再現できる（演習2）。
+- [ ] **torchvision / timm / HuggingFace** の3エコシステムから事前学習重みをロードし、「前処理とラベルは重み/モデルとセット」という共通発想を説明できる。
+- [ ] 分類ヘッドを外して**埋め込み**を取り出せる（torchvision `fc=Identity`／timm `num_classes=0`・`forward_features`／ViT の `CLS`・mean-pool）。`pooler_output` と `last_hidden_state` の**形の違い**も言える。
+- [ ] **バックボーン凍結（`requires_grad_(False)`）＋ 新しい `nn.Linear` ヘッド**で転移学習モデルを組み、学習対象がヘッドだけになっていることをパラメータ数で確認できる（演習3）。
+- [ ] 前計算した特徴を学習に使うとき **`inference_mode` ではなく `no_grad`** を使う理由を説明できる。
+- [ ] **top-1 / top-5 accuracy・macro-F1・混同行列**を計算し、`top_k` 指標には argmax 後のラベルではなく `logits` を渡すと言える（演習4・7・8）。
+- [ ] **コサイン類似度＝L2正規化してから内積**を実装でき、同クラスが近く別クラスが遠いことを示せる（演習5・9）。
+- [ ] ミニプロジェクトを実行し、**「凍結特徴 → 線形プローブ／重心分類／近傍検索」**を複数バックボーンで横並び評価できる。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+実装中に詰まったら、まずここを見てください（第11節の症状別表と併せて参照）。多くの不具合は transformers 5.x のAPI変更と「device / 勾配 / 正規化」の3点に集約されます。
+
+- **Q. `AutoFeatureExtractor` が無い／古いブログのコードが動かない。** A. transformers 5.x で**廃止**されました。画像は常に `AutoImageProcessor` を使います。`use_fast=` 引数も消滅（fast 実装のみ）。
+- **Q. `AutoImageProcessor` の生成でエラーになる。** A. v5 の画像プロセッサは **torchvision バックエンドの fast 実装のみ**です。`uv sync --group dl` で torchvision を入れてください。
+- **Q. `RuntimeError: ... expected ... device` で落ちる。** A. **model と inputs の device がズレ**ています。`inputs.to(model.device)` で必ず揃えます（片方だけ `.to()` が原因の筆頭）。
+- **Q. `Inference tensors cannot be saved for backward` が出る。** A. **`inference_mode` で作った特徴を学習に使った**ためです。前計算は `torch.no_grad()` で行います（`mini_project.py` / `03` がこの定石）。
+- **Q. 予測が整数のまま読めない。** A. `model.config.id2label[idx]`（torchvision は `weights.meta["categories"][idx]`）で**ラベル名に変換**します（演習6）。
+- **Q. timm の埋め込みが 1000 次元になる。** A. `num_classes=0` を忘れて分類ロジットを取っています。`num_classes=0` か `forward_features` を使います。
+- **Q. ViT の `pooler_output` が変な値／検索が崩れる。** A. vit-tiny の `pooler` は**未学習(MISSING)のことがある**ので、埋め込みには**学習済みの CLS トークンか mean-pool**を使います。CLIP の `get_*_features` 同様、コサイン類似の前に **L2 正規化**を忘れない。
+- **Q. 合成図形なのに ImageNet ラベルが「封筒」など変なものになる。** A. 異常ではありません。合成図形は ImageNet の1000クラスに無いので「それっぽい別物」が出ます。学ぶのは**仕組み**であってラベルの正しさではありません。`data/` に実写真を置けば意味のある予測になります。
+- **Q. CPU 推論が異常に遅い。** A. **float16/half を使った**か**勾配を切っていない**のが原因。CPU は `float32`、推論は `eval()` + `inference_mode()`（学習に再利用する特徴抽出だけ `no_grad`）。
+- **Q. 図中の日本語が豆腐(□)になる。** A. 既定フォントに CJK グリフが無いためです。**図中の文字は ASCII** に保ちます（本章のスクリプトはそうしています）。
+- **Q. ミニプロジェクトの精度が満点で「効いた」のか分からない。** A. 合成図形は色と形が明瞭なので満点になりがちです。本質は**絶対値ではなく「学習前の偶然レベル→学習後の高精度」「クリーン→強ノイズで差が開く」というパターン**です。`HARD_NOISE` を上げると差が見えます。
+
+## 🚀 発展トピック・参考
+
+- **全体ファインチューニング（learning-rate の段差）**: 本章は凍結＝特徴抽出が主役でしたが、データが多くタスクが ImageNet と離れていれば、バックボーンも含めて微調整します。`optimizer` に**パラメータグループ**を渡し、backbone に小さい lr（例 1e-5）、head に大きい lr（例 1e-3）を与えるのが定石です（事前学習特徴を壊さないため）。
+- **線形プローブ vs k-NN/重心分類**: 凍結特徴の良し悪しを測る2大プロトコルです。線形プローブは表現の線形分離性を、k-NN/重心は局所構造を測ります。`mini_project.py` で両者を並べて出しているので、傾向を見比べてください。
+- **データ拡張（第12回）との接続**: 少データ転移学習では、回転・色ジッタ・RandAugment 等の拡張が効きます。`albumentations` や `torchvision.transforms.v2` で学習画像を水増しすると、強ノイズ下の精度が改善することがあります。
+- **EMA / 学習率スケジューラ / 早期終了**: 実データの微調整では `CosineAnnealingLR` などのスケジューラや早期終了で過学習を抑えます。本章のトイ設定では不要ですが、実務の必須要素です。
+- **より新しい/軽量なバックボーン**: timm には `mobilenetv3_small_100`・`efficientnet_b0`・`vit_tiny_patch16_224`・ConvNeXt 系など CPU 向けの選択肢が豊富です。`timm.list_models(pretrained=True)` で探し、同じパイプラインに差し替えて比較できます。
+- **次回以降への接続**: ここで得た「埋め込みを取り出す」「コサイン類似度で測る」「凍結＋ヘッド学習」は、第14回（評価指標）・第15回（メトリック学習）・第16回（CLIP ゼロショット）・第17回（FAISS 検索）へ直結します。
+- 参考ドキュメント: HuggingFace transformers「Image classification」 https://huggingface.co/docs/transformers/tasks/image_classification ／ torchvision models https://pytorch.org/vision/stable/models.html ／ timm https://huggingface.co/docs/timm/index ／ He et al. (2015) "Deep Residual Learning"（ResNet）／ Dosovitskiy et al. (2020) "An Image is Worth 16x16 Words"（ViT）。
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
+> Python 3.12 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ transformers 5.11.0 ／ timm 1.0.27 ／ huggingface_hub 1.18.0 ／ safetensors 0.8.0 ／ torchmetrics 1.9.0 ／ scikit-learn 1.9.0 ／ numpy 2.4.6 ／ Pillow 12.2.0 ／ matplotlib 3.10.9 ／ faiss-cpu（第17回で使用）。使用モデル: `microsoft/resnet-18`・`WinKawaks/vit-tiny-patch16-224`・torchvision `ResNet18_Weights.DEFAULT`・timm `resnet18`（すべて CPU・初回のみ重みDL）。

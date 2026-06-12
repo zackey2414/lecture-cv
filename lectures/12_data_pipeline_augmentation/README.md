@@ -141,7 +141,9 @@ res = joint(image=scene, mask=mask, bboxes=[bbox], labels=[0])
 | `01_tensor_layout_normalize.py` | HWC↔CHW・`ToImage`/`ToDtype(scale=True)`/`Normalize` を1段ずつ観察。ImageNet/CLIP 統計の違い、スケール忘れの罠 |
 | `02_dataset_dataloader.py` | 自作 `ShapeFolderDataset`、`DataLoader` でバッチ化、学習/推論 transform の切替、決定論チェック、`num_workers` 計測 |
 | `03_augment_v2_albumentations.py` | transforms v2 と albumentations の拡張を可視化、albumentations で bbox/mask 同時変換 |
-| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `mini_project.py` | **章末ミニプロジェクト**。データ→自作 Dataset→拡張→DataLoader→バッチ統計→自前正規化統計→bbox/mask 同時変換を1本に統合し、図と JSON を出力 |
+| `exercises.py` | TODO 形式の演習10問（易→難・自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `exercises_solutions.py` | 演習の模範解答（実行すると全10問 PASS。答え合わせ・教材検証用） |
 
 `pipeline_helpers.py` だけは「読み物」ではなく「再利用する道具」です。合成データセットは `outputs/.../synthetic_dataset/<class>/*.png` に作られ、**`data/synth_shapes/` に自分の画像フォルダを置けばそちらが自動で優先**されます（実画像で試す導線）。まず helper に目を通してから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。
 
@@ -158,10 +160,15 @@ uv run python lectures/12_data_pipeline_augmentation/01_tensor_layout_normalize.
 uv run python lectures/12_data_pipeline_augmentation/02_dataset_dataloader.py
 uv run python lectures/12_data_pipeline_augmentation/03_augment_v2_albumentations.py
 
+# 章末ミニプロジェクト: この回の要素を統合した総合課題（図＋JSON を出力）
+uv run python lectures/12_data_pipeline_augmentation/mini_project.py
+
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
 uv run python lectures/12_data_pipeline_augmentation/exercises.py
 # どうしても分からない時だけ、模範解答の挙動を見る
 SHOW_SOLUTION=1 uv run python lectures/12_data_pipeline_augmentation/exercises.py
+# 模範解答そのもの（実行すると全10問 PASS）
+uv run python lectures/12_data_pipeline_augmentation/exercises_solutions.py
 ```
 
 実行後は `outputs/12_data_pipeline_augmentation/` の図を開いて解説と照らし合わせてください。とくに `01_layout_normalize.png`（並び替え・スケール・正規化の各段を逆正規化して表示）、`03_aug_v2.png` / `03_aug_albumentations.png`（同じ画像から生まれる8通りの拡張）、`03_bbox_mask_joint.png`（反転に bbox/mask が追従）を見比べると、本章の要点が視覚的に腑に落ちます。**自分の画像で試したい**場合は、`data/synth_shapes/<クラス名>/*.png` のようにクラスごとのフォルダを作って画像を置けば、合成画像の代わりにそちらが読まれます。
@@ -192,6 +199,63 @@ SHOW_SOLUTION=1 uv run python lectures/12_data_pipeline_augmentation/exercises.p
 
 ---
 
-> 本教材で参照・検証したライブラリとバージョン（2026-06-11 時点の安定版で動作確認）:
+## 🛠 章末ミニプロジェクト — データパイプラインを「データ→Dataset→拡張→バッチ→統計」で一気通貫に組む
+
+ここまで、テンソル変換・自作 Dataset・拡張・DataLoader をバラバラに学んできました。最後にそれらを**1 本のミニ学習前処理パイプライン**へ束ね、本章の技能が「単独で使える」だけでなく「つながって動く」ことを体感します。これは第13回以降の学習ループに**そのまま接続する入力側の雛形**です。実装は `mini_project.py` にあり、実行すると図と総合レポート（JSON）が `outputs/12_data_pipeline_augmentation/` に出ます。
+
+パイプラインは本章の核を順に踏む7段です。**(1) Dataset** ——合成データセット（円/四角/三角）を `ShapeFolderDataset` で『フォルダ＝ラベル』として読む（遅延読み込み）。**(2) 3系統の transform** ——学習用（ランダム拡張あり）・推論用（決定論 Resize+CenterCrop）・統計用（Normalize を外し `[0,1]` で止める）を組み分ける。**(3) DataLoader でバッチ化** ——`(B,C,H,W)` の1バッチに積み、per-channel 平均・標準偏差を確認する。**(4) 拡張の多様性** ——同じ1枚に学習拡張を8回かけ、逆正規化して並べ「水増し」を可視化。**(5) 決定論チェック** ——`train=毎回変わる(False)` / `eval=毎回同じ(True)` を実測。**(6) 自前の正規化統計** ——データセット全体の per-channel mean/std を計算し、ImageNet 統計と**別物**であること（＝自前データには自前統計を使う筋）を確認。**(7) bbox/mask 同時変換** ——albumentations で画像・bbox・mask を一緒に水平反転し、教師データの対応が崩れないことを確認。
+
+```bash
+uv run python lectures/12_data_pipeline_augmentation/mini_project.py
+# → mini_pipeline_overview.png（原画像→決定論eval→学習拡張の概観）、mini_aug_grid.png（同一画像からの拡張8通り）、
+#    mini_joint_transform.png（bbox/mask が反転に追従）、mini_report.json（機械可読の総合レポート）
+```
+
+`mini_report.json` には、バッチ形状と正規化後の per-channel 統計、自前 mean/std と ImageNet 統計の比較、決定論チェックの結果、bbox の反転前後座標とマスク面積が機械可読でまとまります。**発展課題**として、(a) `build_transforms` の `size` や `ColorJitter` の振れ幅を変えると拡張多様性と統計がどう動くか、(b) `data/synth_shapes/<クラス名>/*.png` に自分の画像を置いて実画像で完走させ自前統計を作ってみる、(c) 自前統計を `Normalize` に挿し替えてバッチの per-channel 平均が `0` 付近・標準偏差が `1` 付近に寄ることを確認する、を試してみてください。
+
+## ✅ 到達チェックリスト
+
+この章を「できた」と言える基準です。手を動かして、できる／説明できるの両方を確認してください。
+
+- [ ] **できる**: `v2.ToImage()` → `v2.ToDtype(torch.float32, scale=True)` → `v2.Normalize(mean, std)` の3段を組み、各段で dtype・shape・値域がどう変わるかを言える。
+- [ ] **できる**: ImageNet 統計と CLIP 専用統計を使い分け、取り違えると入力分布がズレることを説明できる。
+- [ ] **できる**: スケール忘れ（`scale=False` のまま Normalize）で値が桁外れに膨らむ「沈黙のバグ」を再現し、原因を即答できる。
+- [ ] **できる**: `__len__` と `__getitem__` だけのカスタム `Dataset` を書き、`DataLoader` で `(B,C,H,W)` のバッチに積める。
+- [ ] **できる**: 学習用（ランダム拡張）と推論用（決定論 Resize+CenterCrop）の transform を組み分けられる。
+- [ ] **できる**: 同じ画像を2回変換して「学習=不一致(False)・推論=一致(True)」を確認し、評価にランダム拡張が紛れていないか健康診断できる。
+- [ ] **できる**: albumentations で画像・bbox・mask を**同時に**変換し、`bbox_params`／`label_fields` の作法を使える。
+- [ ] **できる**: データセットの per-channel mean/std を `dim=(0,2,3)` の集約で計算し、自前の正規化統計を作れる。
+- [ ] **説明できる**: なぜ HWC→CHW・/255・正規化が「お作法」ではなく「モデルが学習された入力分布に合わせる必然」なのか。
+- [ ] **説明できる**: `num_workers>0` が効く場面と、`if __name__ == "__main__":` ガードが必須な理由。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+実装中に詰まったら、まずここを見てください。この章のバグはほぼ「軸順」「スケール」「ランダム性の混入」のどれかに集約されます。
+
+- **Q. Loss が NaN になる／まったく収束しない。** → `scale=True`（/255）を忘れて 0〜255 のまま `Normalize` に入れていませんか。`ToImage()` → `ToDtype(scale=True)` → `Normalize` の順を守ると値域は妥当（おおむね `[-2.6, 2.7]`）に収まります。`01` の (B) ケースが桁外れ（最大 800 超）になる様子を再現して原因を体に入れてください。
+- **Q. 値が `1/255` のように極端に小さい。** → 自前の `img/255.0` と v1 の `ToTensor()`（中で /255 する）を二重にかけています。スケーリングは1パイプラインに1回だけ・v1 と v2 を混ぜない、を徹底します。
+- **Q. CLIP のゼロショット精度が低い。** → ImageNet 統計を CLIP に流用しています。CLIP 専用 `mean/std` を使う（実務では `AutoImageProcessor` に任せて手打ちのズレを避ける）。
+- **Q. 形が合わずエラー（channels が 3 でない等）。** → HWC のまま渡しています。`ToImage()` か `.permute(2,0,1)` で CHW にしてから渡します。
+- **Q. 評価結果が毎回ブレる。** → 推論時にランダム拡張（`RandomResizedCrop`/`RandomHorizontalFlip`）が混入しています。評価は決定論 transform（`Resize`＋`CenterCrop`）に分け、「同じ画像を2回読んで一致するか」で点検します。
+- **Q. `num_workers>0` でプロセスが暴走/落ちる。** → 実行コードが `if __name__ == "__main__":` ガードの外にあります。ワーカーがモジュールを再 import するため、ガードが無いと無限にプロセスが増えます。
+- **Q. 正規化後の画像を表示すると色が壊れる。** → 負値を含むテンソルをそのまま `imshow` しています。`denormalize`（`x*std+mean`）で `[0,1]` に戻し、`clamp` してから表示します（`chw_to_hwc_uint8` がこれを内側で行います）。
+- **Q. albumentations に PIL/Tensor を渡してエラー。** → albumentations の入出力は **numpy(HWC, uint8)** です。`np.asarray(pil_img)` で numpy にしてから渡します（torchvision v2 が PIL/Tensor を扱うのと対照的）。
+- **Q. 反転後に枠と物体がズレる。** → 画像だけ変換して bbox/mask を放置しています。`bbox_params` を指定し `image=`／`mask=`／`bboxes=` を**同時に**渡せば、座標は自動追従します。`ex9_hflip_bbox` で「`new_x0 = W - x1`, `new_x1 = W - x0`」という鏡映計算を手で書いて中身を理解してください。
+- **デバッグの定石**: 学習が進まない・値が変なときは、まず前処理の最終出力に `print(t.shape, t.dtype, t.min(), t.max())` を挟む。形・dtype・値域の3つを見れば、軸順・スケール・統計のどれが崩れているか一目で切り分けられます。
+
+## 🚀 発展トピック・参考
+
+この章の先に広がるテーマです。興味のある方向へ掘り進めてください。
+
+- **強い拡張（MixUp / CutMix / RandAugment / TrivialAugment）**: 1枚単位の幾何/色変換を超え、画像とラベルを混ぜる・自動で拡張方策を選ぶ手法。torchvision v2 は `v2.MixUp`／`v2.CutMix`／`v2.RandAugment`／`v2.TrivialAugmentWide` を提供します（過学習が強いときの定番）。
+- **正規化統計を自分のデータで作る**: 本章のミニプロジェクトで触れた per-channel mean/std の計算は、ドメインが ImageNet と大きく違う（医用・衛星・赤外）データで効きます。全データを1パスして集計するのが定石です。
+- **`DataLoader` のチューニング**: `pin_memory=True`（GPU 転送を速く）、`persistent_workers=True`（エポック間でワーカーを使い回す）、`prefetch_factor`（先読み量）など。GPU 学習で供給待ちを潰す実戦的なダイヤルです（第13回〜で実測）。
+- **`tv_tensors` と幾何変換の同時適用**: torchvision v2 は `tv_tensors.BoundingBoxes`／`tv_tensors.Mask` を使うと、albumentations のように画像・bbox・mask を v2 だけで同時変換できます（検出/セグメの章で対比）。
+- **WebDataset / FFCV など高速データ供給**: 大規模学習では画像を tar/専用フォーマットにまとめてシーケンシャル I/O を最大化します。本章の `Dataset`/`DataLoader` の発展形です。
+- 公式ドキュメント: [torchvision transforms v2](https://pytorch.org/vision/stable/transforms.html) ／ [torch.utils.data（Dataset/DataLoader）](https://pytorch.org/docs/stable/data.html) ／ [albumentations](https://albumentations.ai/docs/)
+
+---
+
+> 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
 > Python 3.12 ／ torch 2.12.0+cpu ／ torchvision 0.27.0+cpu ／ albumentations 2.0.8 ／ numpy 2.4.6 ／ Pillow 12.2.0 ／ opencv-python-headless 4.13.0（`cv2` 4.13.0）／ matplotlib 3.10.9。
 > 前処理 API は現行の正準形 `torchvision.transforms.v2`（旧 `transforms.ToTensor` は非推奨）に統一。CLIP の正規化統計は transformers v5 系の `CLIPImageProcessor` 既定値に準拠しています。

@@ -176,7 +176,9 @@ for i in result_ids:
 | `02_idmap_persist_sqlite.py` | CLIP埋め込み→正規化→`IndexIDMap2`+`add_with_ids`→SQLite→`write/read_index`→画像/テキスト検索→`-1`ガード |
 | `03_ivf_hnsw_pq.py` | `IVFFlat`(train/nprobe)・`HNSW`(efSearch)・`index_factory`(IVFPQ/OPQ)、Recall とメモリ比較 |
 | `04_recall_qps_eval.py` | Recall@k 自前計算、`nprobe`/`efSearch` スイープの QPS-recall 曲線、retrieval mAP、JSON保存 |
-| `exercises.py` | TODO 形式の演習（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `mini_project.py` | **章末ミニプロジェクト**: CLIP 埋め込みで画像検索エンジンを構築→永続化→再読込→画像/テキスト検索→retrieval mAP、さらに大規模合成データで IVF/HNSW を Recall@k・QPS 評価して最速設定を推薦 |
+| `exercises.py` | TODO 形式の演習 **全10問**（易→難・自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
+| `exercises_solutions.py` | 演習の模範解答ランナー（全10問 PASS。採点ロジックは `exercises` 側を再利用） |
 
 `search_helpers.py` だけは「読み物」ではなく「再利用する道具」です。トップレベルでは torch を import せず、CLIP が要る `Embedder` の中だけで遅延 import している点（FAISS だけ学ぶ 01/03/04 を軽くするため）に注目すると、依存を絞る設計の意図が伝わります。
 
@@ -194,10 +196,14 @@ uv run python lectures/17_faiss_image_search/02_idmap_persist_sqlite.py   # 初�
 uv run python lectures/17_faiss_image_search/03_ivf_hnsw_pq.py
 uv run python lectures/17_faiss_image_search/04_recall_qps_eval.py
 
-# 演習: まずは TODO を自分で埋める（最初は全部 FAIL、でも exit 0）
+# 章末ミニプロジェクト: 画像検索エンジンを組み立て・評価する総合課題（初回はCLIP重みDL）
+uv run python lectures/17_faiss_image_search/mini_project.py
+
+# 演習: まずは TODO を自分で埋める（全10問。最初は全部 FAIL、でも exit 0）
 uv run python lectures/17_faiss_image_search/exercises.py
-# どうしても分からない時だけ、模範解答の挙動を見る
+# どうしても分からない時だけ、模範解答の挙動を見る（2通り。どちらも全10問 PASS）
 SHOW_SOLUTION=1 uv run python lectures/17_faiss_image_search/exercises.py
+uv run python lectures/17_faiss_image_search/exercises_solutions.py
 ```
 
 実行後は `outputs/17_faiss_image_search/` の図を確認してください。`01_flat_scores.png`（IP素/コサイン/L2 のスコアの並び）、`02_query_results.png`（クエリ画像と類似画像）、`03_ann_tradeoff.png`（精度↔速度の散布図）、`04_qps_recall_curve.png`（スイープ曲線）と `04_eval_report.json`（数値）が出ます。`02` で CLIP を取得できない環境では色記述子に自動フォールバックし、テキスト検索だけスキップして完走します（画像→画像検索は動きます）。
@@ -226,6 +232,83 @@ SHOW_SOLUTION=1 uv run python lectures/17_faiss_image_search/exercises.py
 本章では、画像検索を「埋め込み → 正規化 → add → search → 永続化 → 評価」に分解し、FAISS の基本ループ、`float32`・C連続の鉄則、L2/IP と「正規化でコサイン」、`IndexIDMap` とメタデータ別管理、`write/read_index` のセット永続化、CLIP によるテキスト→画像のマルチモーダル検索、IVF/HNSW/PQ の使い分け、そして Recall@k・QPS-recall曲線・retrieval mAP による定量評価までを、すべて自分の手で動かしました。
 
 次回以降の検出・セグメンテーションでも、また最終応用の Cluster-CLIP（第40・41回）でも、この「埋め込みをベクトルDBに入れて検索・評価する」骨格は繰り返し登場します。`search_helpers.py` のような自分用の道具を一つ持っておくと、以降は定型処理に煩わされず本質に集中できます。まずは演習を全問 PASS させ、正規化と評価の感覚を体に入れてから次へ進んでください。
+
+---
+
+## 🛠 章末ミニプロジェクト — 小さな画像検索エンジンを作って評価する
+
+ここまでの学びを 1 本に統合する総合課題が `mini_project.py` です。「読み物」ではなく、**実行すると本当に動く画像検索エンジン**ができあがり、その性能まで自分で測ります。中身は大きく 2 部構成です。
+
+**Part A: CLIP 埋め込みで本物の検索エンジンを組む。** 合成画像（色×形の 48 枚）を CLIP で埋め込み → L2 正規化 → `IndexIDMap2` に `add_with_ids`（1000 番台の任意 ID）→ メタデータ（ID→ラベル）を SQLite に保存 → `write_index` で `.faiss` と `.db` を**セット永続化** → まっさらな状態から `read_index` で読み戻し（=再起動を模す）→ **画像→画像**検索と、CLIP 共有空間を使った**テキスト→画像**検索（`a photo of a red circle` → 赤い円）を実行します。最後に同ラベルを正例とした **retrieval mAP@5** で埋め込み自体の良さを定量化します（合成データでは mAP ≈ 0.99 と、クラスタ構造がきれいに引けていることが数字で出ます）。
+
+**Part B: 規模が増えたときの ANN を評価して設定を「推薦」する。** 画像 48 枚では Flat で十分なので、ANN の威力は規模を上げて見せます。2 万件・64 次元の合成埋め込みに対し、**ground truth を厳密 `IndexFlat` で作り**、`IVFFlat`（`nprobe` スイープ）と `HNSW`（`efSearch` スイープ）の **Recall@10 と QPS** を測定。そのうえで「**目標 Recall（既定 0.95）を満たす中で最速（QPS 最大）の設定**」を自動で選んで推薦し、QPS-recall 曲線にその点を星印で重ねます。「速度と精度のどちらを取るか」を“感覚”ではなく数字で決める、という実務の意思決定をコードに落とし込んでいます。
+
+実行すると `outputs/17_faiss_image_search/` に `mini_project_search.png`（検索結果サムネ）、`mini_project_curve.png`（推薦点つき QPS-recall 曲線）、`mini_project_report.json`（エンジン統計＋mAP＋ANN 推薦）、`mini_project_engine.faiss` ＋ `mini_project_meta.db`（永続化したエンジン）が出ます。
+
+```bash
+uv run python lectures/17_faiss_image_search/mini_project.py
+```
+
+**腕試し（発展課題）。** 余力があれば次を足してみてください。(1) `data/17_faiss_image_search/` に実画像を置いて差し替える（自動で優先読込されます）。(2) エンジンを `IndexIDMap2(IndexIVFFlat(...))` に替え、Part B の推薦設定を Part A の本番エンジンに反映する。(3) 検索結果のしきい値（コサイン < 0.2 は「該当なし」とする）を入れて“見つからない”を表現する。(4) 画像を逐次 `add_with_ids` しながら一定間隔で `write_index` する**インクリメンタル更新**版に拡張する（第40・41回の `stream/writer.py` の予行演習）。
+
+## ✅ 到達チェックリスト
+
+この章を「マスターした」と言えるのは、次を**AI 補助なしで**できるときです。手を動かして 1 つずつ潰してください。
+
+- [ ] FAISS の基本ループ（`index = faiss.IndexXxx(d)` → `add` → `search(xq, k)` が `D, I` を返す）をそらで書ける。
+- [ ] index に渡す配列を必ず `np.ascontiguousarray(x, dtype=np.float32)` で **float32・C連続**にする理由を説明できる。
+- [ ] `IndexFlatL2`（小さいほど近い）と `IndexFlatIP`（大きいほど近い）の**ソート向きの違い**を言える。
+- [ ] **L2 正規化してから `IndexFlatIP`** で内積＝コサイン類似度になること、DB 側・クエリ側の**両方**を正規化する必要があることを説明できる。
+- [ ] `faiss.normalize_L2` が **in-place（破壊的）**であることを知っていて、非破壊版と使い分けられる。
+- [ ] `IndexIDMap`/`IndexIDMap2` ＋ `add_with_ids` で任意の `int64` ID を付け、メタデータは**別管理（SQLite）**して ID から引く設計を書ける。
+- [ ] `write_index`/`read_index` で永続化でき、**メタDB と `.faiss` をセットで**保存・整合させる必要性を説明できる。
+- [ ] `IVFFlat` は **train 必須**で `nprobe` が、`HNSW` は **train 不要**で `efSearch` が精度↔速度のダイヤル、と区別できる。
+- [ ] `index_factory`（`"IVF100,PQ8"` 等）で組み、**PQ がメモリを激減させる代わりに精度が落ちる**トレードオフを数字で示せる。
+- [ ] **Recall@k を集合一致（`np.intersect1d`）で自前計算**でき、**ground truth は必ず厳密 `IndexFlat` で作る**鉄則を守れる。
+- [ ] `nprobe`/`efSearch` をスイープして **QPS-recall 曲線**を描き、用途に応じた設定を定量的に選べる。
+- [ ] CLIP の `get_image_features`/`get_text_features` が **v5 ではオブジェクトを返し `.pooler_output` が未正規化**である落とし穴を回避できる。
+- [ ] `search` 結果 `I` に紛れる **`-1` をガード**してからメタDB を引ける。
+- [ ] 演習 `exercises.py` を**全10問 PASS**できる。
+
+## ❓ よくある落とし穴・FAQ・デバッグ
+
+本文 §13 の「症状→原因→対処」表と合わせて、つまずきやすい点を Q&A 形式で補足します。
+
+**Q. `search` が `RuntimeError` で落ちる／結果がデタラメ。** まず配列の `dtype` と `flags['C_CONTIGUOUS']` を `print` してください。`float64` や非連続（スライス・転置の結果）が最頻原因です。`as_faiss_array`（= `np.ascontiguousarray(x, dtype=np.float32)`）を index に渡す直前で必ず通します。次に `index.d`（次元）と `xq.shape[1]` が一致しているかを確認します（モデルを変えて埋め込み次元が変わると静かにバグります）。
+
+**Q. コサインのつもりが順位が変。** `IndexFlatIP` を使っているのに正規化を忘れている／**片側しか正規化していない**のが定番です。DB もクエリも `normalize_L2`（or 非破壊版 `l2_normalize`）を通します。検算は「クエリに DB の点そのものを入れたら、その点が top-1 でスコア ≈ 1.0」になるかどうか。ならなければ正規化漏れです。
+
+**Q. 正規化したら元の配列が壊れた。** `faiss.normalize_L2(x)` は **in-place** で `x` 自体を書き換えます。未正規化ベクトルを後で使うなら、コピーしてから渡すか、新しい配列を返す `l2_normalize` を使います。
+
+**Q. `add` で例外（`Error: assertion ... is_trained`）。** `IVF`/`PQ`/`OPQ` 系は `add` の前に `train(代表データ)` が必須です。`HNSW` と `Flat` は train 不要（`index_factory("HNSW32")` の `train` は no-op）。
+
+**Q. PQ を train したら大量の WARNING が出る。** `WARNING clustering N points to 256 centroids: please provide at least ...` は、PQ の各サブ量子化器が 256 個（8bit）の代表点を学習するのに学習データが少ないという**警告**で、エラーではありません（faiss は自動でサブサンプルして続行）。本物の大規模データでは十分な学習点を用意します。学習用の合成データではこの警告が出ても `exit 0` で完走します。
+
+**Q. IVF の Recall がやけに低い。** `nprobe=1`（既定）のままが原因の筆頭です。`nprobe` を 5〜数十に上げると Recall が大きく改善します（`mini_project.py` の Part B で `nprobe=1→0.79`、`nprobe=5→1.0` と動くのが見られます）。
+
+**Q. ANN の評価が満点で“怪しい”。** ground truth を ANN 自身の結果から作ってしまうと「自分で採点して満点」になります。**正解は必ず厳密 `IndexFlat` で**作ってください。Recall は「ANN が厳密検索にどれだけ忠実か」、retrieval mAP は「同カテゴリを上位に集められるか（埋め込みの良さ）」で**観点が違う**ので両方見ます。
+
+**Q. メタDB 参照でクラッシュする。** `k > ntotal` や IVF で近傍が足りないとき、`I` に `-1` が混じります。`i < 0` を**早期 return で弾いて** `(none)` 等に置換してから DB を引きます。
+
+**Q. `'...Pooling' object has no attribute 'shape'`（CLIP）。** transformers v5 で `get_image_features`/`get_text_features` の戻り値が `BaseModelOutputWithPooling` オブジェクトに変わりました。射影ベクトルは `.pooler_output` に入っており、しかも**未正規化**です。`out.pooler_output` を取り出して `F.normalize`（or `l2_normalize`）してから検索します。
+
+**Q. `AutoImageProcessor` がエラーになる。** transformers v5 は画像プロセッサが torchvision バックエンドの fast 実装のみになりました。`torchvision` 未導入だと落ちます（`dl` グループを入れる）。なお旧 `AutoFeatureExtractor` は廃止です。
+
+**Q. `pip install faiss-gpu` が見つからない。** そのパッケージ名は存在しません。CPU は `faiss-cpu`、GPU は `faiss-gpu-cuvs`（Linux x86_64 + NVIDIA, CUDA 12.4 系限定）で、両者は `import faiss` 名前空間を奪い合うため**同一環境に共存させない**でください。
+
+**デバッグの定石。** ① 次元 `index.d == xq.shape[1]` を最初に `assert`。② 「DB の点をクエリにして自分が top-1・スコア≈1.0」で配線確認。③ `index.ntotal` を `add`/`read_index` 前後で突き合わせる。④ Recall が変なら ground truth を Flat で作り直す。⑤ スコアが想定外なら正規化の有無と L2/IP の向きを疑う。
+
+## 🚀 発展トピック・参考
+
+本章で骨格は身についたので、ここから先は「規模・精度・運用」を深掘りする入り口を示します。
+
+- **スカラー量子化 / より強い圧縮**: `IndexScalarQuantizer`（`SQ8` 等）は PQ より手軽にメモリを削減できる中間策。`index_factory("IVF1024,SQ8")` のように混ぜて使う。PQ/OPQ/SQ・HNSW の組み合わせ最適化は FAISS Wiki の "Guidelines to choose an index" が決定版です。
+- **OPQ と再順位付け（re-ranking）**: `OPQ` で回転してから PQ すると量子化誤差が下がる。さらに ANN で粗く絞ってから厳密スコアで上位を並べ替える 2 段検索（`IndexRefineFlat`）は、メモリと精度を両取りする実務常套手段。
+- **大規模・GPU**: 数千万件規模では IVF のセル数を増やし、`faiss.index_cpu_to_gpu(res, 0, index)` の一行で GPU に載せ替える（検索 API は不変）。GPU 版は `faiss-gpu-cuvs`（Linux x86_64 + NVIDIA 限定）。複数 GPU/シャーディングは `IndexShards`。
+- **高レベル API**: 検索を素早く試すなら `sentence-transformers`（`SentenceTransformer('clip-ViT-B-32').encode(..., normalize_embeddings=True)` ＋ `util.cos_sim`）や `open-clip-torch`（LAION 学習・MobileCLIP/SigLIP 系）も対比教材として有用。本章で“中身”を理解したうえで使うと納得感が違います。
+- **評価をさらに厳密に**: `torchmetrics.retrieval`（`RetrievalRecall`/`RetrievalMAP`/`RetrievalMRR`/`RetrievalNormalizedDCG`）で Recall@k・mAP・MRR・nDCG を正準実装と突き合わせる。検索評価の指標体系は第14回・第33回とも接続します。
+- **実運用設計**: インクリメンタル更新（`add_with_ids` しながら検索可能を維持し、定期 `write_index`）、メタDB（SQLite）との整合・バージョン管理、分布が変わったときの `train` 再構築。これらは最終応用 **Cluster-CLIP（第40・41回）** の `stream/writer.py` がまさに実例で、本章の `mini_project.py` はその予行演習になっています。
+- **公式リファレンス**: FAISS Wiki（<https://github.com/facebookresearch/faiss/wiki>）、CLIP/transformers（<https://huggingface.co/docs/transformers>）。索引選択に迷ったら Wiki の "The index factory" と "Guidelines to choose an index" を最初に読むのが近道です。
 
 ---
 
