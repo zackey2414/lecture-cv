@@ -26,6 +26,15 @@ ASSETS = SITE / "assets"
 LEVEL_CLASS = {"入門": "intro", "初級": "beginner", "中級": "intermediate", "上級": "advanced"}
 PYGMENTS_STYLE = "monokai"  # 暗背景に整合する配色（コードの可読性）
 
+# ブラウザ用 favicon（ヘッダーの CV ロゴと同一: オレンジ角丸 + 白「CV」）
+FAVICON_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+    '<rect width="32" height="32" rx="7" fill="#f97316"/>'
+    '<text x="16" y="22.5" text-anchor="middle" '
+    'font-family="ui-sans-serif, system-ui, \'Segoe UI\', Roboto, sans-serif" '
+    'font-size="15" font-weight="900" fill="#ffffff">CV</text></svg>'
+)
+
 SITE_CSS = """@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -210,6 +219,7 @@ def page(title: str, body: str, *, rel: str = "") -> str:
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{html.escape(title)}</title>
+<link rel="icon" type="image/svg+xml" href="{rel}assets/favicon.svg">
 <link rel="stylesheet" href="{rel}assets/site.css">
 <link rel="stylesheet" href="{rel}assets/pygments.css">
 </head>
@@ -459,5 +469,6 @@ fmt = HtmlFormatter(style=PYGMENTS_STYLE)
     fmt.get_style_defs(".codehilite") + "\n" + fmt.get_style_defs(".highlight")
 )
 (ASSETS / "site.css").write_text(SITE_CSS)
+(ASSETS / "favicon.svg").write_text(FAVICON_SVG)
 
 print(f"built site/: {len(modules)} module pages ({len(authored)} authored) + index + roadmap + graph")
