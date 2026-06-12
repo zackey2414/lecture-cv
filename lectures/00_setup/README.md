@@ -7,9 +7,9 @@
 
 ## 🎯 この章のゴール
 
-uvの依存グループとDocker(python:3.12-slim + libgl1/ffmpeg)で本講座の実行環境を再現でき、Linuxで巨大なCUDA版torchを避けてCPUホイールを入れる方法、HF_HOMEキャッシュの永続化、cpu/mps/cudaを自動判定するtorch.deviceの定石を全回で再利用できる形で確立する。
+本章のゴールは、uvの依存グループとDocker(python:3.12-slim + libgl1/ffmpeg)で本講座の実行環境を誰でも再現できるようにすることです。そのうえで、Linuxで巨大なCUDA版torchを避けてCPUホイールを入れる方法、HF_HOMEキャッシュの永続化、そしてcpu/mps/cudaを自動判定するtorch.deviceの定石を、いずれも全回で再利用できる形で確立します。
 
-到達点を一言でいえば、**「自分の手元（CPU の Mac でも、GPU の Linux でも、ディスプレイの無い Docker でも）で、本講座のどのスクリプトも同じコマンドで動かせる」**状態を作ること。そのために、環境差を吸収する共通ユーティリティ `device.py` を自分の言葉で説明でき・そらで書ける、というのがこの章の合格ラインです。
+到達点を一言でいえば、**「自分の手元（CPU の Mac でも、GPU の Linux でも、ディスプレイの無い Docker でも）で、本講座のどのスクリプトも同じコマンドで動かせる」**状態を作ることです。そして、その土台となる環境差吸収用の共通ユーティリティ `device.py` を、自分の言葉で説明でき・そらでも書ける——これがこの章の合格ラインです。
 
 ---
 
@@ -23,7 +23,7 @@ uvの依存グループとDocker(python:3.12-slim + libgl1/ffmpeg)で本講座�
 
 ### 1. uv の依存グループ運用 — `[project.dependencies]` と `[dependency-groups]`
 
-本講座のパッケージ管理は **uv**（Rust 製の高速なパッケージマネージャ）に統一しています。uv は `pyproject.toml` を唯一の真実とし、解決結果を `uv.lock` に固定するので、**誰の環境でも同じバージョンが再現**されます。依存は 2 階層に分かれます。
+本講座のパッケージ管理は **uv**（Rust 製の高速なパッケージマネージャ）に統一しています。uv は `pyproject.toml` を唯一の真実とし、解決結果を `uv.lock` に固定するので、**誰の環境でも同じバージョンが再現**されます。そのうえで、依存は次の 2 階層に分けて管理します。
 
 - **`[project.dependencies]`**: `uv sync` で**常に**入る本体。本講座では `numpy` / `opencv-python-headless` / `pillow` / `matplotlib` の 4 つだけ。**画像の基礎トラック（00〜09）はこの本体だけで CPU 完走**します。
 - **`[dependency-groups]`**: `uv sync --group <name>` で**必要になったときに足す**任意グループ。`dl`（torch/torchvision）、`hf`（transformers 一式）、`vector`（faiss）… のように、回ごとに使うものを隔離しています。重い依存・衝突しやすい依存を本体に混ぜないための仕組みです。
@@ -54,11 +54,11 @@ torch = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 torchvision = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 ```
 
-ポイントは `explicit = true` と `marker` です。`explicit=true` は「この index は名指しされたパッケージ（torch/torchvision）だけに使い、他の普通のパッケージは PyPI から引く」という意味。`marker = "platform_system == 'Linux'"` は「Linux のときだけ CPU index を使う」という条件で、**macOS は PyPI 既定のまま**にします（mac の wheel は CPU と Apple Silicon の **MPS** を両方含むため、そちらが正解）。GPU を使いたい場合だけ、この URL を `cu126` などの CUDA index に差し替えます。
+ポイントは `explicit = true` と `marker` の 2 つです。まず `explicit=true` は、「この index は名指しされたパッケージ（torch/torchvision）にだけ使い、他の普通のパッケージは PyPI から引く」という意味です。一方 `marker = "platform_system == 'Linux'"` は、「Linux のときだけ CPU index を使う」という条件であり、**macOS は PyPI 既定のまま**にします（mac の wheel は CPU と Apple Silicon の **MPS** を両方含むため、そちらが正解だからです）。なお、GPU を使いたい場合だけ、この URL を `cu126` などの CUDA index に差し替えます。
 
 ### 3. device 自動判定 — `cpu` / `mps` / `cuda` を 1 行で
 
-環境が違えば使えるアクセラレータも違います。これを各スクリプトで毎回書くのは無駄なので、**判定を `device.py` 一箇所に閉じ込め**ます。優先順位は**速い順に `cuda > mps > cpu`**、そして `cpu` は最後の砦として常に選べるようにします。
+環境が違えば、使えるアクセラレータも違います。とはいえ、その判定ロジックを各スクリプトで毎回書くのは無駄なので、**判定を `device.py` 一箇所に閉じ込め**ます。優先順位は**速い順に `cuda > mps > cpu`** とし、そのうえで `cpu` は最後の砦として常に選べるようにします。
 
 ```python
 from device import pick_device, configure_threads
