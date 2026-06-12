@@ -30,6 +30,7 @@ Python既習者が、AIの補助なしに自力でCV関連コードを書き切�
 | 入門 | `02_cv_libraries_overview` | 画像・動画処理ライブラリの地図 | 01 | — |
 | 初級 | `03_image_transforms` | 色空間・描画・幾何変換 — 前処理パイプラインの土台 | 01 | — |
 | 中級 | `04_filtering_edges_morphology` | フィルタ・エッジ・閾値・モルフォロジー・輪郭・ワーピング | 03 | — |
+| 初級 | `43_color_spaces_and_adjustments` | 色空間と画像の調整 — 明るさ・彩度・色相・コントラスト・ガンマ・ホワイトバランス | 03 | — |
 
 ### 古典CV
 
@@ -69,6 +70,7 @@ Python既習者が、AIの補助なしに自力でCV関連コードを書き切�
 | 中級 | `15_image_embeddings_metric_learning` | 画像埋め込みとメトリック学習 — ViT/ResNet特徴・対照/triplet学習 | 13 | dl, hf |
 | 中級 | `17_faiss_image_search` | FAISSベクトルDBと画像検索システム(評価込み) | 15, 16 | dl, hf, vector, metrics |
 | 中級 | `42_multimodal_vector_search` | マルチモーダル・ベクトル検索（FAISS）— 画像・テキスト・クロスモーダル | 16, 17 | dl, hf, vector, metrics |
+| 中級 | `44_embedding_clustering` | 埋め込みのクラスタリング — 画像・テキスト・クロスモーダルを教師なしで束ねる | 16, 17 | dl, hf, metrics, vector |
 
 ### マルチモーダル
 
@@ -141,10 +143,10 @@ Python既習者が、AIの補助なしに自力でCV関連コードを書き切�
 
 ## 設計メモ・既知の注意点
 
-- **依存衝突を実行経路に持ち込まない**: `mediapipe`/`TrackEval`/`ByteTrack`/`DeepSORT`/`anomalib`/`ImageBind` は numpy2系や巨大依存と衝突しうるため、各回は**導入済み依存（torchvision/transformers/opencv/faiss）＋自前実装**で完結させ、これらは「概念＋任意導入(ガード)」に留める。
-- **FAISS**: `faiss-gpu` という pip 名は無い（CPU=`faiss-cpu` / GPU=`faiss-gpu-cuvs`）。本講座は全て `faiss-cpu`。画像専用検索は `17_faiss_image_search`、**画像・テキスト・クロスモーダルの統一検索は `42_multimodal_vector_search`**、それらを応用した総合が `40/41_cluster_clip_*`。
-- **顔**: `30` は 検出→認識(埋め込み)→**人物クラスタリング(人物一致)** までを一気通貫で扱う。
-- **バージョン**: torch `2.12+cpu` / torchvision `0.27+cpu` / transformers `5.11` / faiss-cpu / opencv-headless `4.13`（2026-06時点）。各教材フッターに版を明記。
+- **依存衝突を実行経路に持ち込まない**: `mediapipe`/`TrackEval`/`ByteTrack`/`DeepSORT`/`anomalib`/`ImageBind`/`insightface` は導入済み依存＋自前実装で代替し、概念＋任意導入(ガード)に留める。
+- **FAISS**: `faiss-gpu` という pip 名は無い（CPU=`faiss-cpu` / GPU=`faiss-gpu-cuvs`）。画像専用検索=`17`、画像/テキスト/クロスモーダル統一検索=`42`、**埋め込みのクラスタリング(画像/テキスト/顔)=`44`**、Cluster-CLIP応用=`40/41`。
+- **色情報以外の軸**: `43` で 明るさ/彩度/色相/コントラスト/ガンマ/ホワイトバランス と色空間(HSV/Lab/YCbCr)を扱う。
+- **バージョン**: torch `2.12+cpu` / torchvision `0.27+cpu` / transformers `5.11` / faiss-cpu / opencv-headless `4.13`（2026-06）。各教材フッターに版を明記。
 
 ---
 

@@ -1461,6 +1461,96 @@
     "16_clip_zeroshot_retrieval",
     "17_faiss_image_search"
    ]
+  },
+  {
+   "id": "43_color_spaces_and_adjustments",
+   "title": "色空間と画像の調整 — 明るさ・彩度・色相・コントラスト・ガンマ・ホワイトバランス",
+   "track": "画像の基礎",
+   "level": "初級",
+   "goal": "画像が RGB(色)だけでなく 明るさ(輝度)・彩度・色相・明度・コントラスト といった軸を持つことを理解し、HSV/HSL/Lab/YCbCr など目的別の色空間で『色情報と明るさ情報を分離して』扱える。明るさ/コントラスト/ガンマ/露出・彩度/色相の調整、輝度チャンネルのヒストグラム平坦化(色を保つ)、ホワイトバランス/色恒常性、HSV/Lab ベースの領域抽出(肌色・特定色)、知覚的色差ΔE(Lab) を自力で実装できる。",
+   "topics": [
+    "色空間の地図(RGB/HSV/HSL/Lab/YCbCr/XYZ)と使い分け",
+    "明るさ(輝度)・彩度・色相・明度・コントラストという軸の意味",
+    "明るさ/コントラスト/ガンマ補正/露出の調整",
+    "彩度・色相の調整(HSVで色だけ動かす)",
+    "輝度チャンネルのヒストグラム平坦化・CLAHE(色を崩さない)",
+    "ホワイトバランス/色恒常性(gray-world 等)",
+    "HSV/Lab ベースの領域抽出(肌色検出・特定色抽出)",
+    "知覚的色差 ΔE(Lab) と、色以外の per-pixel 情報(alpha/depth/勾配)の発展"
+   ],
+   "key_apis": [
+    "cv2.cvtColor",
+    "cv2.COLOR_BGR2HSV",
+    "cv2.COLOR_BGR2Lab",
+    "cv2.COLOR_BGR2YCrCb",
+    "cv2.convertScaleAbs",
+    "cv2.LUT",
+    "cv2.inRange",
+    "cv2.createCLAHE",
+    "np.clip"
+   ],
+   "evaluation": "—（調整は定性＋ヒストグラム/平均彩度/ΔE で定量確認）",
+   "deliverable": "明るさ/彩度/コントラスト/ガンマ/ホワイトバランスを変えて結果とヒストグラムを並べる調整ツール＋HSV/Lab領域抽出デモ",
+   "gpu_note": "全てCPU・main依存(numpy/cv2/PIL/matplotlib)のみ。ネット不要。",
+   "scripts": [
+    "01_color_spaces_map.py",
+    "02_brightness_contrast_gamma.py",
+    "03_saturation_hue.py",
+    "04_white_balance.py",
+    "05_hsv_lab_segmentation.py",
+    "mini_project.py"
+   ],
+   "needs_groups": [],
+   "prereqs": [
+    "03_image_transforms"
+   ]
+  },
+  {
+   "id": "44_embedding_clustering",
+   "title": "埋め込みのクラスタリング — 画像・テキスト・クロスモーダルを教師なしで束ねる",
+   "track": "埋め込み・検索",
+   "level": "中級",
+   "goal": "CLIP/ResNet/SigLIP で得た埋め込み(画像・テキスト・顔)を、ラベル無しで クラスタリング して自動グルーピングできる。k-means/DBSCAN/agglomerative(HDBSCAN任意)の使い分け、クラスタ数kの選び方(エルボー/シルエット)、評価(silhouette/NMI/purity/homogeneity)、次元削減(PCA/t-SNE/UMAP任意)での可視化を実装できる。顔クラスタリング(30)を一般化し、画像コレクションのトピック分け・テキスト(キャプション/ラベル)のクラスタリング・クロスモーダルまで扱える。",
+   "topics": [
+    "埋め込みクラスタリングとは(検索との違い・正規化)",
+    "k-means/DBSCAN/agglomerative/HDBSCAN(任意)の使い分け",
+    "クラスタ数kの選び方(エルボー・シルエット)",
+    "評価: silhouette(教師なし)/ NMI・purity・homogeneity(正解があるとき)",
+    "次元削減で可視化(PCA/t-SNE/UMAP任意)",
+    "画像コレクションのクラスタリング(CLIP/ResNet画像埋め込み)",
+    "テキスト(キャプション/ラベル)のクラスタリング",
+    "クロスモーダル・顔(30)との関係(同じ枠組み)"
+   ],
+   "key_apis": [
+    "sklearn.cluster.KMeans",
+    "sklearn.cluster.DBSCAN",
+    "sklearn.cluster.AgglomerativeClustering",
+    "sklearn.metrics.silhouette_score",
+    "sklearn.metrics.normalized_mutual_info_score",
+    "sklearn.decomposition.PCA",
+    "sklearn.manifold.TSNE"
+   ],
+   "evaluation": "silhouette(教師なし)・NMI/purity/homogeneity(正解があるとき)・エルボー/シルエットでのk選択",
+   "deliverable": "画像コレクションとテキスト集合を埋め込み→クラスタリングして自動グルーピングし、k選択・評価・2D可視化まで行うツール",
+   "gpu_note": "全てCPU。埋め込みは小型CLIP/ResNet(dl/hf)、クラスタリング/可視化は scikit-learn(metrics)。UMAP は任意・ガード。",
+   "scripts": [
+    "01_kmeans_image_embeddings.py",
+    "02_choosing_k.py",
+    "03_dbscan_agglomerative.py",
+    "04_text_and_crossmodal.py",
+    "05_visualize_reduce.py",
+    "mini_project.py"
+   ],
+   "needs_groups": [
+    "dl",
+    "hf",
+    "metrics",
+    "vector"
+   ],
+   "prereqs": [
+    "16_clip_zeroshot_retrieval",
+    "17_faiss_image_search"
+   ]
   }
  ]
 }
