@@ -234,6 +234,55 @@ ImageBind（<https://github.com/facebookresearch/ImageBind>）/ 17回（FAISS �
 
 ---
 
+## 💡 実践ユースケース集
+
+ここまでの「共有空間 × FAISS × id↔メタ × 永続化」は、そのまま現実の小ツールになる。代表的な応用を3つ挙げる。
+1つ目はこのフォルダの **`use_case.py` として実際に動く**ので、まず動かしてから自分のデータ・用途に育てていくとよい。
+
+### ① パーソナル画像検索（セマンティック写真検索）← `use_case.py`
+
+- **何に使うか**: 手元の写真フォルダを「a red car」「a dog on the beach」のような**自然文**で引く、Google Photos の
+  「犬」「海」検索のローカル版。**見本画像1枚**で似た写真を引くこともできる。家族写真・素材集・スクショ整理の実用ツール。
+- **作り方の要点**: 写真を CLIP で1度だけ埋め込み、`MultimodalSearchEngine`（L2正規化 → `IndexFlatIP` でコサイン）に `add` し、
+  `.faiss` + `.meta.json` で**ディスクにキャッシュ**する。2回目以降は **埋め込みをやり直さず読み込むだけ**で即検索 ——
+  これがベクトルDBを永続化する最大の利点。クエリは「テキストを埋め込む / 見本画像を埋め込む」だけで、`search()` は同じ。
+- **注意**: CLIP は**英語**前提（クエリは英語が無難）。`get_*_features` は未正規化なので **DB・クエリ両方を正規化**。
+  写真を足し引きしたらキャッシュは作り直す（本ツールは枚数一致で簡易判定。実運用は mtime ハッシュ等で厳密化）。
+  合成の「色×形」では CLIP のコサインは 0.3 前後と低めに出るが、**実写の方が CLIP の得意分野**で素直に効く。
+
+```bash
+uv run python lectures/42_multimodal_vector_search/use_case.py
+```
+
+実行すると `outputs/42_multimodal_vector_search/` に `use_case_text_search.png`（自然文→写真）/
+`use_case_image_search.png`（見本→似た写真）/ `use_case_report.json` / `use_case_library.faiss`（+`.meta.json`、次回起動を速くするキャッシュ）が出る。
+`data/42_multimodal_vector_search/` に自分の写真（`.png/.jpg`）を置いて再実行すれば、**合成より優先**して実写ライブラリ検索になる
+（1枚も無ければ合成「色×形」で必ず完走）。
+**練習（拡張）アイデア**: ①クエリを `argparse`（`--text "a dog"` / `--image path`）で受け取る対話CLIにする。
+②写真が増えたら `IndexFlatIP` を `index_factory(d, "HNSW32", faiss.METRIC_INNER_PRODUCT)` に差し替える（`add/search` は同じ）。
+③EXIF の日時・GPS をメタに足して日付・場所で絞る。④image→image で「そっくり写真」を炙り出す near-dup ファインダーに発展させる。
+
+### ② クロスモーダル商品検索（EC・カタログ）
+
+- **何に使うか**: EC の商品画像カタログを、ユーザの**自然文**（「白い夏物ワンピース」）でも、**お気に入り画像**でも引ける検索。
+  「文でも画像でも同じ1つの index を引く」本章の統一設計がそのまま刺さる代表例。
+- **作り方の要点**: 商品画像を埋め込んで FAISS に載せ、`id ↔ 商品メタ`（SKU・価格・在庫・カテゴリ）を**別管理**（JSON/SQLite）。
+  テキストクエリ・画像クエリのどちらも同じ `search()` で引き、結果 ID からメタを引いてカードを描画。在庫切れ等は
+  `IDSelector` で**index内で除外**するか後フィルタする。
+- **注意**: 商品説明は多言語になりがち —— 多言語なら **SigLIP2** に差し替えると素直（使い方は同じ、要 `sentencepiece`）。
+  価格・在庫のような**頻繁に変わる属性は埋め込みに混ぜず**メタ側で持つ（再埋め込み不要にする）。`-1`（近傍不足）は必ずガード。
+
+### ③ 重複・そっくり画像の棚卸し（near-duplicate / DAM）
+
+- **何に使うか**: 素材ライブラリやスクショの山から、**重複・ほぼ同一の画像**を見つけて整理・容量削減する。
+  アップロード時の「既出チェック」やコンテンツの取り違え防止（DAM = デジタル資産管理）にも使える。
+- **作り方の要点**: 全画像を埋め込み・正規化して `IndexFlatIP` に載せ、各画像を**自分自身をクエリ**にして近傍を引く。
+  コサインが**しきい値（例 0.95 以上）**の組を「重複候補」として束ねる。自分自身（cos≈1.0）は必ず除外する。
+- **注意**: しきい値は**実データで調整**（高すぎると取りこぼし／低すぎると別物まで束ねる）。トリミングや色調補正に強くしたいなら
+  CLIP 埋め込みが向くが、完全一致のバイト重複検出ならハッシュ（pHash 等）の方が速い —— **用途で道具を選ぶ**。
+
+---
+
 ## ▶ 動かし方
 
 ```bash
@@ -248,6 +297,9 @@ uv run python lectures/42_multimodal_vector_search/04_recall_eval.py
 
 # 章末ミニプロジェクト（統一エンジンの完成形）
 uv run python lectures/42_multimodal_vector_search/mini_project.py
+
+# 実践ユースケース（パーソナル画像検索ツール。data/<id>/ に写真を置くと実運用に切替）
+uv run python lectures/42_multimodal_vector_search/use_case.py
 
 # 演習（自己採点。未実装でも exit 0）と模範解答（全 PASS）
 uv run python lectures/42_multimodal_vector_search/exercises.py

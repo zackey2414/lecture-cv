@@ -176,6 +176,7 @@ for i in result_ids:
 | `02_idmap_persist_sqlite.py` | CLIP埋め込み→正規化→`IndexIDMap2`+`add_with_ids`→SQLite→`write/read_index`→画像/テキスト検索→`-1`ガード |
 | `03_ivf_hnsw_pq.py` | `IVFFlat`(train/nprobe)・`HNSW`(efSearch)・`index_factory`(IVFPQ/OPQ)、Recall とメモリ比較 |
 | `04_recall_qps_eval.py` | Recall@k 自前計算、`nprobe`/`efSearch` スイープの QPS-recall 曲線、retrieval mAP、JSON保存 |
+| `use_case.py` | **実践ユースケース**: 逆画像検索（reverse image search）。クエリ画像1枚でフォルダ内の類似/重複を FAISS で引き、コサイン閾値で near-duplicate を判定する“動く小ツール”（実画像差し替え・永続化対応） |
 | `mini_project.py` | **章末ミニプロジェクト**: CLIP 埋め込みで画像検索エンジンを構築→永続化→再読込→画像/テキスト検索→retrieval mAP、さらに大規模合成データで IVF/HNSW を Recall@k・QPS 評価して最速設定を推薦 |
 | `exercises.py` | TODO 形式の演習 **全10問**（易→難・自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
 | `exercises_solutions.py` | 演習の模範解答ランナー（全10問 PASS。採点ロジックは `exercises` 側を再利用） |
@@ -309,6 +310,40 @@ uv run python lectures/17_faiss_image_search/mini_project.py
 - **評価をさらに厳密に**: `torchmetrics.retrieval`（`RetrievalRecall`/`RetrievalMAP`/`RetrievalMRR`/`RetrievalNormalizedDCG`）で Recall@k・mAP・MRR・nDCG を正準実装と突き合わせる。検索評価の指標体系は第14回・第33回とも接続します。
 - **実運用設計**: インクリメンタル更新（`add_with_ids` しながら検索可能を維持し、定期 `write_index`）、メタDB（SQLite）との整合・バージョン管理、分布が変わったときの `train` 再構築。これらは最終応用 **Cluster-CLIP（第40・41回）** の `stream/writer.py` がまさに実例で、本章の `mini_project.py` はその予行演習になっています。
 - **公式リファレンス**: FAISS Wiki（<https://github.com/facebookresearch/faiss/wiki>）、CLIP/transformers（<https://huggingface.co/docs/transformers>）。索引選択に迷ったら Wiki の "The index factory" と "Guidelines to choose an index" を最初に読むのが近道です。
+
+## 💡 実践ユースケース集
+
+ここまでで身につけた「埋め込み → 正規化 → add → search」を、現実の小ツールに落とすと一気に実用品になります。`mini_project.py` が“評価まで含む総合課題”なのに対し、ここでは **1 本で完結し、すぐ自分のデータで動かせる現実の応用** を 3 つ紹介します。1 つ目はこのモジュール同梱の `use_case.py` として実際に動きます。
+
+### 1.（同梱・動く）逆画像検索 — フォルダの「似てる／そっくり」を引く `use_case.py`
+
+- **何に使うか**: 「この写真、もう持ってたっけ？」を判定する逆画像検索（reverse image search）。写真整理での重複削除、素材ライブラリの再利用チェック、スクショやロゴの重複検出など。クエリ画像 1 枚を投げると、フォルダ内の類似画像を上位から並べ、**コサイン類似度がしきい値以上のものを「near-duplicate（ほぼ重複）」とフラグ付け**して報告します。
+- **作り方の要点**: フォルダの画像を CLIP で埋め込み → `l2_normalize` → `IndexIDMap2(IndexFlatIP)` に `add_with_ids` でギャラリー索引を構築 → `write_index` で保存し `read_index` で読み戻す（実ツールは「一度作って何度も引く」）→ クエリ画像を同じ手順でベクトル化して `search` → コサイン `>= DUP_THRESHOLD` を重複と判定。ID は `0..N-1` を振り、`images[id]` でそのままサムネイルを引けるようにしています。
+- **注意**: コサイン類似度なので **DB 側・クエリ側の両方を正規化**します（片側だけだと崩れる）。`k > ntotal` や近傍不足で混じる **`-1` は弾いて**から扱います。重複の閾値（既定 `0.90`）は埋め込みモデルやデータで最適値が変わるので、自分のデータで何件かを目視して調整してください（厳しすぎると取りこぼし、緩すぎると誤検出）。
+
+```bash
+# 合成画像（色×形）で即実行（exit 0）。結果は outputs/17_faiss_image_search/ に保存
+uv run python lectures/17_faiss_image_search/use_case.py
+
+# 外部の画像をクエリにする
+QUERY_IMAGE=/path/to/photo.jpg uv run python lectures/17_faiss_image_search/use_case.py
+```
+
+**自分のデータで実運用にする**: `data/17_faiss_image_search/` に自分の画像（`*.png` / `*.jpg` など）を置くだけで、合成画像の代わりにそれらが**自動で優先**して読み込まれます（ファイル名がラベルになります）。あとは上のコマンドを実行すれば、あなたのフォルダに対する逆画像検索になります。出力は `use_case_reverse_search.png`（クエリ＋上位サムネ、重複は `[DUP]` 印）、`use_case_report.json`（判定の詳細）、`use_case_index.faiss` ＋ `use_case_meta.json`（永続化したギャラリー索引）です。
+
+### 2. 重複ファイル・クラスタの一括検出（フォルダ丸ごと棚卸し）
+
+- **何に使うか**: 1 枚クエリではなく、**フォルダ内の全ペアから重複グループを洗い出す**棚卸しツール。バックアップやダウンロードフォルダの重複整理に効きます。
+- **作り方の要点**: 全画像を索引に入れ、各画像を順にクエリとして `search(k=数件)` し、コサイン `>= 閾値` の相手を「重複候補」として無向グラフの辺にする → 連結成分（Union-Find）でグループ化。`IndexIDMap2` の任意 ID と SQLite メタデータ（`02_idmap_persist_sqlite.py`）を併用すると、各グループに元ファイルパスを添えて「どれを残しどれを消すか」まで提案できます。
+- **注意**: 自分自身（クエリ＝DB の同一画像）が必ず top-1 で来るので除外します。総当たりは O(N²) なので、件数が増えたら IVF/HNSW（`03_ivf_hnsw_pq.py`）で候補を絞ってから厳密スコアで確認する 2 段構えにします。
+
+### 3. テキストで自分の画像フォルダを引く（マルチモーダル検索）
+
+- **何に使うか**: 「`a red car`」「`sunset over the sea`」のような**自然文で手元の写真を検索**する。タグ付けしていない大量の写真から目的の 1 枚を探すのに便利です。
+- **作り方の要点**: CLIP は画像とテキストを**同じ空間**に置くので、`use_case.py` の索引はそのまま流用できます。クエリだけ `embedder.encode_texts([...])` に差し替え → 正規化 → 同じ `index.search` を呼ぶだけ（FAISS から見ればテキスト由来か画像由来かは無関係、ただのベクトル）。第 16 章「CLIP/SigLIP ゼロショット」と本章を橋渡しする応用です。
+- **注意**: テキスト検索は CLIP バックエンド時のみ（色記述子フォールバックでは不可）。`get_text_features` の戻り値は **v5 では未正規化の `.pooler_output`** なので、検索前に必ず `F.normalize`（or `l2_normalize`）します。スコアは絶対値より**相対順位**で見て、しきい値は用途ごとに調整します。
+
+**練習（拡張）アイデア**: (1) `data/17_faiss_image_search/` に自分の写真を置いて `use_case.py` を実運用にする。(2) `DUP_THRESHOLD` を振って重複判定の厳しさを体感する。(3) クエリをテキストに差し替えてマルチモーダル検索にする（応用 3）。(4) 索引を `IndexIDMap2(IndexIVFFlat(...))` に替えて大量画像でも高速化する。(5) メタデータを SQLite に移してファイルパス・撮影日時・サムネを持たせ、重複の「削除候補」を提案する CLI に育てる。
 
 ---
 

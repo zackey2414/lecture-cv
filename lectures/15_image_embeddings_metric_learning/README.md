@@ -105,6 +105,7 @@ loss = -(same_mask * F.log_softmax(sim, 1)).sum(1) / same_mask.sum(1)
 | `02_knn_recall_eval.py` | kNN 分類精度と Recall@k で埋め込み品質を評価。4 手法の横並び比較、L2 正規化（コサイン）の効果、PCA 散布図 |
 | `03_triplet_infonce.py` | メトリック学習の核。凍結特徴 + 2D 射影ヘッドを Triplet / ハードネガティブ / InfoNCE で学習。学習前後の kNN/Recall 比較と収束曲線 |
 | `mini_project.py` | **章末ミニプロジェクト（統合の完成物）**。抽出 → 評価 → メトリック学習を「コンパクト検索エンジン」に統合。圧縮スイープ・検索グリッド・metrics.json を出力 |
+| `use_case.py` | **実践ユースケース（近重複ファインダー）**。フォルダ内のそっくり画像を埋め込みコサインで検出し Union-Find でグループ化する小ツール。実データ優先・合成フォールバック。グループのモンタージュ・しきい値ヒストグラム・JSON を出力 |
 | `exercises.py` | TODO 形式の演習 9 問（自己採点ランナー `grade()` 付き）。numpy だけで完結しモデル DL 不要 |
 | `exercises_solutions.py` | 演習 9 問の模範解答（全 PASS）。`exercises.py` の `grade()` を再利用して採点（採点ロジックは重複なし） |
 
@@ -207,6 +208,41 @@ uv run python lectures/15_image_embeddings_metric_learning/exercises_solutions.p
 - **大規模検索への橋渡し**: 本章の「L2 正規化 → コサイン類似度」は、17 回の **FAISS `IndexFlatIP`** にそのまま載る。さらに `IVF`/`HNSW`/`PQ` で近似最近傍にすれば、数百万件規模でも実時間で検索できる（精度-速度のトレードオフは Recall@k で測る）。
 - **CLIP への接続**: `03` と mini の InfoNCE は、16 回の `openai/clip-vit-base-patch32` の画像-テキスト対照学習そのもの。本章で手書きした損失が、次章のゼロショット分類・クロスモーダル検索の中身になる。
 - 公式ドキュメント: [transformers ViT/ResNet](https://huggingface.co/docs/transformers/en/index) ／ [timm feature extraction](https://huggingface.co/docs/timm/feature_extraction) ／ [torchmetrics retrieval](https://lightning.ai/docs/torchmetrics/stable/) ／ [FAISS wiki](https://github.com/facebookresearch/faiss/wiki)。
+
+## 💡 実践ユースケース集
+
+ミニプロジェクト（圧縮スイープのベンチ）とは別に、この章の「画像 → 埋め込み → L2 正規化 → コサイン類似度」だけで作れる、**現実の小ツール**を 3 つ挙げます。どれも追加学習なしの素の埋め込みで十分に効くのがポイントです。1 つ目は実際に動くコードとして `use_case.py` に同梱しました。
+
+### 1. 近重複（near-duplicate）画像ファインダー（同梱: `use_case.py`）
+
+- **何に使うか**: 写真フォルダの中の「連写・JPEG 再保存・リサイズ・明るさ調整だけ違うほぼ同じ画像」を炙り出してグループ化し、各グループから 1 枚だけ残す整理に使う。スマホの重複写真掃除、素材ライブラリの重複排除など。
+- **作り方の要点**: 全画像を `timm resnet18`（512 次元）で埋め込み → `eh.l2_normalize` → コサイン類似度行列。**しきい値以上のペアを Union-Find（連結成分）でまとめる**と、それぞれの連結成分が 1 つの近重複グループになる（添字最小を代表に採用）。`02` の Recall とは違い、ここでは「ペアが閾値を超えたか」を直接見るのが肝。
+- **注意**: しきい値が全て。同梱の `use_case_similarity_hist.png`（各画像の最近傍コサイン分布）の**2 つの山の谷**に閾値を置くのが定石。Union-Find は推移的に繋がるので、閾値を下げすぎると「A〜B〜C」と芋づる式に巨大グループへ膨らむ（過併合）点に注意。
+
+実行とデータの置き方:
+
+```bash
+uv run python lectures/15_image_embeddings_metric_learning/use_case.py
+# → 画像が無ければ near-duplicate を仕込んだ合成データで動く（exit 0）
+
+# 自分のフォルダで実運用にするには、画像をここに置くだけ:
+#   data/15_image_embeddings_metric_learning/*.jpg / *.png / ...
+# 2 枚以上あれば自動でそちらを対象に切り替わる
+```
+
+出力は `outputs/15_image_embeddings_metric_learning/` に `use_case_duplicate_groups.png`（グループのモンタージュ。緑枠＝同一グループ）・`use_case_similarity_hist.png`（閾値チューニング用）・`use_case_groups.json`（グループ・メンバー・類似度・設定値）。**練習（拡張）アイデア**: (a) `SIM_THRESHOLD` をヒストグラムの谷から自動決定する、(b) 埋め込みを CLIP（16 回）に替えて構図違いの「意味的な近重複」まで拾う、(c) 各グループの代表 1 枚（最大解像度など）を残して他を退避する整理アクションを足す、(d) pHash を粗いフィルタにして埋め込み計算を減らす、(e) 数万枚規模なら総当たりをやめて FAISS（17 回）で近傍だけ引く。
+
+### 2. 学習データのリーク検出（train/val の near-dup チェック）
+
+- **何に使うか**: 学習前に、train と val（または test）に**同一・ほぼ同一の画像が跨って入っていないか**を検査する。リークがあると評価が不当に高く出るので、データセット作成の品質ゲートとして使う。
+- **作り方の要点**: train 側をギャラリー、val 側をクエリにして、各 val 画像の最近傍 train 画像とのコサインを計算。閾値超えのペアを「リーク候補」として一覧化する（`use_case.py` の Union-Find を「2 つの集合間の最近傍探索」に組み替えるだけ）。
+- **注意**: 同一被写体の別カット（正当なバリエーション）と真の重複の線引きは閾値依存。機械的に消さず、必ず候補ペアを目視確認するワークフローにする。クラス不均衡なデータでは閾値をクラスごとに変えることも検討。
+
+### 3. 再投稿・転載画像の検出（リファレンス集合への近傍照合）
+
+- **何に使うか**: 手元の「正規画像（リファレンス）」集合に対し、新着画像が**そのトリミング/再圧縮/微加工版でないか**を照合する。素材の無断転載検知や、投稿の重複ブロックなどに応用できる。
+- **作り方の要点**: リファレンスを事前に埋め込み・正規化してインデックス化（本章では行列、規模が出たら 17 回の FAISS `IndexFlatIP`）。新着画像を同じ手順で埋め込み、最近傍のコサインが閾値を超えたら「既知画像の近重複」と判定する。
+- **注意**: 大きなトリミングや強い加工は resnet18 の見た目特徴では似度が落ちやすい。頑健にしたいなら CLIP 埋め込みやマルチクロップ平均を併用する。誤検知の責任が重い用途では、必ず人手レビューを最終段に挟む。
 
 ---
 

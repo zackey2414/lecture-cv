@@ -177,6 +177,7 @@ feat = model.get_image_features(pixel_values=pv).pooler_output  # .pooler_output
 | `02_clip_siglip_manual.py` | `CLIPProcessor`+`CLIPModel` 手書き、埋め込みの非対称（未正規化）検証、CLIP softmax vs SigLIP sigmoid（該当なし比較） |
 | `03_text_image_retrieval.py` | 正規化＋コサイン＋topk で text→image / image→image 検索、Recall@k・mAP・MRR、高ノルム distractor 実験 |
 | `mini_project.py` | 章末の統合課題。プロンプト・アンサンブル → 検索評価 → 正規化アブレーション → 開集合の棄却（CLIP コサイン閾値 / SigLIP sigmoid）を1本に通す完成形 |
+| `use_case.py` | 実践ユースケース。**自然文でローカル画像フォルダを検索する小ツール**（text→image・コサイン topk・埋め込みキャッシュ・該当なし注記）。コマンドライン引数で自由文クエリを渡せる |
 | `exercises.py` | TODO 形式の演習9問（易→難、自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答に差し替え） |
 | `exercises_solutions.py` | 演習の模範解答（全問 PASS）。採点ロジックは `exercises.py` を再利用し、解答実装だけを保持（重複なし） |
 
@@ -241,6 +242,38 @@ uv run python lectures/16_clip_zeroshot_retrieval/mini_project.py
 - **指標の深掘り（第14回）**: nDCG・Precision@k・retrieval mAP の補間方式など。`torchmetrics.retrieval` の各クラスを参照。
 - **公式ドキュメント**: [transformers CLIP](https://huggingface.co/docs/transformers/en/model_doc/clip) ／ [SigLIP](https://huggingface.co/docs/transformers/en/model_doc/siglip) ／ [torchmetrics retrieval](https://lightning.ai/docs/torchmetrics/stable/) ／ [OpenAI CLIP 論文](https://arxiv.org/abs/2103.00020) ／ [SigLIP 論文](https://arxiv.org/abs/2303.15343)。
 
+## 💡 実践ユースケース集
+
+本章の骨格（埋め込み → L2 正規化 → コサイン → topk／確率解釈・棄却）は、そのまま現実の小さなプロダクトになります。ミニプロジェクトが「評価とアブレーションで原理を確かめるベンチ」だったのに対し、ここでは**そのまま使える実アプリ**を3つ挙げ、うち1つを `use_case.py` として同梱しました。コピーして自分の課題の出発点にしてください。
+
+### ① 自然文でローカル画像フォルダを検索（同梱: `use_case.py`）
+
+- **何に使うか**: 手元の写真・素材フォルダを `"a red car"` `"sunset over the sea"` のような**ことば**で検索する、Google フォトの「写真をことばで探す」の自作最小版。社内のアセット管理（DAM）や、撮りためた写真の発掘に直結します。
+- **作り方の要点**: フォルダの全画像を `get_image_features().pooler_output` で埋め込み → `F.normalize` で正規化 → `(N, D)` 行列として一度だけ作り**キャッシュ保存**（`use_case_index.npz`）。検索時はクエリ文を同じ手順で埋め込み・正規化し、**コサイン（正規化済みベクトルの内積）→ `torch.topk`** で上位を並べるだけ（§6 そのもの）。2回目以降はキャッシュを読むので画像エンコードを省けます。実画像が多い場合に備え、画像埋め込みは**バッチ分割**して回しています。
+- **注意**: コサインには **L2 正規化が必須**（忘れると高ノルム画像が結果を乗っ取る／§8）。`get_*_features` は**未正規化**で返る点に注意。「該当なし」を弱いコサイン（既定 0.22 未満）で**注記**していますが、この閾値は本来**検証データで較正**すべき目安です。件数が増えたら総当たりをやめて第17回の FAISS（`IndexFlatIP`＋`normalize_L2`）へ。
+
+```bash
+# 既定のデモクエリで動かす（合成データで必ず完走）
+uv run python lectures/16_clip_zeroshot_retrieval/use_case.py
+# 自分の検索語（自然文・複数可）を渡す
+uv run python lectures/16_clip_zeroshot_retrieval/use_case.py "a red car" "a blue square"
+# → outputs/16_clip_zeroshot_retrieval/use_case_results.png / .json / use_case_index.npz
+```
+
+**自分のデータで実運用にするには**: `data/16_clip_zeroshot_retrieval/` を作って自分の `.png`/`.jpg` を置くだけで、合成データの代わりにそのフォルダが検索対象になります（フォルダが空／無いときは合成 12 枚に自動フォールバック）。**練習（拡張）アイデア**: (a) クエリを画像にして `image→image`（似た写真で探す）を追加、(b) `"a photo of a {x}"` などテンプレ平均でクエリを頑健化（ミニプロジェクト Stage A）、(c) SigLIP の sigmoid または較正済み閾値で「該当なし」を厳密化、(d) 撮影日・タグなどメタデータを JSON で併せ持ち結果に添える、(e) Flask/Streamlit で検索ボックス付き Web UI に載せる。
+
+### ② 商品・素材画像のゼロショット自動タグ付け
+
+- **何に使うか**: EC やストックフォトで、**学習し直さずに**画像へ属性タグ（色・カテゴリ・シーン・スタイルなど）を付与する。新カテゴリが増えても**候補ラベルを差し替えるだけ**で対応できるのがゼロショットの強み。
+- **作り方の要点**: タグ候補を `"a photo of a {tag}"` のプロンプトにして埋め込み、画像埋め込みとのコサインを取る。**排他カテゴリ**（色は1つ）は CLIP の `softmax` で top-1、**複数同時に立つタグ**（「屋外」「人物あり」など）は **SigLIP の `sigmoid` を独立閾値**で多ラベル判定（§5）。
+- **注意**: `softmax` は候補内で必ずどれかに確率を寄せるため「該当なし」を表現できません。多ラベルや棄却が要るなら sigmoid＋閾値へ。プロンプト文（言い換え・テンプレ）で精度が大きく変わるので、少量の正解データでプロンプトを選ぶこと。
+
+### ③ コンテンツ・モデレーションの一次フィルタ（候補抽出）
+
+- **何に使うか**: 大量画像から「暴力的」「特定ブランドのロゴ」などの**テキスト記述に合致しそうな画像を機械が一次抽出**し、人間レビューの母数を絞る。完全自動判定ではなく**トリアージ**として使うのが現実的。
+- **作り方の要点**: 検出したい記述文を埋め込み、各画像とのコサイン／SigLIP sigmoid で**スコア順に並べる**か**閾値で振り分け**。`text→image` 検索の応用で、しきい値以上を「要確認キュー」に積む設計。
+- **注意**: ゼロショットは**取りこぼし・誤検出**があるため最終判断を任せない（必ず人間レビューを挟む）。閾値は用途ごとに検証データで較正し、再現率重視（見逃しを減らす）か適合率重視（誤検出を減らす）かを明確にする。バイアスや誤判定の影響が大きい領域では特に慎重に運用する。
+
 ## 12. 動かし方
 
 このモジュールは `dl`（torch/torchvision）・`hf`（transformers/sentencepiece ほか）・`metrics`（torchmetrics）グループに依存します。CPU だけで完走し、初回のみ CLIP と SigLIP の重みを HuggingFace からダウンロードします（以降はキャッシュから即起動）。プロジェクトルートで以下を順に実行してください。
@@ -257,6 +290,10 @@ uv run python lectures/16_clip_zeroshot_retrieval/03_text_image_retrieval.py
 
 # 章末ミニプロジェクト（4ステージを統合した完成形。図 + JSON を出力）
 uv run python lectures/16_clip_zeroshot_retrieval/mini_project.py
+
+# 実践ユースケース: 自然文でローカル画像を検索する小ツール（引数で自由文クエリも渡せる）
+uv run python lectures/16_clip_zeroshot_retrieval/use_case.py
+uv run python lectures/16_clip_zeroshot_retrieval/use_case.py "a red car" "a blue square"
 
 # 演習: まずは TODO を自分で埋める（最初は全部 FAIL だが exit 0）
 uv run python lectures/16_clip_zeroshot_retrieval/exercises.py

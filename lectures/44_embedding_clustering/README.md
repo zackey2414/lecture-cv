@@ -133,6 +133,7 @@ xy_tsne = TSNE(n_components=2, perplexity=10, init="pca", learning_rate="auto").
 | `04_text_and_crossmodal.py` | テキストのトピック分け。クロスモーダルのモダリティギャップと centering 対策、顔(30)への接続 |
 | `05_visualize_reduce.py` | PCA（説明分散）/ t-SNE（局所構造）で 2D 可視化。UMAP・HDBSCAN は任意ガード |
 | `mini_project.py` | 章末の統合課題。画像＋テキストを埋め込み→k自動選択→クラスタリング→評価→2D可視化を一気通貫 |
+| `use_case.py` | 実践ユースケース。実フォルダの写真を埋め込み→クラスタリングし、内容ごとのサブフォルダ分けを提案（`--apply` で実コピー） |
 | `exercises.py` | TODO 形式の演習8問（易→難、自己採点ランナー付き）。numpy だけでクラスタリングの核を実装 |
 | `exercises_solutions.py` | 演習の模範解答（全問 PASS）。採点ロジックは `exercises.py` を再利用し、解答実装だけを保持 |
 
@@ -197,6 +198,43 @@ uv run python lectures/44_embedding_clustering/mini_project.py
 - **クラスタ ID の安定化**: k-means のラベル番号は実行ごとに入れ替わります。クラスタ間で比較・追跡したいときは、`scipy.optimize.linear_sum_assignment`（ハンガリアン法）で真ラベルや前回結果と対応付けます。
 - **公式ドキュメント**: [scikit-learn clustering](https://scikit-learn.org/stable/modules/clustering.html) ／ [clustering の評価](https://scikit-learn.org/stable/modules/clustering.html#clustering-performance-evaluation) ／ [manifold（t-SNE）](https://scikit-learn.org/stable/modules/manifold.html) ／ [UMAP](https://umap-learn.readthedocs.io/) ／ [HDBSCAN](https://hdbscan.readthedocs.io/)。
 
+## 💡 実践ユースケース集
+
+本章の骨格（埋め込み→正規化→クラスタリング→評価→可視化）は、そのまま現実の小ツールになります。検索（17章）が「クエリに近いものを並べる」のに対し、クラスタリングは「**ラベルが無い山を、似たもの同士に自動で束ねる**」ので、「とにかく溜まった大量の何かを、人手をかけずにざっくり整理・把握したい」場面で効きます。以下に3つの現実応用を挙げ、そのうち1つ目を**動く出発点 `use_case.py`** として同梱しています。
+
+### 1. 写真の自動フォルダ分け（auto-organizer）← `use_case.py` で実装
+
+- **何に使うか**: 撮りっぱなしで散らかった画像フォルダを、中身（人物・料理・風景・乗り物…）ごとのサブフォルダに**自動仕分け**する。「だいたい何種類の写真が何枚ずつあるか」を一望し、整理の下書きを作る用途。
+- **作り方の要点**: フォルダ内の画像を CLIP で埋め込み→L2 正規化→**silhouette で k を自動選択**して k-means（§3/§4）。各クラスタの**中心ベクトルに最も近い語彙ラベル**を CLIP のゼロショットで引いて、人間が読める**フォルダ名を自動命名**します（例: `people` / `food` / `nature`）。結果は「どのファイルをどのフォルダへ」という**計画 JSON** と**クラスタ別アルバム PNG** にし、`--apply` で初めて実コピーする（既定はドライランで安全）。
+- **注意**: 命名はあくまで CLIP の当て推量なので、`use_case.py` の `PHOTO_VOCAB`（候補ラベル語彙）を**自分の用途に合わせて書き換える**と精度が上がります。k はデータ依存——`--k` で固定して比べるとよいです。元ファイルは**消さずコピー**する設計（破壊的操作をしない）を踏襲してください。
+
+```bash
+# 提案だけ（ドライラン・何も移動しない）。data/ が空なら合成データで動作デモ
+uv run python lectures/44_embedding_clustering/use_case.py
+# 自分の写真で実運用するには: data/44_embedding_clustering/ に画像を置くだけ（再帰探索）
+#   （jpg/png/webp ... 何枚でも。サブフォルダに分かれていてもOK）
+uv run python lectures/44_embedding_clustering/use_case.py --k 8     # サブフォルダ数を固定
+uv run python lectures/44_embedding_clustering/use_case.py --apply   # 提案どおり実コピー
+# → outputs/44_embedding_clustering/use_case_organizer.png / use_case_organizer_plan.json
+#   （--apply 時のみ outputs/.../organized/<folder>/ に実ファイルをコピー）
+```
+
+`data/44_embedding_clustering/` に画像が**無ければ合成データ（色×形6グループ）で必ず完走**し、置けばそのまま実運用に切り替わります。**練習（拡張）アイデア**: ①`PHOTO_VOCAB` を旅行/料理/家族など自分のカテゴリへ書き換える、②k-means を `AgglomerativeClustering(distance_threshold=...)` に差し替えて「k を決めずに」整理する、③同一クラスタ内でコサイン類似が極端に高いペアを**重複（ニアデュープ）候補**として別出力する、④DBSCAN にして「どの束にも入らない外れ写真」を `noise/` に隔離する。
+
+### 2. 未整理データセットの“素性”プロファイリング（ラベル付け前の俯瞰）
+
+- **何に使うか**: アノテーション前の生画像/テキストの山に対し、「どんなカテゴリが、どれくらいの偏りで含まれるか」を**ラベルを作る前に**把握する。重複・外れ値・想定外カテゴリの早期発見にも使え、ラベリング計画やサンプリング設計の土台になります。
+- **作り方の要点**: 全件を埋め込み→Agglomerative か HDBSCAN（§5/§9）で束ね、**クラスタごとの件数分布**と**代表サンプル（中心に最も近い数枚）**を出力。silhouette と、もし一部に既知ラベルがあれば NMI/purity（§6）で「束ね方が妥当か」を点検します。`use_case.py` の計画 JSON をそのまま「データ統計レポート」に転用できます。
+- **注意**: クラスタ数や粒度は埋め込みの質に強く依存します（§7 の「まずアルゴリズムより埋め込みを疑う」）。**t-SNE の島の距離・大きさに意味を読み込まない**（§9）。テキストが混じるなら**モダリティギャップ**で破綻するので、画像と文は別々に束ねるか centering する（§8）。
+
+### 3. クラスタ代表による「多様性サンプリング／間引き」
+
+- **何に使うか**: 大量画像から**重複を減らし、満遍なく多様な少数を選び出す**（学習データの間引き、レビュー用サムネ選定、データセット軽量化）。動画の連続フレームや、同じ被写体の連写を**1枚に代表させる**用途に有効です。
+- **作り方の要点**: 埋め込み→k-means（k＝欲しい枚数の目安）→**各クラスタ中心に最も近い1枚**を代表として採用すれば、空間を覆う代表集合が得られます。逆に「各クラスタから1枚だけ残す」だけでニアデュープ除去になります。中心に近い順＝**典型度ランキング**としても使えます。
+- **注意**: k を大きくしすぎると「ほぼ全部採用」になり間引きになりません（silhouette/件数で適正 k を点検）。**正規化必須**（§2）——忘れるとノルムの大きい1枚が中心を乗っ取ります。決定論性が要るなら `random_state` を固定（k-means のラベル番号は実行ごとに入れ替わる点も §発展 参照）。
+
+> 共通の作法: いずれも **CPU・headless（matplotlib=Agg、`cv2.imshow` 不使用）** で動き、結果は `outputs/44_embedding_clustering/` に PNG/JSON で保存します。実データは `data/44_embedding_clustering/` に置けば自動で使われ、無ければ合成データでデモが完走します。**破壊的なファイル操作はオプトイン（`--apply`）**にし、既定はドライラン（提案のみ）にするのが安全な小ツールの設計です。
+
 ## ▶ 動かし方
 
 このモジュールは `dl`（torch/torchvision）・`hf`（transformers ほか）・`metrics`（scikit-learn）グループに依存します（`vector` は発展用で必須ではありません）。CPU だけで完走し、初回のみ CLIP（`openai/clip-vit-base-patch32`）の重みを HuggingFace からダウンロードします（以降はキャッシュから即起動）。プロジェクトルートで以下を順に実行してください。
@@ -217,6 +255,9 @@ uv run python lectures/44_embedding_clustering/05_visualize_reduce.py
 
 # 章末ミニプロジェクト（一気通貫。6パネル図 + JSON を出力）
 uv run python lectures/44_embedding_clustering/mini_project.py
+
+# 実践ユースケース: 写真の自動フォルダ分け（data/ に画像を置けば実運用。既定はドライラン）
+uv run python lectures/44_embedding_clustering/use_case.py
 
 # 演習: まずは TODO を自分で埋める（最初は全部 TODO だが exit 0）
 uv run python lectures/44_embedding_clustering/exercises.py
