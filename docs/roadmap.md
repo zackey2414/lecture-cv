@@ -1,6 +1,6 @@
 # lecture-cv カリキュラム・ロードマップ
 
-> Computer Vision を「AI の補助なしで自力で書ける」レベルまで叩き込む、CPUのみ（MacBook等GPU無し）で完走するハンズオン講座の全体地図。
+> Computer Vision を「AI の補助なしで自力で書ける」レベルまで叩き込む、CPUのみで完走するハンズオン講座の全体地図。
 
 ## 講座の全体ゴール
 
@@ -12,7 +12,7 @@ Python既習者が、AIの補助なしに自力でCV関連コードを書き切�
 
 ## 学習順序は「グラフ」で
 
-この講座は番号順の一本道ではなく、**前提(prerequisite)でつながった有向グラフ(DAG)**です。番号は安定IDで、実際の学習順は各回の「前提」をたどります。可視化した依存グラフ・推奨学習順・前提一覧は、閲覧サイトの **学習順序グラフ（`site/graph.html`）** を参照してください。後から回を足しても前提を引けば筋道は崩れません。
+この講座は番号順の一本道ではなく、**前提でつながった有向グラフ(DAG)**です。番号は安定IDで、学習順は各回の「前提」をたどります。可視化は閲覧サイトの **学習順序グラフ（`site/graph.html`）** を参照。
 
 ## モジュール一覧（トラック別・前提つき）
 
@@ -71,6 +71,7 @@ Python既習者が、AIの補助なしに自力でCV関連コードを書き切�
 | 中級 | `17_faiss_image_search` | FAISSベクトルDBと画像検索システム(評価込み) | 15, 16 | dl, hf, vector, metrics |
 | 中級 | `42_multimodal_vector_search` | マルチモーダル・ベクトル検索（FAISS）— 画像・テキスト・クロスモーダル | 16, 17 | dl, hf, vector, metrics |
 | 中級 | `44_embedding_clustering` | 埋め込みのクラスタリング — 画像・テキスト・クロスモーダルを教師なしで束ねる | 16, 17 | dl, hf, metrics, vector |
+| 中級 | `45_sketch_emoji_search` | 実践: 手書きスケッチで絵文字を検索（CLIP＋FAISS のスケッチ画像検索 SBIR） | 16, 17 | dl, hf, vector, metrics |
 
 ### マルチモーダル
 
@@ -141,13 +142,7 @@ Python既習者が、AIの補助なしに自力でCV関連コードを書き切�
 | 上級 | `40_cluster_clip_dense_cluster` | Cluster-CLIP中核 — dense CLIP特徴と空間連結クラスタリング | 16, 33 | dl, hf, embed, vector, metrics |
 | 上級 | `41_cluster_clip_pipeline` | Cluster-CLIPパイプライン統合(総合) — Split→Build→Search→Stream | 40, 17, 42, 11 | dl, hf, embed, vector, video |
 
-## 設計メモ・既知の注意点
-
-- **依存衝突を実行経路に持ち込まない**: `mediapipe`/`TrackEval`/`ByteTrack`/`DeepSORT`/`anomalib`/`ImageBind`/`insightface` は導入済み依存＋自前実装で代替し、概念＋任意導入(ガード)に留める。
-- **FAISS**: `faiss-gpu` という pip 名は無い（CPU=`faiss-cpu` / GPU=`faiss-gpu-cuvs`）。画像専用検索=`17`、画像/テキスト/クロスモーダル統一検索=`42`、**埋め込みのクラスタリング(画像/テキスト/顔)=`44`**、Cluster-CLIP応用=`40/41`。
-- **色情報以外の軸**: `43` で 明るさ/彩度/色相/コントラスト/ガンマ/ホワイトバランス と色空間(HSV/Lab/YCbCr)を扱う。
-- **バージョン**: torch `2.12+cpu` / torchvision `0.27+cpu` / transformers `5.11` / faiss-cpu / opencv-headless `4.13`（2026-06）。各教材フッターに版を明記。
 
 ---
 
-_lecture-cv ロードマップ ／ 設計時点: 2026-06。学習順は site/graph.html（学習順序グラフ）が正。_
+_lecture-cv ロードマップ ／ 設計時点: 2026-06。学習順は site/graph.html が正。_
