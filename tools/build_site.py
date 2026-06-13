@@ -152,6 +152,8 @@ img{max-width:100%}
 .content pre code,.codehilite code,.highlight code{background:none;padding:0;color:inherit}
 .codehilite pre,.highlight pre{background:none;margin:0;padding:0;border-radius:0}
 /* code source accordions */
+.ex-intro{color:var(--g700);font-size:.92rem;margin:.1rem 0 .9rem;line-height:1.7}
+.ex-intro b{color:var(--p700)}
 .srcblock{margin:.65rem 0;border:1px solid var(--g200);border-radius:10px;overflow:hidden;background:#fff}
 .srcblock>summary{cursor:pointer;padding:.65rem 1rem;font-weight:700;background:var(--g50);user-select:none;font-size:.9rem}
 .srcblock>summary:hover{background:var(--p100)}
@@ -471,7 +473,14 @@ for idx, m in enumerate(modules):
             f"</summary>{highlight_py(p.read_text())}</details>"
             for p in ex_files
         )
-        ex_html = f'<h2 id="exercises">演習</h2>{det}'
+        ex_html = (
+            f'<h2 id="exercises">演習</h2>'
+            f'<p class="ex-intro">演習は下の <code>exercises.py</code> に <b>TODO 形式</b>で入っています。'
+            f'開いて TODO を自分で埋め、<code>uv run python lectures/{m["id"]}/exercises.py</code> '
+            f'を実行すると<b>自己採点</b>されます（<code>SHOW_SOLUTION=1</code> または '
+            f'<code>exercises_solutions.py</code> で答え合わせ）。</p>'
+            f"{det}"
+        )
 
     # 右サイドの目次に スクリプト/演習 を追記
     extra = []
