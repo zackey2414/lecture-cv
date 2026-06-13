@@ -262,6 +262,21 @@ uv run python lectures/31_generation_editing/mini_project.py
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/31_generation_editing/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 同形状の配列 a, b の平均二乗誤差（MSE）を返す（`mse` の TODO）。復元・超解像の基本誤差。
+2. PSNR を `10*log10(max_val^2 / MSE)` で返し、完全一致（MSE≈0）は `inf` を返す（`psnr` の TODO）。
+3. 実数配列を [0,255] にクリップして四捨五入し、`uint8` 配列で返す（`to_uint8` の TODO）。画像保存の定番処理。
+4. 配列を [0,1] に min-max 正規化し、定数配列（max==min）は 0 除算を避けて全 0 を返す（`minmax_normalize` の TODO）。
+5. ベクトル a, b のコサイン類似度 `dot/(|a||b|)` を返し、どちらかがゼロベクトルなら 0.0 とする（`cosine_similarity` の TODO）。
+6. 画像埋め込みとテキスト埋め込みのコサイン類似度から CLIPScore `w*max(cos,0)`（既定 w=2.5）を計算する（`clip_score` の TODO）。
+7. a, b 全体の平均・分散・共分散から大域 SSIM（単一窓・共分散形）を組み立てて返す（`ssim_global` の TODO）。
+8. 1 次元ガウシアン間の Fréchet 距離 `(m1-m2)^2 + (√v1-√v2)^2`（FID の 1 次元版）を返す（`frechet_distance_1d` の TODO）。
+9. (H,W) または (H,W,C) 画像を縦横それぞれ factor 倍に最近傍法（画素複製）でアップスケールする（`nearest_upscale` の TODO）。
+10. 前景 fg を alpha で背景 bg に重ね（`fg*alpha + bg*(1-alpha)`）、[0,255] にクリップして uint8 で返す α 合成（`alpha_composite` の TODO）。
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 - **SD-Turbo で絵が崩れる/真っ黒**: `guidance_scale` を 0.0 にする（>0 は破綻）。`num_inference_steps` は 1〜2。

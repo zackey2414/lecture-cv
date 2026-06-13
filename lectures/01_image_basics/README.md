@@ -272,6 +272,21 @@ plt.imsave("out2.png", rgb)    # 方法B: matplotlib で保存（RGB に変換�
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/01_image_basics/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 画像の素性（`shape`／`dtype` 名／最小値／最大値）をタプルに組み立てて返す（`ex1_inspect`）。
+2. 画素 `(y, x)` を RGB 並びの `[R, G, B]` リストで取り出す。BGR から RGB への並べ替えが要点（`ex2_to_rgb_pixel`）。
+3. 明るさ `+value` を「numpy の `+`」と「`cv2.add`」の2通りで作り、`(naive, saturated)` を返す。巻き戻りと飽和の違いを確認する（`ex3_brightness`）。
+4. `cv2(BGR) → PIL(RGB) → numpy → cv2(BGR)` と1周し、元画像と画素が一致するかを返す（`ex4_roundtrip`）。
+5. 日本語ファイル名で画像を保存し、読み戻せたら `True` を返す。`imencode`＋`tofile` と `fromfile`＋`imdecode` の定石を使う（`ex5_save_unicode`）。
+6. BGR 画像をグレースケール化し、その2次元 `(H, W)` の `shape` を返す。色を落とすと次元が1つ減ることを確かめる（`ex6_gray_shape`）。
+7. 矩形 ROI `(y0:y1, x0:x1)` を numpy スライスで切り出して返す（`ex7_crop`）。
+8. R（赤）チャンネルの最大値を `int` で返す。R は index 2（`B=0, G=1, R=2`）である点に注意（`ex8_red_channel_max`）。
+9. 広い型（`int16` 等）＋ `np.clip` でオーバーフローしない安全な明るさ加算を実装し、`cv2.add` と一致させる（`ex9_safe_brightness`）。
+10. グレースケールを `GRAY2BGR` で3chに戻し、元のカラー画像と横連結して `(H, 2W, 3)` を返す（`ex10_gray_to_bgr_hconcat`）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 まず「症状 → 原因 → 対処」の早見表です。実装中に詰まったら最初にここを見てください。第1回でつまずく原因は、ほぼこの6つに集約されます。

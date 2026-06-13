@@ -354,6 +354,20 @@ cat outputs/10_classical_video_motion/use_case_events.json
 - [ ] 色追跡が**背景の似た色に引っ張られる**弱点と、`inRange` で低 S/V を捨て H だけでヒストを作る前処理を説明できる。
 - [ ] ミニプロジェクトを実行し、**動体数・EPE・窓成長率・処理 FPS** で動き解析の良し悪しを数値で確認できる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/10_classical_video_motion/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. フレーム差分による前景マスクを作って返す。`absdiff` で2枚の差を取り、グレースケール化して `threshold` で2値化し、動いた所が 255 の `uint8` マスク（`(H, W)`）にする（`ex1_frame_diff_mask` の TODO）。
+2. 二値マスクから、面積が `min_area` 以上の塊（動体）の数を数えて返す。`findContours`（OpenCV 4 系は2つ返し）で輪郭を取り、`contourArea` で面積を判定する（`ex2_count_blobs` の TODO）。
+3. Lucas-Kanade で `p0` を追跡し、追跡成功（`status==1`）した点の新位置だけを `(M, 2)` で返す（`ex3_lk_good_new` の TODO）。
+4. 密フロー `(H, W, 2)` から、各画素の動きの大きさ `(H, W)`（`sqrt(u^2+v^2)`）を求めて返す（`ex4_flow_magnitude` の TODO）。
+5. 推定フローと真のフローの平均終点誤差（EPE）を計算して `float` で返す。画素ごとの差のユークリッド距離を平均する（`ex5_mean_epe` の TODO）。
+6. 背景差分（MOG2）を全フレームに順適用して背景モデルを育て、影を落とし形態学で整えてから、最終フレームの動体（塊）数を返す（`ex6_bgsub_box_count` の TODO）。
+7. Lucas-Kanade で追跡し、追跡成功した点の平均移動量（px）を `float` で返す（成功点が0個なら 0.0）（`ex7_lk_mean_displacement` の TODO）。
+8. 窓の色相ヒストグラムでバックプロジェクションし、`GaussianBlur` で平滑化してから確率が最大の画素 `(x, y)` を最尤位置として返す（`ex8_backproject_peak` の TODO）。
+9. CamShift で全フレームを追跡し、窓面積の成長率（last/first）を `float` で返す（`ex9_camshift_grow_ratio` の TODO）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 実装中に詰まったら、まずここを見てください。多くの不具合はこの数個の原因に集約されます（第12節の症状別チェックリストと併せて参照）。

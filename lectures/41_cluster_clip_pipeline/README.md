@@ -151,6 +151,22 @@ uv run python lectures/41_cluster_clip_pipeline/mini_project.py
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/41_cluster_clip_pipeline/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 行ごとに L2 正規化し、各行のノルムを 1 にして float32 で返す（`ex1_l2_normalize_rows` の TODO）。
+2. dense 特徴 `[C, H, W]` を、クラスタリング入力の `[H*W, C]`（パッチ (i, j) が row = i*W + j に対応）へ並べ替える（`ex2_patches_to_samples` の TODO）。
+3. パッチ特徴とラベルから、各クラスタの代表ベクトル（平均 → L2 正規化、空クラスタは全体平均で代用）を作る（`ex3_cluster_representatives` の TODO）。
+4. `IndexFlatIP + IDMap` を構築して代表ベクトルを `add_with_ids` し、クエリの最近傍 `faiss_id` を返す（`ex4_build_and_search` の TODO）。
+5. FAISS の戻り値をスコア降順に整え、ID が `-1` の行は捨てて `(faiss_id, score)` のリストにする（`ex5_filter_valid_hits` の TODO）。
+6. `VectorMapping` テーブルから `faiss_id` に対応する `(frame_id, cluster_idx)` を引く（`ex6_sqlite_lookup` の TODO）。
+7. クラスタマスクが BBox をどれだけ覆うかのカバレッジ（mask∩bbox / bbox 面積、面積 0 は 0.0）を返す（`ex7_mask_coverage` の TODO）。
+8. L1 正規化ヒストグラムの交差から変化量 `delta = 1 - Σ min(prev, cur)` を測り、threshold 以上なら残す（True）と判定する（`ex8_should_keep` の TODO）。
+9. FAISS と SQLite を結線し、領域クエリの上位 k 件を `{frame_id, cluster_idx, score}` のスコア降順 dict リストで返す（`ex9_region_search` の TODO）。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 **Q. テキスト検索（`"a red region"`）の上位に赤が来ない。バグ?**

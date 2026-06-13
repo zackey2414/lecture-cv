@@ -214,6 +214,21 @@ uv run python lectures/04_filtering_edges_morphology/mini_project.py
 - [ ] アフィン変換と透視変換の違い（平行線が保たれるか／台形を長方形にできるか）。
 - [ ] カラーで BGR 各チャンネルを個別に平坦化すると色が崩れる理由。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/04_filtering_edges_morphology/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. ごま塩ノイズ画像を、最も適した中央値フィルタ（`medianBlur`, ksize=3）で除去して返す（`ex1_denoise_saltpepper` の TODO）。
+2. Sobel を `CV_64F` で x/y 方向に計算し、`magnitude` → `convertScaleAbs` の順で勾配強度画像（uint8）を作る（`ex2_gradient_magnitude` の TODO）。
+3. 大津の手法でしきい値を自動決定して二値化し、(選ばれたしきい値, 二値画像) のタプルを返す（`ex3_otsu_binarize` の TODO）。
+4. 二値画像に残る白い粒ノイズを、楕円構造要素のオープニング（`MORPH_OPEN`）で除去する（`ex4_remove_specks` の TODO）。
+5. `findContours`（OpenCV 4 系の2返し）で外側輪郭を取り、その本数（物体数）を数えて返す（`ex5_count_objects` の TODO）。
+6. バラバラな4点を、座標の和 `x+y` と差 `x-y` を使って [左上, 右上, 右下, 左下] の順に並べ替える（`ex6_order_corners` の TODO）。
+7. 照明ムラのある文書を、`adaptiveThreshold`（局所的しきい値）で二値化する（`ex7_adaptive_binarize` の TODO）。
+8. `GaussianBlur` で前段ぼかしをしてから `Canny` を掛け、ノイズ由来の偽エッジを抑えたエッジ画像を返す（`ex8_canny_after_blur` の TODO）。
+9. BGR を HSV に変換し、V チャンネルだけに CLAHE を適用して色相を壊さずにコントラストを上げる（`ex9_clahe_value_channel` の TODO）。
+10. バラバラな4隅を整列して出力サイズを決め、透視変換（`getPerspectiveTransform`→`warpPerspective`）で正面の長方形へ起こす統合課題（`ex10_warp_to_rect` の TODO）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 実装中に詰まったら、まず症状から原因を引けるようにしておきましょう。下の表は「症状 → ほぼ確実な原因 → 対処」の早見表です（とくに上の2つは、この回で必ず一度は遭遇します）。

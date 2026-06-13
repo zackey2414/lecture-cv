@@ -184,6 +184,21 @@ uv run python lectures/43_color_spaces_and_adjustments/mini_project.py
 - [ ] **できる**: **float Lab** で平均 ΔE を計算でき、8bit Lab で測ってはいけない理由を説明できる。
 - [ ] **できる**: 調整の効果を 輝度ヒストグラム・平均彩度・ΔE で定量化できる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/43_color_spaces_and_adjustments/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. BGR 画像を HSV に変換して返す（`ex1_to_hsv`）。OpenCV の `H` が `0-179` に収まることを確かめる基礎課題です。
+2. 線形調整 `out = alpha*in + beta` を飽和演算で行って返す（`ex2_brightness_contrast`）。`alpha` がコントラスト、`beta` が明るさで、255 を超えたら頭打ちにします。
+3. ガンマ補正用の 256 要素 LUT（`uint8`, `shape=(256,)`）を作って返す（`ex3_gamma_lut`）。`LUT[i] = 255*(i/255)^(1/gamma)` を 0-255 にクリップします。
+4. 彩度（HSV の `S`）だけを `factor` 倍して返す（`ex4_scale_saturation`）。色相・明度を保つため `float32` で計算し `clip` してから `uint8` に戻します。
+5. 色相 `H` を `delta`（0-179 スケール）だけ回して返す（`ex5_shift_hue`）。色相環は一周するので `% 180` で巻き戻します。
+6. 輝度チャンネル（YCrCb の `Y`）だけを `equalizeHist` で平坦化して返す（`ex6_equalize_luminance`）。`Cr`/`Cb` には触れず色を崩さないようにします。
+7. gray-world ホワイトバランスを実装して返す（`ex7_gray_world_wb`）。各チャンネル平均を全体平均（灰）に揃えるゲインを掛けて色かぶりを打ち消します。
+8. YCrCb の定番レンジで肌色マスク（0/255, `(H,W)`）を返す（`ex8_skin_mask_ycrcb`）。`Cr∈[133,173]`・`Cb∈[77,127]`・`Y` 全域で `inRange` します。
+9. 2 画像の平均 ΔE*76（float `L*a*b*` のユークリッド距離）を返す（`ex9_mean_delta_e`）。必ず `float32/255 → BGR2Lab` で本来のスケールにしてから距離を取ります。
+10. Lab の `L` チャンネルにだけ CLAHE を掛けて返す（`ex10_clahe_luminance`）。`createCLAHE` の局所平坦化を輝度だけに適用して色を保ちます。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 この章のバグはほぼ「**スケール**」「**dtype（オーバーフロー）**」「**どのチャンネルに掛けたか**」のどれかに集約されます。

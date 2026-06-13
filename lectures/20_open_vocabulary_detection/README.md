@@ -222,6 +222,19 @@ results = processor.post_process_grounded_object_detection(
 - [ ] NMS が「過検出した重複ボックスを1つに畳む」ことを実装できる（演習 ex7）。
 - [ ] 演習 8問すべてが `ALL PASS`、`mini_project.py`・01〜03 がいずれも `exit 0`。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/20_open_vocabulary_detection/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 2つの box `[x1,y1,x2,y2]` の IoU（交差面積 ÷ 和集合面積）を返す（`ex1_iou` の TODO）。完全一致なら 1.0、無重なりなら 0.0。
+2. 正規化 cxcywh `[cx,cy,w,h]`（0〜1）を絶対 xyxy へ変換する（`ex2_cxcywh_norm_to_xyxy` の TODO）。x 方向は width、y 方向は height を掛ける。
+3. クラス込みの貪欲マッチング（スコア降順・同ラベルかつ未マッチで IoU≥閾値の GT に対応づけ）で TP/FP/FN を数える（`ex3_greedy_match` の TODO）。
+4. TP/FP/FN から precision・recall・F1 を計算する（`ex4_prf` の TODO）。分母 0 のときは 0.0。
+5. 候補ラベルのリストを Grounding DINO 用キャプション（小文字化＋トリム＋ピリオド区切り）へ整形する（`ex5_labels_to_caption` の TODO）。
+6. N 個と M 個の box 群のペアワイズ IoU 行列 `(N, M)` を返す（`ex6_iou_matrix` の TODO）。`M[i,j]` は `boxes_a[i]` と `boxes_b[j]` の IoU。
+7. 単一クラスの NMS（スコア降順に採用し IoU≥閾値の重複を抑制）で『残す予測のインデックス』を返す（`ex7_nms` の TODO）。
+8. マッチ済み検出（スコア・TP フラグ）から AP（PR 曲線の全点補間）を計算する（`ex8_average_precision` の TODO）。第19回 mAP 自作の核。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 §13 の「症状→原因→対処」表と併せて、考え方・設計の疑問に答えます。

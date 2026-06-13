@@ -154,6 +154,22 @@ uv run python lectures/35_quantization_pruning/mini_project.py
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/35_quantization_pruning/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 非対称(affine) int8（uint8・qmin=0/qmax=255）の `scale` と `zero_point` を計算して返す。x_max==x_min の退化時は scale=1.0・zero_point=0（`ex1_affine_scale_zero_point`）。
+2. テンソルを uint8(0..255) に量子化してから逆量子化した復元テンソル x̂ を返す（`ex2_quantize_dequantize`）。
+3. 対称(symmetric) num_bits 量子化で往復させ、平均絶対誤差(MAE) を float で返す（`ex3_roundtrip_mae`）。
+4. 重み行列 w(out,in) の per-channel（行ごと）対称 int8 `scale` を形 (out,) で返す（max(|w[i]|)==0 の行は 1.0）（`ex4_per_channel_scales`）。
+5. 重みテンソルのスパース率（値が 0 の要素の割合, 0〜1）を返す（`ex5_weight_sparsity`）。
+6. |w| が小さい順に amount 割合を 0 にした同じ形のテンソルを返す＝非構造化(magnitude)枝刈りの中身（`ex6_magnitude_prune`）。
+7. num_params 個の重みを fp32→int8 にしたときに節約できるバイト数（1 要素あたり 3 byte）を返す（`ex7_int8_bytes_saved`）。
+8. 構造化枝刈りで残す出力ニューロン（行）の index を、行ごとの L2 ノルム上位から選んで昇順で返す（`ex8_structured_keep_rows`）。
+9. model_kind・キャリブデータの有無・精度劣化の許容可否から量子化手法（dynamic / static / qat）を選んで返す（`ex9_recommend_method`）。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 - **「90% 枝刈りしたのに `.pt` が大きくなった」**: `prune.remove` する前の `state_dict` は `weight_orig`(元の重み) + `weight_mask`(マスク) を両方持つので**約2倍**になります。`prune.remove` でマスクを焼いてから保存する。ただし焼いても密テンソル（0 が増えるだけ）でサイズは元と同じ。実圧縮は構造化+リビルドか量子化。

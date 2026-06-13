@@ -155,6 +155,23 @@ uv run python lectures/40_cluster_clip_dense_cluster/mini_project.py
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/40_cluster_clip_dense_cluster/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. **各行を L2 正規化する**（`ex1_l2_normalize_rows` の TODO）。ノルム 0 の行でも 0 除算で落ちないよう、eps を足してから割る。
+2. **ViT トークン列 `[1+gh*gw, C]` から CLS を捨て、`[C, gh, gw]` の特徴マップに並べ替える**（`ex2_tokens_to_feature_map` の TODO）。
+3. **ラベルマップに従って各クラスタの平均 → L2 正規化で代表ベクトル `reps[k, C]` を作る**（`ex3_mean_pool_clusters` の TODO）。
+4. **空間連結クラスタリングで `feat_map[C,H,W]` を k 領域に分け、`(reps, label_map)` を返す**（`ex4_cluster_regions_connected` の TODO）。connectivity を有効にして飛び地を防ぐ。
+5. **connectivity あり/なしでクラスタリングし、総連結成分数を `(with, without)` で返す**（`ex5_connectivity_components` の TODO）。
+6. **代表ベクトルを `IndexFlatIP + IDMap` に登録し、各ベクトルで検索した top-1 の id 列を返す**（`ex6_self_search_top1` の TODO）。正規化済みなら自分自身が rank-1 になる。
+7. **`(faiss_id, frame_id, cluster_idx)` を SQLite に格納し、指定した id で `{faiss_id: (frame_id, cluster_idx)}` を引き戻す**（`ex7_sqlite_roundtrip` の TODO）。
+8. **FAISS 検索 → SQLite join で `(frame_id, cluster_idx)` の top-k を返す**（`ex8_search_regions` の TODO）。`faiss_id == -1`（近傍不足）は必ずスキップする。
+9. **消費者のいない満杯キューへ `put_nowait` し、溢れてドロップした要素数を返す**（`ex9_bounded_put` の TODO）。`queue.Full` を捕まえて数える。
+10. **クラスタマスクが bbox を覆う割合（マスク ∩ bbox / bbox 面積）を返す**（`ex10_coverage_ratio` の TODO）。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 **Q. dense 特徴のノルムが 1 にならない / クラスタリングが砂嵐になる。**

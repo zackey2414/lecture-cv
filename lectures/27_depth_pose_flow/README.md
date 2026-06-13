@@ -155,6 +155,22 @@ OKS の per-keypoint 定数 σ は**小さい関節（目・鼻）ほど厳し�
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/27_depth_pose_flow/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 深度マップを min-max で [0,1] に正規化する（`ex1_minmax_normalize` の TODO）。`max == min`（定数マップ）のときは 0 除算を避けて全て 0.0 を返す。
+2. `value` 以上で `multiple`（既定 8）の倍数になる最小の整数を返す（`ex2_round_up_to_multiple` の TODO）。RAFT の「8 の倍数」サイズ要件のための切り上げで、既に倍数ならそのまま返す。
+3. 深度の AbsRel = `mean(|pred-gt|/gt)` を計算する（`ex3_abs_rel` の TODO）。`gt` は `eps` で下限クリップしてから割る。
+4. 深度の RMSE = `sqrt(mean((pred-gt)^2))` を計算する（`ex4_rmse` の TODO）。
+5. 閾値正解率 δ<thr を返す（`ex5_delta_accuracy` の TODO）。各要素で `max(pred/gt, gt/pred) < thr` となる割合で、比をとる前に `eps` で下限クリップする。
+6. 中央値スケール合わせ `pred*(median(gt)/median(pred))` で相対深度を GT のスケールへ寄せる（`ex6_align_scale_median` の TODO）。`median(pred)` が 0 付近なら `pred` をそのまま返す。
+7. フローの平均端点誤差 EPE = `mean(sqrt(du^2+dv^2))` を返す（`ex7_endpoint_error` の TODO）。入力は最後の軸が `(u, v)` の形状。
+8. 姿勢の OKS を計算する（`ex8_oks` の TODO）。per-keypoint の σ と物体スケール `area` で正規化した類似度で、可視点（`v>0`）だけを分母に数える（可視点が無ければ 0.0）。
+9. 姿勢の PCK@α を返す（`ex9_pck` の TODO）。距離 `d_i` が `α*ref_len` 以内に収まった可視キーポイントの割合で、可視点が無ければ 0.0。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 - **Q. 深度の near/far が逆に見える.** A. `predicted_depth` は逆深度で「大きい=近い」。深度に戻すなら `1/(inv+eps)`、可視化の向きは `colorize_depth(..., invert=...)` で調整。

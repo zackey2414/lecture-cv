@@ -148,6 +148,21 @@ uv run python lectures/38_knowledge_distillation/mini_project.py
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/38_knowledge_distillation/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 温度 T でロジットを軟化した確率分布 `softmax(logits / T)` を `dim=1` で返す（`ex1_soften_logits` の TODO）。
+2. 温度付き KL（Hinton 蒸留のソフト損失）を `log_softmax(student/T)`・`softmax(teacher/T)`・`reduction="batchmean"`・末尾の `T**2` の正準形で組み立て、スカラーで返す（`ex2_kd_kl_loss` の TODO）。
+3. 合成損失 `alpha * ソフト(温度付きKL) + (1-alpha) * ハード(cross_entropy)` を線形結合して返す（`ex3_combined_kd_loss` の TODO）。
+4. 圧縮率 = teacher のパラメータ数 / student のパラメータ数 を返す（`student_params` が 0 のときは 0.0）（`ex4_compression_ratio` の TODO）。
+5. `softmax(logits / T)` の平均エントロピー(nats) を float で返す（`log(0)` を避けるため確率に微小値を足してから log を取る）（`ex5_soft_target_entropy` の TODO）。
+6. 特徴量蒸留の MSE を返す（射影 → L2 正規化 → MSE の順で、student 特徴を proj_weight で teacher 次元へ合わせる）（`ex6_feature_distill_mse` の TODO）。
+7. DeiT 推論時の出力として class ヘッドと distill ヘッドの平均ロジットを返す（`ex7_deit_inference_logits` の TODO）。
+8. 関係蒸留(RKD) の正規化距離行列を返す（`cdist` でペア間距離を取り、対角を除いた正の要素平均で正規化）（`ex8_rkd_distance_matrix` の TODO）。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 - **KL の引数を逆にした / log を付け忘れた**: `F.kl_div` には、**入力に `log_softmax(student)`、ターゲットに `softmax(teacher)`** を渡す。順序を入れ替えたり log を付け忘れたりすると、別物の損失になって学習が崩れる。`02` の `[3]` で値が変わることを実演している。

@@ -289,6 +289,21 @@ cat outputs/11_realtime_stream/mini_project_metrics.json
 - [ ] **再接続ループ＋指数バックオフ**を書き、「ライブ入力に総数は当てにできない」「連続失敗が閾値を超えたら諦める」を実装できる。
 - [ ] **p50/p99・EMA・ドロップ率**で律速段を特定し、「測ってから直す」を実践できる。ミニプロジェクトを実行し、2つの比較図を自分の言葉で説明できる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/11_realtime_stream/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 生の前景マスクを 0/255 の2値マスクへ掃除する（`ex1_clean_mask` の TODO）。`threshold(>200)` で影127を捨ててから `MORPH_OPEN`（ぽつぽつ除去）→`MORPH_CLOSE`（穴埋め）を順に適用する。
+2. アスペクト比を保ったまま、長辺が `max_side` 以下になるよう縮小する（`ex2_resize_keep_aspect` の TODO）。既に小さければそのまま返し、縮小時のみ `INTER_AREA` を使う。
+3. `maxsize` のキューへ `put_nowait` で詰め、満杯で落ちた数（ドロップ総数）を返す（`ex3_drop_when_full` の TODO）。`queue.Full` をカウントする。
+4. フレーム処理時刻の列から、処理FPSの指数移動平均(EMA)を計算して返す（`ex4_ema_fps` の TODO）。隣接時刻差から瞬間FPSを出し、`ema=(1-alpha)*ema+alpha*fps` で更新する。
+5. read 結果（成功/失敗）の列を再接続ループとして集計し `(good, reconnects)` を返す（`ex5_reconnect_summary` の TODO）。連続失敗が `give_up_after` に達したら打ち切る。
+6. レイテンシ（ミリ秒）のリストから `(p50, p99)` を返す（`ex6_latency_percentiles` の TODO）。`np.percentile` で中央値と上位1%の遅さを測る。
+7. 「N枚に1回だけ処理する」フレームスキップで、実際に処理する枚数を返す（`ex7_processed_count` の TODO）。`every_n<=0` は `ValueError` を投げる。
+8. 2値の前景マスクから、面積 `min_area` 以上の動体の個数を数える（`ex8_count_motion_boxes` の TODO）。`findContours`＋`contourArea` で小さなノイズを無視する。
+9. 連続失敗ぶんの指数バックオフ待ち時間リストを返す（`ex9_backoff_schedule` の TODO）。各待ち時間は `min(initial*factor**i, cap)` で頭打ちにする。
+10. `maxsize` 付きキューの動作を再生する（`ex10_queue_replay` の TODO）。`put` は満杯なら新しい方を捨てて drop を数え、`get` は空なら `None` を積む（FIFO）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 実装中に詰まったら、まずここを見てください（第10節の症状別チェックリストと併せて参照）。多くの不具合は次の数個の原因に集約されます。

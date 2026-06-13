@@ -356,6 +356,23 @@ uv run python lectures/30_face_detection_recognition/mini_project.py
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/30_face_detection_recognition/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. ベクトルを L2 ノルム 1 に正規化して返す。ゼロベクトルは 0 除算を避けてそのまま返す（`l2_normalize_vec` の TODO）。
+2. 2 つのベクトルのコサイン類似度（内積 ÷ ノルムの積）を返す（`cosine_similarity` の TODO）。
+3. コサイン距離（= 1 − コサイン類似度）を返す（`cosine_distance` の TODO）。
+4. 人物 ID 配列から全ペア i<j を作り、同一人物か否かの genuine/impostor を付けた `(i, j, is_genuine)` のリストを返す（`make_pair_labels` の TODO）。
+5. しきい値で `score>=thr` を「同一人物」と判定したときの FAR と TAR を返す（`far_tar_at_threshold` の TODO）。
+6. ROC 曲線の FAR/TAR 配列から、FAR と FRR が最も近い点の EER を返す（`eer_from_curves` の TODO）。
+7. ターゲット FAR 以下を満たす中で最大の TAR（TAR@FAR）を返す（`tar_at_far` の TODO）。
+8. probe×gallery のコサイン類似度行列から、最も似たギャラリーが本人と一致した割合（rank-1 精度）を返す（`rank1_accuracy` の TODO）。
+9. 各予測クラスタを多数派の真ラベルに割り当てたときの全体正解率（purity）を返す（`purity` の TODO）。
+10. 2 つの矩形 `[x, y, w, h]` の IoU を返す。重ならなければ 0（`iou_xywh` の TODO）。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 - **合成顔が検出されない / 0 件になる**: 仕様どおりの **ドメインギャップ**。Haar は実写で

@@ -321,6 +321,21 @@ uv run python lectures/18_object_detection_intro/exercises_solutions.py
 - [ ] 合成画像で検出が乏しくても**パイプラインは exit 0**で、それが「ドメインギャップ＝正常」だと判断できる。
 - [ ] 演習 `exercises.py` を **全10問 PASS** できる（`exercises_solutions.py` で答え合わせ）。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/18_object_detection_intro/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 2つの box（xyxy）の IoU ＝ 交差面積 / 和集合面積 を返す（重なりなしは 0、ゼロ割は 0.0）（`ex1_iou` の TODO）。
+2. xyxy 形式の box を cxcywh（中心x・中心y・幅・高さ）に変換する（`ex2_xyxy_to_cxcywh` の TODO）。
+3. score が閾値以上の検出だけを残し、生検出を間引く（`ex3_score_filter` の TODO）。
+4. 1クラス NMS。confidence 降順に貪欲に箱を選び、IoU が閾値超の重複を抑制して keep した index を返す（`ex4_nms` の TODO）。
+5. 正規化 cxcywh（0〜1）を、画像サイズ (H,W) に合わせた xyxy 絶対座標へ変換する（height と width の取り違えに注意）（`ex5_cxcywh_norm_to_xyxy_abs` の TODO）。
+6. クラス別 NMS。labels ごとに独立に NMS を掛け、残った index を全クラス分まとめる（`ex6_batched_nms` の TODO）。
+7. 予測を score 降順に GT へ貪欲対応付けし、TP/FP（0/1）を判定する（1 GT に 1 予測、重複は FP）（`ex7_match_detections` の TODO）。
+8. score 降順の TP/FP 列から、累積 precision / recall を作る（`ex8_pr_curve` の TODO）。
+9. 全点補間（PASCAL VOC2010+）で、PR 曲線の下面積として AP を求める（`ex9_ap_all_points` の TODO）。
+10. 11点補間（PASCAL VOC2007）で AP を求め、補間方式で値が変わることを確認する（`ex10_ap_11_point` の TODO）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 §12 の「症状→原因→対処」表と合わせて、**評価（mAP）まわり**の疑問を Q&A で補強します。

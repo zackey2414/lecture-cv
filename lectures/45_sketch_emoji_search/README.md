@@ -151,6 +151,19 @@ uv run python lectures/45_sketch_emoji_search/mini_project.py
 - [ ] ドメインギャップ実験から「**強い埋め込みほど様式に頑健**」「グレースケールは安全策」「**invert は低レベル照合を壊す**」を読み取れる。
 - [ ] 演習 `exercises.py` を**全8問 PASS**できる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/45_sketch_emoji_search/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 任意の配列を FAISS 仕様（`float32`・C連続）へ変換して返す（`ex1_to_faiss_array` の TODO）。
+2. 2次元配列の各行を L2 ノルム1に正規化して返す。0除算を避けるためノルムを下限クリップする（`ex2_l2_normalize_rows` の TODO）。
+3. PIL 画像をグレースケール化し、3ch の RGB（各画素 R==G==B）に戻して返す（`ex3_grayscale_rgb` の TODO）。
+4. 2次元配列を長辺基準で正方形に中央パディングして返す。元の領域を中央に置き、余白は `fill` で埋める（`ex4_square_pad` の TODO）。
+5. 正規化 + `IndexFlatIP` + `IndexIDMap` で任意IDのコサイン検索を行い、近傍の ID 行列を返す。`xb` と `xq` は同じ正規化に通す（`ex5_cosine_search_ids` の TODO）。
+6. 検索結果の ID 列をラベルへ変換する。`-1` は `(none)`、未登録は `(missing)` にガードする（`ex6_guard_lookup` の TODO）。
+7. 類似度降順に並んだラベル列で、正しいラベルが上位 N 件に入っているか（top-N ヒット）を判定する（`ex7_topn_hit` の TODO）。
+8. 複数クエリの Recall@N（= top-N ヒット率）を平均して返す。`pairs` が空なら `0.0`（`ex8_recall_at_n` の TODO）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 **Q. `cv2.imshow` でスケッチを描かせたい。** 本講座の OpenCV は **headless ビルド**で `imshow` / `namedWindow` / `setMouseCallback` を**持ちません**（呼ぶと `cv2.error` か `AttributeError`）。手書き UI は **`tkinter.Canvas`** で作ります。OpenCV は色変換（`cvtColor`）やエッジ抽出（`Canny`）など**変換用途だけ**に使ってください。

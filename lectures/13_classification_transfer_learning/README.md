@@ -278,6 +278,20 @@ cat outputs/13_classification_transfer_learning/mini_project_metrics.json
 - [ ] **コサイン類似度＝L2正規化してから内積**を実装でき、同クラスが近く別クラスが遠いことを示せる（演習5・9）。
 - [ ] ミニプロジェクトを実行し、**「凍結特徴 → 線形プローブ／重心分類／近傍検索」**を複数バックボーンで横並び評価できる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/13_classification_transfer_learning/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 利用可能性から使うべき device 名を返す（`ex1_pick_device` の TODO）。`cuda`→`mps`→`cpu` の優先順位で早期 return する。
+2. uint8 の RGB 画像を 0-1 に rescale し、CHW へ転置して ImageNet 平均/分散で正規化する（`ex2_imagenet_normalize` の TODO）。`AutoImageProcessor` の中身を手で再現する課題。
+3. バックボーンを凍結し、新しい `nn.Linear` ヘッドを付けて `nn.Sequential` で連結した転移学習モデルを返す（`ex3_make_transfer_model` の TODO）。学習対象がヘッドだけになるようにする。
+4. top-k accuracy を定義どおり計算する（`ex4_topk_accuracy` の TODO）。各サンプルでスコア上位 k クラスに正解が含まれる割合を返し、N==0 では 0.0 とする。
+5. コサイン類似度を「L2 正規化してから内積」で計算する（`ex5_cosine_sim` の TODO）。正規化を忘れると検索が崩れる、が本モジュールの教訓。
+6. スコア上位 k クラスの「ラベル名」を降順で返す（`ex6_topk_labels` の TODO）。生の argmax インデックスをラベル名へ直す後処理を書く。
+7. 混同行列を numpy で組む（`ex7_confusion_matrix` の TODO）。row=正解・col=予測の (C, C) 行列に件数を集計する。
+8. 混同行列から macro recall（クラスごとの再現率の単純平均）を計算する（`ex8_macro_recall` の TODO）。正解サンプルが無い行は平均から除外し、有効なクラスが無ければ 0.0 を返す。
+9. 最近傍重心分類を実装する（`ex9_nearest_centroid` の TODO）。クラス重心を作って L2 正規化し、コサイン類似度の argmax で各クエリのクラスを予測する（学習不要の転移ベースライン）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 実装中に詰まったら、まずここを見てください（第11節の症状別表と併せて参照）。多くの不具合は、transformers 5.x のAPI変更と「device / 勾配 / 正規化」の3点に集約されます。

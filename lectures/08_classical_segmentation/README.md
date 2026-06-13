@@ -255,6 +255,20 @@ cat outputs/08_classical_segmentation/mini_project_metrics.json
 - [ ] PSNR（`10*log10(255^2/MSE)`）を自前で実装でき、引き算前に **float へキャスト**してオーバーフローを避ける理由を説明できる。
 - [ ] ミニプロジェクトを実行し、前景抽出→計数→清掃の各段を**それぞれの指標**で評価できる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/08_classical_segmentation/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 二値画像から「確実な前景(sure_fg)」を距離変換で作る。`distanceTransform` の最大値の 0.5 倍をしきい値に二値化し、0/255 の uint8 マスクを返す（`ex1_sure_foreground` の TODO）。
+2. watershed に渡すマーカ配列を作る。`connectedComponents` でラベル付けし、全体に +1 して背景を 1 にずらしたうえで unknown 画素を 0（未確定）にする（`ex2_build_markers` の TODO）。
+3. 矩形初期化の GrabCut で前景マスク(0/255)を返す。`GC_INIT_WITH_RECT` で実行し、`GC_FGD` または `GC_PR_FGD` の画素を 255 にする（`ex3_grabcut_rect` の TODO）。
+4. 2 つの二値マスクの IoU = TP/(TP+FP+FN) を返す。分母が 0 のときは 0.0 を返す（`ex4_iou` の TODO）。
+5. 2 つの二値マスクの Dice = 2·TP/(2·TP+FP+FN) を返す。分母が 0 のときは 0.0 を返す（`ex5_dice` の TODO）。
+6. `cv2.inpaint` の TELEA 法で破損領域(mask>0)を復元して返す。`inpaintRadius=3`・`INPAINT_TELEA` を使う（`ex6_inpaint_telea` の TODO）。
+7. watershed 後の markers 配列から物体数を数える。ラベル集合から -1（境界）と 1（背景）を除いた個数を int で返す（`ex7_count_regions` の TODO）。
+8. 2 枚の uint8 画像の PSNR[dB] を返す。float へキャストして MSE を計算し、0 なら inf、それ以外は 10·log10(255²/MSE) を返す（`ex8_psnr` の TODO）。
+9. 二値画像とカラー原画から接触物体を数える完成パイプライン。オープニングでノイズ除去→距離変換→マーカ作成→`watershed` までを自前で組み、分離後の物体数を返す（`ex9_count_watershed` の TODO）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 実装中に詰まったら、まずここを見てください（第11節の症状別チェックリストと併せて参照）。多くの不具合はこの数個の原因に集約されます。

@@ -474,9 +474,9 @@ for idx, m in enumerate(modules):
             for p in ex_files
         )
         ex_html = (
-            f'<h2 id="exercises">演習</h2>'
-            f'<p class="ex-intro">演習は下の <code>exercises.py</code> に <b>TODO 形式</b>で入っています。'
-            f'開いて TODO を自分で埋め、<code>uv run python lectures/{m["id"]}/exercises.py</code> '
+            f'<h2 id="exercises">演習コード（自己採点）</h2>'
+            f'<p class="ex-intro">上の「演習問題」を解くコードです。下の <code>exercises.py</code> の <b>TODO</b> を自分で埋め、'
+            f'<code>uv run python lectures/{m["id"]}/exercises.py</code> '
             f'を実行すると<b>自己採点</b>されます（<code>SHOW_SOLUTION=1</code> または '
             f'<code>exercises_solutions.py</code> で答え合わせ）。</p>'
             f"{det}"
@@ -487,7 +487,7 @@ for idx, m in enumerate(modules):
     if scripts_html:
         extra.append('<li><a href="#scripts">スクリプト全文</a></li>')
     if ex_html:
-        extra.append('<li><a href="#exercises">演習</a></li>')
+        extra.append('<li><a href="#exercises">演習コード</a></li>')
     extra_toc = f'<ul class="toc-extra">{"".join(extra)}</ul>' if extra else ""
     right = f'<aside class="side-right"><div class="side-title">このページの目次</div>{toc_html}{extra_toc}</aside>'
 

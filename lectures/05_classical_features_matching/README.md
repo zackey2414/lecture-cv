@@ -297,6 +297,20 @@ cat outputs/05_classical_features_matching/mini_project_metrics.json
 - [ ] Hough の `threshold` / `param2` を変えると検出数が激変する**パラメータ過敏性**を、実験で示せる。
 - [ ] ミニプロジェクトを実行し、**コーナー誤差・インライア率**で検出の良し悪しを数値評価できる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/05_classical_features_matching/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. Lowe の比率テストで「良いマッチ」だけを残したリストを返す（`ex1_ratio_test` の TODO）。近傍が 1 個（`len(pair) < 2`）のペアはスキップし、`m.distance < ratio * n.distance` を満たす最近傍 `m` だけを集める。
+2. 対応点から RANSAC でホモグラフィを推定し、インライア率（インライア数 ÷ 全対応数）を返す（`ex2_inlier_ratio` の TODO）。点数が 4 未満なら `0.0` を返す。
+3. 検出器に合った `BFMatcher` の距離種別を返す（`ex3_norm_for` の TODO）。"SIFT" は `NORM_L2`、"ORB" は `NORM_HAMMING`、未知の名前なら `ValueError` を投げる。
+4. `TM_CCOEFF_NORMED` でテンプレートを探し、最良一致の左上座標 (x, y) を返す（`ex4_template_topleft` の TODO）。`minMaxLoc` の `max_loc` が答え。
+5. エッジ画像に `HoughLinesP` をかけ、検出された線分の本数を返す（`ex5_count_line_segments` の TODO）。検出ゼロのとき返り値は `None` になるので 0 を返す。
+6. 良マッチ列から `findHomography` 用の対応点配列 (src, dst) を作る（`ex6_matched_points` の TODO）。どちらも dtype=float32・形状 (N, 1, 2) の正準形にする。
+7. crossCheck マッチング（相互最近傍）で残る対応数を返す（`ex7_cross_check_count` の TODO）。`BFMatcher(norm, crossCheck=True)` の `match()` を使い、比率テストとは併用しない。
+8. マルチスケール探索で、最も一致スコアの高いテンプレ倍率を返す（`ex8_best_template_scale` の TODO）。リサイズ後がシーンより大きい倍率はスキップし、有効な候補が無ければ `-1.0` を返す。
+9. `HoughCircles` で円を検出し、その個数を返す（`ex9_count_hough_circles` の TODO）。入力はグレー画像を渡し、検出ゼロのとき返り値は `None` になるので 0 を返す。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 実装中に詰まったら、まずここを見てください。多くの不具合はこの数個の原因に集約されます（第12節の症状別チェックリストと併せて参照）。

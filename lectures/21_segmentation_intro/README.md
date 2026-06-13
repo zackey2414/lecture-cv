@@ -297,6 +297,21 @@ uv run python lectures/21_segmentation_intro/exercises_solutions.py
 - [ ] `mini_project.py` の「**pixel acc は高いのに mIoU は低い**」結果を、不均衡の言葉で説明できる。
 - [ ] 演習 `exercises.py` を**10問すべて PASS**できる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/21_segmentation_intro/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。10 問は「画素混同行列 → 各指標」を1段ずつ分解し、IoU・ignore・集計単位まで段階的に踏み込む構成です（モデルDL不要・純粋な numpy 計算）。
+
+1. GT と予測のクラスマップ（同形 `(H, W)` の int 配列）から KxK の画素混同行列 `cm[g, p]`（正解 g・予測 p の画素数）を作る（`ex1_confusion_matrix` の TODO）。
+2. 混同行列から per-class IoU（`TP/(TP+FP+FN)`）を返す。GT にも予測にも出ないクラス（分母0）は NaN にする（`ex2_per_class_iou` の TODO）。
+3. per-class IoU のクラス平均 mIoU を、未出現クラスの NaN を除外して（`nanmean`）返す（`ex3_mean_iou` の TODO）。
+4. per-class Dice（=F1、`2TP/(2TP+FP+FN)`）を返す。未出現クラスは NaN（`ex4_per_class_dice` の TODO）。
+5. pixel accuracy（対角の総和 ÷ 全画素）を返す。全画素が 0 のときは 0.0（ゼロ割回避）（`ex5_pixel_accuracy` の TODO）。
+6. FWIoU を返す。GT のクラス画素割合（行和÷総和）で per-class IoU を重み付けして総和する（`ex6_fwiou` の TODO）。
+7. ignore_index 付きの画素混同行列を作る。GT が ignore_index の画素は予測によらず集計から除外する（`ex7_confusion_matrix_ignore` の TODO）。
+8. 2値マスク同士の IoU（交差 ÷ 和集合）を返す。両方とも空（union=0）なら完全一致とみなして 1.0（`ex8_binary_mask_iou` の TODO）。
+9. IoU から Dice を換算する（`Dice = 2·IoU/(1+IoU)`）。スカラ・配列どちらでも同じ式で動くようにする（`ex9_dice_from_iou` の TODO）。
+10. 複数画像の mIoU を global（全画素を1つの混同行列に積んでから1回計算）と samplewise（画像ごとの mIoU を平均）の両方で出す（`ex10_global_vs_samplewise_miou` の TODO）。
+
 ## 17. ❓ よくある落とし穴・FAQ・デバッグ
 
 第13節の「症状→原因→対処」表に加えて、つまずきやすい疑問を Q&A 形式で補足します。

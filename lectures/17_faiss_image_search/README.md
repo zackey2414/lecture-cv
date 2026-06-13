@@ -285,6 +285,21 @@ uv run python lectures/17_faiss_image_search/mini_project.py
 - [ ] `search` 結果 `I` に紛れる **`-1` をガード**してからメタDB を引ける。
 - [ ] 演習 `exercises.py` を**全10問 PASS**できる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/17_faiss_image_search/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 任意の配列を FAISS 仕様（`float32`・C連続）に変換して返す（`ex1_to_faiss_array` の TODO）。
+2. ベクトルを L2 正規化してから `IndexFlatIP` に `add` し、コサイン類似度で検索できる Flat インデックスを作って返す（`ex2_cosine_index` の TODO）。
+3. `IndexIDMap` で素の index を包み、任意の `int64` ID を付けて検索し、近傍の ID 行列を返す（`ex3_idmap_search` の TODO）。
+4. index を `write_index` で保存し、`read_index` で読み戻した index の `ntotal` を返す（`ex4_save_load` の TODO）。
+5. 各クエリで厳密解と ANN の上位 k 件の集合一致から Recall@k を求め、全クエリで平均する（`ex5_recall_at_k` の TODO）。
+6. `IVFFlat`（転置インデックス）を `train` してから `nprobe` を設定して検索し、ID 行列を返す（`ex6_ivf_search` の TODO）。
+7. `HNSW`（近傍グラフ・train 不要）を構築し `efSearch` を設定して検索し、ID 行列を返す（`ex7_hnsw_search` の TODO）。
+8. 検索結果の ID 列をラベルに変換し、`-1` は `(none)`・未登録は `(missing)` にガードする（`ex8_guard_lookup` の TODO）。
+9. `index_factory` で PQ 圧縮インデックス（例 `"IVF16,PQ8"`）を組み、`train`→`add` して返す（`ex9_factory_index` の TODO）。
+10. 類似度降順のラベル列から Average Precision@k（retrieval mAP の素）を計算する（`ex10_average_precision` の TODO）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 本文 §13 の「症状→原因→対処」表と合わせて、つまずきやすい点を Q&A 形式で補足します。

@@ -183,6 +183,21 @@ uv run python lectures/42_multimodal_vector_search/mini_project.py
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/42_multimodal_vector_search/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. **各行を L2 正規化した float32・C連続の配列を返す**（`ex1_l2_normalize_rows` の TODO）。正規化後の内積がコサイン類似度になる前提で、ゼロ割を避けるためノルムは下限 1e-12 でクリップする。
+2. **コサイン類似度で検索できる Flat インデックスを作って返す**（`ex2_build_cosine_index` の TODO）。L2 正規化 → `IndexFlatIP(d)` を作り、`add` まで済ませる（正規化＋内積＝コサイン）。
+3. **`IndexIDMap` で任意 ID を付けて検索し、近傍の ID 行列を返す**（`ex3_idmap_search` の TODO）。正規化 → `add_with_ids`（ids は int64）→ `search(xq, k)` の ID 行列 I を返す。
+4. **1クエリの検索結果を modality で絞り、上位 k 件 (id, score) を返す**（`ex4_filter_by_modality` の TODO）。`-1`（無効 ID）を飛ばし、`meta[id]['modality']` が一致するものだけを上位から k 件集める。
+5. **index を保存し、読み戻した index の `ntotal` を返す**（`ex5_save_reload` の TODO）。`write_index` で保存し、`read_index` で別オブジェクトとして読み込む永続化の確認。
+6. **1クエリの Recall@k を返す**（`ex6_recall_at_k` の TODO）。上位 k 件に入った正解数 ÷ 正解総数。正解集合が空なら 0.0（0除算回避）。
+7. **1クエリの AP@k（mAP の素）を返す**（`ex7_average_precision_at_k` の TODO）。上位から見て正解を引くたびに「その時点の precision = hits/rank」を加算し、最後に min(正解総数, k) で割る。
+8. **生（未正規化）のクエリと DB 行列から、コサイン上位 k 件の行インデックスを返す**（`ex8_crossmodal_topk` の TODO）。FAISS を使わず numpy だけで、各行を正規化 → 内積 → 大きい順に上位 k 件を取る。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 - **`get_image_features(...)` がテンソルじゃない / `.shape` で落ちる** → v5 は `BaseModelOutputWithPooling` を返す。

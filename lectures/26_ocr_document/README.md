@@ -215,6 +215,19 @@ uv run python lectures/26_ocr_document/mini_project.py
 - [ ] `pipeline("document-question-answering")` を Donut（OCRフリー）/ LayoutLM（要OCR）で使い分けられる
 - [ ] **ANLS** の定義（`1-編集距離/max(len)`、閾値 0.5 で 0 に丸め）と、exact-match より文書 QA に向く理由を言える
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/26_ocr_document/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. OCR 評価用のテキスト正規化を実装する（`ex1_normalize_text` の TODO）。NFKC 正規化で全角英数・全角空白・互換文字を半角の正準形へ畳み、小文字化・前後空白除去・連続空白の圧縮までを行う。
+2. レーベンシュタイン編集距離（置換 S・削除 D・挿入 I の最小回数）を DP で計算して返す（`ex2_levenshtein` の TODO）。文字列でも単語リストでも動くよう、要素の等価判定だけを使う。
+3. CER（文字誤り率）= 編集距離(文字) / 参照文字数 を返す（`ex3_cer` の TODO）。参照・予測を `ex1` で正規化してから測り、参照が空のときのゼロ割を回避する。
+4. WER（単語誤り率）= 編集距離(単語) / 参照単語数 を返す（`ex4_wer` の TODO）。`ex1` で正規化後に空白トークン化し、語の列で編集距離を取る。
+5. コーパス全体の CER をマイクロ平均（総編集距離 / 総参照文字数）で集計する（`ex5_corpus_cer` の TODO）。サンプルごとの単純平均ではなく、総和どうしを割る。
+6. ANLS（DocVQA 標準指標）の 1 ペア分を返す（`ex6_anls` の TODO）。正規化レーベンシュタイン類似度 `1 - 編集距離/max(len)` を求め、しきい値 0.5 未満は 0 点に丸める。
+7. Donut/DocVQA の生成列から答えを取り出す（`ex7_extract_donut_answer` の TODO）。`<s_answer>...</s_answer>` があればその中身を、無ければ全タグを除去した文字列を strip して返す。
+8. 正規化後の exact-match 正答率（一致した割合）を返す（`ex8_qa_exact_match_accuracy` の TODO）。各ペアを `ex1` で揃えてから完全一致を判定し、一致数 / 総数 を返す。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 本章で詰まりやすい点を「症状 → 原因 → 対処」でまとめます。OCR 特有・transformers v5 特有の罠が多いので、エラーが出たらまずここを確認してください。

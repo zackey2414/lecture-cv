@@ -137,6 +137,22 @@ uv run python lectures/33_multimodal_embeddings/mini_project.py
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/33_multimodal_embeddings/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 要素ごとの sigmoid `1/(1+exp(-x))` を返す（`ex1_sigmoid` の TODO）。各要素が独立に 0〜1 に写る SigLIP の確率化。
+2. 行ごとの softmax（各行の和が 1）を返す（`ex2_softmax_rows` の TODO）。オーバーフロー回避に各行から行最大値を引いてから exp する CLIP の確率化。
+3. 各行を L2 正規化した float32・C連続 配列を返す（`ex3_l2_normalize_rows` の TODO）。ノルムは下限 `1e-12` でクリップしてゼロ割を防ぐ。
+4. 2 つの行列 `a(A,d)`・`b(B,d)` の全ペアのコサイン類似度行列 `(A,B)` を返す（`ex4_cosine_sim_matrix` の TODO）。各行を L2 正規化してから内積を取る。
+5. コサイン類似度で検索できる Flat インデックスを作り `add` まで済ませて返す（`ex5_build_cosine_index` の TODO）。正規化 + `IndexFlatIP` でコサインになる。
+6. 各テキスト埋め込みに最も近い画像の行インデックスを返す（`ex6_text_to_image_top1` の TODO）。双方を正規化してコサインの行ごと argmax を取るクロスモーダル top1。
+7. 1 クエリの Recall@k（上位 k 件に入った正解数 / 正解総数）を返す（`ex7_recall_at_k` の TODO）。正解が空なら 0.0 とする。
+8. 1 クエリの AP@k（mAP の素）を返す（`ex8_average_precision_at_k` の TODO）。上位から走査し正解を引くたびに `hits/rank` を加算し `min(正解総数, k)` で割る。
+9. クロスモーダル検索（音→画像）の平均 Recall@k を返す（`ex9_crossmodal_recall_at_k` の TODO）。db をコサイン最近傍検索し、concept 一致を正解として各クエリの Recall@k を平均する。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 - **`SiglipTokenizer requires the protobuf library`**: SigLIP / SigLIP2 のトークナイザは `sentencepiece` と **`protobuf`** が必要。`hf` グループに両方入れておく（`uv add --group hf sentencepiece protobuf`）。Donut や一部 T5 系も同じ。

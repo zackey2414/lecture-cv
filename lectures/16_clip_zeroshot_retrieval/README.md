@@ -239,6 +239,20 @@ uv run python lectures/16_clip_zeroshot_retrieval/mini_project.py
 - [ ] **v5 の作法**: `AutoImageProcessor`（fast 専用・torchvision 必須）、`.pooler_output`、`HF_HOME` キャッシュを把握している（§10）。
 - [ ] **演習**: `exercises.py` を9問すべて自力で PASS させた（`exercises_solutions.py` で答え合わせ）。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/16_clip_zeroshot_retrieval/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. **行ベクトルの L2 正規化**（`ex1_l2_normalize` の TODO）。形 (N, D) の各行を L2 ノルムで割り、各行のノルムを 1 に揃える（`F.normalize(x, p=2, dim=-1)` と一致）。ゼロ割を避けつつコサイン類似度の前提を作る処理。
+2. **コサイン類似度行列**（`ex2_cosine_sim_matrix` の TODO）。未正規化のテキスト埋め込み (Q, D) と画像埋め込み (N, D) を両方とも正規化してから内積を取り、-1〜1 に収まる (Q, N) 行列を返す。
+3. **ゼロショット確率**（`ex3_zeroshot_probs` の TODO）。類似度ロジットを `mode` で切り替えて確率にする。softmax はラベル方向に正規化（合計1の相互排他＝CLIP流）、sigmoid は要素ごとに独立（SigLIP流）。不正な mode は ValueError を投げる。
+4. **上位 k のインデックス**（`ex4_topk_indices` の TODO）。1次元スコア (N,) の上位 k 個のインデックスをスコア降順で取り出し、Python の int リストで返す（`torch.topk` 相当）。
+5. **Recall@k**（`ex5_recall_at_k` の TODO）。降順ランキングの上位 k 件に入った正解数を正解の総数で割って返す。正解集合が空なら 0.0。
+6. **逆順位（MRR の素）**（`ex6_reciprocal_rank` の TODO）。ランキング中で最初に現れる正解の順位 r に対し 1/r を返す（1位なら 1.0、不在なら 0.0）。クエリ平均すると MRR になる。
+7. **Average Precision**（`ex7_average_precision` の TODO）。各正解ヒット位置での precision を合計し正解の総数で割って、クエリ1本の AP を返す。正解が空／不在なら 0.0。クエリ平均すると mAP になる。
+8. **埋め込みからの logits 再構成**（`ex8_clip_logits_from_embeds` の TODO）。未正規化の画像・テキスト埋め込みを正規化し、内積に温度 `logit_scale.exp()` を掛けて `forward` の `logits_per_image` を再現する（§4 の非対称性）。
+9. **開集合の棄却**（`ex9_abstain_or_pick` の TODO）。1次元コサインスコアの最大値が閾値以上ならその argmax を、閾値未満なら「該当なし」を表す -1 を返す。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 §13 に「症状 → 原因 → 対処」の早見表があります。ここではその表に載らない**判断の指針**と、つまずいたときの**切り分け手順**を補足します。

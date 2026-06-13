@@ -200,6 +200,19 @@ uv run python lectures/14_eval_classification/mini_project.py
 - [ ] ブートストラップで指標の 95% 信頼区間を出せ、「CI が重なる2モデルは誤差の範囲で同等」と判断できる。
 - [ ] 演習 `exercises.py` を 8 問すべて自力で PASS させ、各自作値が scikit-learn と一致することを確認した。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/14_eval_classification/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 混同行列 `C[i, j]`＝「正解 i を j と予測した件数」を `(k, k)` の int 配列で組み立てて返す（`ex1_confusion_matrix`）。`np.add.at` で散布加算する。
+2. 混同行列からクラス c の `(precision, recall, f1)` を返す（`ex2_precision_recall_f1`）。`TP=cm[c,c]`、`FP`＝列 c の合計−TP、`FN`＝行 c の合計−TP から計算し、分母 0 のときは `0.0` を返す。
+3. 混同行列から macro-F1（全クラスの F1 の単純平均）を返す（`ex3_macro_f1`）。
+4. top-k accuracy（各行の上位 k 予測に正解ラベルが含まれる割合）を返す（`ex4_top_k_accuracy`）。`argsort(-proba)` の上位 k クラスに正解が入る割合を平均する。
+5. 二値の ROC-AUC を自作で計算して返す（`ex5_roc_auc`）。スコア降順で `(FPR, TPR)` を打点して台形則で積むか、Mann-Whitney 流の順位和で求め、`sklearn.roc_auc_score` と一致させる。
+6. 混同行列から weighted-F1（各クラスの F1 をそのクラスの support＝行和で重み付け平均）を返す（`ex6_weighted_f1`）。
+7. 二値の AP（Average Precision＝PR-AUC）を自作で計算して返す（`ex7_average_precision`）。台形則ではなく `Σ(recall_i − recall_{i−1}) × precision_i` のステップ和で積み、`sklearn.average_precision_score` と一致させる。
+8. F1 を最大化するしきい値とそのときの F1 を `(threshold, f1)` で返す（`ex8_best_f1_threshold`）。スコア降順に切り位置を掃引し、累積 TP/FP から各点の F1 を出して最大の位置を選ぶ。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 セクション 11 に「症状 → 原因 → 対処」の早見表があります。ここではそれを補う **Q&A** と、詰まったときの **デバッグ手順** をまとめます。

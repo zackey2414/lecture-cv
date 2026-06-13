@@ -155,6 +155,21 @@ zero-shot 保持率 (student/teacher) = 100.0%
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/39_clip_distillation/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 行ごとの L2 正規化を実装する。各行のノルムが 1 になるように揃える（`ex1_l2_normalize` の TODO）。
+2. 画像-テキストの温度付き類似度行列 `[N, C]` を返す。img と txt をそれぞれ L2 正規化して内積を取り、`logit_scale` を掛ける（`ex2_cosine_logits` の TODO）。
+3. クラス logits `[N, C]` から argmax で予測クラス index の `np.ndarray` を返す（`ex3_predict` の TODO）。
+4. 埋め込み蒸留損失 `(1 - cos) + MSE` を実装する。student と teacher を L2 正規化してから比較し、同一埋め込みで 0 になるようにする（`ex4_distill_loss` の TODO）。
+5. 親和性蒸留の KL ダイバージェンスを実装する。入力に `log_softmax(student)`、ターゲットに `softmax(teacher)`、`reduction='batchmean'` を使う（`ex5_kl_affinity` の TODO）。
+6. 保持率 `student_acc / teacher_acc` を返す。`teacher_acc <= 0` のときは `0.0` とする（`ex6_retention` の TODO）。
+7. 蒸留の 1 ステップ（forward → 蒸留損失 → backward → step）を実装し、loss の float 値を返す（`ex7_distill_step` の TODO）。
+8. 画像→画像検索の leave-one-out Recall@k を実装する。L2 正規化して類似度行列を作り、自分自身を除外して各行の上位 k に同一クラスがあれば hit とする（`ex8_recall_at_k` の TODO）。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 **Q. 蒸留しても student のゼロショット精度が上がらない。**

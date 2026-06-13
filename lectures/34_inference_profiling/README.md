@@ -162,6 +162,22 @@ uv run python lectures/34_inference_profiling/mini_project.py
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/34_inference_profiling/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. レイテンシ列の指定パーセンタイル（p50/p99 など）を `np.percentile` の線形補間に一致するように返す（`ex1_percentile` の TODO）。平均ではなく分位点で語るのがベンチの作法。
+2. 1反復のレイテンシ（秒）とバッチ枚数から スループット（img/s ＝ `batch_size / latency_s`）を求める（`ex2_throughput` の TODO）。
+3. 計測列の先頭 `n_warmup` 個（ウォームアップ）を捨て、残りの列を返す（`ex3_drop_warmup` の TODO）。
+4. baseline と candidate のレイテンシから speedup（`baseline / candidate`、>1 で高速化）を計算する（`ex4_speedup` の TODO）。
+5. レイテンシ列から `p50`/`p99`/`mean` をまとめた dict を作って返す（`ex5_summarize` の TODO）。
+6. 「ウォームアップ→反復計測→中央値」を行い、中央値（ms）と計測した反復数を返すベンチ本体（`ex6_run_benchmark` の TODO）。`time.perf_counter` で各反復を挟む。
+7. （演算子名, 自己CPU時間）のリストを時間の降順に並べ、上位 k 件（律速演算子）を取り出す（`ex7_top_ops` の TODO）。
+8. `torch.inference_mode()` 下で `model(x)` を実行し、出力が勾配を追跡していないか（`requires_grad` が False か）を bool で返す（`ex8_no_grad_output` の TODO）。
+9. 条件名→p50(ms) の dict から speedup 付きの比較行リストを作り、p50 の昇順（速い順）に並べる（baseline 自身の speedup は 1.0）（`ex9_comparison_table` の TODO）。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 - **ウォームアップを省いて誤計測する**: 初回は遅延ロード/キャッシュ miss/（compile なら）JIT を含むので遅い。最初の数回を捨てる。`01` で no-warmup の p99 が膨れる様子を確認。

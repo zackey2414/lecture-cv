@@ -265,6 +265,21 @@ CPU 運用の勘所: 推論は必ず `model.eval()` ＋ `torch.inference_mode()`
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/24_image_captioning/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+本章の演習は「キャプション生成そのもの」ではなく「**出てきた文をどう採点するか**」（BLEU / CIDEr / CLIPScore の中身）を自分の手で書くことに焦点を当てています。易→難の順に8問です。
+
+1. 文字列をトークン列にする（小文字化 → 記号を空白に置換 → 空白で分割）。全指標の前処理（`ex1_tokenize` の TODO）。
+2. トークン列から n-gram の出現回数を数える（キーは tuple、n 未満なら空 dict）。BLEU/CIDEr の土台（`ex2_ngram_counts` の TODO）。
+3. BLEU の修正 n-gram 適合率を、候補の各 n-gram 数を参照側の最大出現回数でクリップして合計し、候補の総数で割って求める（`ex3_modified_precision` の TODO）。
+4. 簡潔さ罰（Brevity Penalty）を、候補長に最も近い参照長を選んで計算する（c>r なら 1.0、c<=r なら exp(1-r/c)）（`ex4_brevity_penalty` の TODO）。
+5. 1文ぶんの BLEU を組み立てる（n=1..max_n の修正適合率の幾何平均 × BP、p_n=0 を防ぐ加算スムージング付き）（`ex5_sentence_bleu` の TODO）。
+6. TF-IDF 重み付き n-gram ベクトルのコサイン類似度を計算する（weight=count×idf）。CIDEr の核（`ex6_tfidf_cosine` の TODO）。
+7. CLIPScore（参照不要）を返す。各行を L2 正規化し、対応する行どうしのコサインを取り ×100 して 0 でクリップ（`ex7_clip_score` の TODO）。
+8. 指標が最大の設定キーを返す（同点は先勝ち、空 dict なら空文字列）。比較実験のまとめ（`ex8_best_setting` の TODO）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 **Q. `ImportError: cannot import name 'AutoModelForVision2Seq'`**

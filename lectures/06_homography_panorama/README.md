@@ -242,6 +242,19 @@ uv run python lectures/06_homography_panorama/mini_project.py
 - [ ] `cv2.Stitcher` の `status` を確認して使い、手作りパイプラインとの**役割分担（バンドル調整・露出補正・マルチバンド合成）**を説明できる。
 - [ ] 逆ホモグラフィ `inv(H)` で平面物体を**正面へまっすぐ化**でき、`mini_project.py` を読み解いて拡張できる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/06_homography_panorama/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. Lowe の比率テストで、`knnMatch(k=2)` の各ペアから「最近傍の距離 < ratio × 2番目の距離」を満たす良マッチだけを選んで返す（`ex1_ratio_test` の TODO）。近傍が2個に満たないペアは捨てる。
+2. 対応点から `findHomography(RANSAC)` でホモグラフィを推定し、`(H, インライア数)` を返す（`ex2_estimate_homography` の TODO）。点が4対未満なら `(None, 0)` を返す。
+3. `H` で `pts_src` を写した点と `pts_dst` の平均ユークリッド距離（再投影誤差, px）を `perspectiveTransform` で計算して返す（`ex3_reprojection_error` の TODO）。
+4. 画像（width×height）の四隅を `H` で写した座標 `(4,2)` を返す（`ex4_warp_corners` の TODO）。キャンバス計算や平面物体の枠描画の土台になる処理。
+5. 基準画像（単位行列）と `H` で写す画像の両方が収まるキャンバスサイズ `(W,H)` と、負座標を 0 に押し込む平行移動量 `(tx,ty)` を求める（`ex5_canvas_offset` の TODO）。
+6. 隣接ペアのホモグラフィを掛け合わせ、各画像を基準フレームへ写す行列リスト `[M0, M1, ...]`（`M0` は単位行列、`M_k = M_{k-1} @ H_{k-1}`）を作る（`ex6_compose_to_reference` の TODO）。
+7. 画像を `H` でキャンバスへ warp し、その画像が中身を持つ位置を示す 255 マスクとともに `(warped, mask)` を返す（`ex7_warp_and_place` の TODO）。
+8. 2枚の warp 済み画像を重みマップで加重平均ブレンドし、シームを溶かした uint8 画像を返す（`ex8_feather_blend` の TODO）。両重みが 0 の空白画素はゼロ割りを避けて 0 を出す。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 **Q. パノラマが「ぐちゃぐちゃ」に歪む。まず何を疑う？**

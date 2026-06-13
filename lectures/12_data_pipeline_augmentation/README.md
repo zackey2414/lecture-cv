@@ -240,6 +240,21 @@ uv run python lectures/12_data_pipeline_augmentation/mini_project.py
 - [ ] **説明できる**: なぜ HWC→CHW・/255・正規化が「お作法」ではなく「モデルが学習された入力分布に合わせる必然」なのか。
 - [ ] **説明できる**: `num_workers>0` が効く場面と、`if __name__ == "__main__":` ガードが必須な理由。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/12_data_pipeline_augmentation/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. **HWC・uint8(0〜255) の numpy 画像を CHW・float32(0〜1) テンソルへ変換する**（`ex1_to_chw_float` の TODO）。`from_numpy` → `permute(2,0,1)` で並び替え、`float()` して 255 で割る。
+2. **CHW float[0,1] テンソルをチャンネルごとに `(x-mean)/std` で正規化する**（`ex2_normalize` の TODO）。mean/std を `(C,1,1)` に整形してブロードキャストする。
+3. **正規化の逆 `x*std+mean` で [0,1] スケールに戻す**（`ex3_denormalize` の TODO）。可視化のために正規化を打ち消す逆変換。
+4. **推論/評価用の決定論的な `v2.Compose` を組む**（`ex4_build_eval_transform` の TODO）。`ToImage`→`Resize`→`ToDtype(scale=True)`→`Normalize` をランダム要素なしで並べる。
+5. **`root/<class>/*.png` を走査して `(画像パス, ラベル)` 一覧と `class_to_idx` を作る**（`ex5_scan_folder` の TODO）。クラス名とファイル名を sorted で並べ、クラス順→ファイル名順に samples を作る。
+6. **CHW・float[0,1] テンソルを HWC・uint8 の numpy 配列へ逆変換する**（`ex6_chw_to_hwc_uint8` の TODO）。`clamp(0,1)`→`*255`→`round`→uint8→`permute(1,2,0)` で表示用に戻す。
+7. **`[(画像CHW, ラベル), ...]` のリストを `(B,C,H,W)` バッチとラベルテンソルに積む**（`ex7_collate_batch` の TODO）。`torch.stack` で画像を積み、ラベルを long テンソルにする collate の最小版。
+8. **学習用の“ランダム拡張あり”な `v2.Compose` を組む**（`ex8_build_train_transform` の TODO）。`RandomResizedCrop`/`RandomHorizontalFlip`/`ColorJitter` を含め、同じ入力でも毎回変わる構成にする。
+9. **pascal_voc 形式 bbox `[x0,y0,x1,y1]` を画像幅で水平反転する**（`ex9_hflip_bbox` の TODO）。`new_x0 = width - x1`, `new_x1 = width - x0` で x を鏡映し、y は不変・x0<x1 の順を保つ。
+10. **`(N,C,H,W)` float テンソルの per-channel mean/std を計算する**（`ex10_dataset_mean_std` の TODO）。`dim=(0,2,3)` で集約し、自前の正規化統計（どちらも shape=(C,)）を作る。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 実装中に詰まったら、まずここを見てください。この章のバグはほぼ「軸順」「スケール」「ランダム性の混入」のどれかに集約されます。

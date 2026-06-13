@@ -245,6 +245,21 @@ uv run python lectures/22_instance_panoptic_sam/mini_project.py
 - [ ] COCO の **RLE（列優先・背景始まり）** の意味が分かり、counts からマスクを復元できる。
 - [ ] `exercises.py` の**全10問**を自力で PASS でき、`mini_project.py` の AP と PQ の対比を説明できる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/22_instance_panoptic_sam/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 2つの bool マスクの **mask IoU**（交差画素 / 和集合画素、和集合が 0 のときは 0.0）を返す（`ex1_mask_iou`）。
+2. Mask R-CNN の `masks (N,1,H,W)` 確率マップを、チャンネル次元を潰して閾値超を `True` にした `(N,H,W)` の **bool** へ二値化する（`ex2_binarize_masks`）。
+3. 予測を score 降順に並べ、未マッチの GT へ IoU≥閾値で貪欲マッチして `(TP, FP, FN)` を数える（`ex3_match_counts`）。
+4. 1カテゴリぶんの `(SQ, RQ, PQ)`（SQ＝マッチ組の平均 IoU、RQ＝TP/(TP+0.5FP+0.5FN)、PQ＝SQ×RQ）を返す（`ex4_pq_single_category`）。
+5. SAM が返す3枚のマスクから `iou_scores` 最大の1枚 `(H,W)` を選ぶ（`ex5_select_best_sam_mask`）。
+6. PR 曲線から **全点補間（all-point）** で AP を求める。両端を補い、precision の包絡線を取り、recall 変化点の長方形面積を積む（`ex6_ap_all_point`）。
+7. PR 曲線から VOC2007 流の **11点補間** で AP を求める（recall 閾値 0.0〜1.0 の11点で precision 最大値を平均）（`ex7_ap_11point`）。
+8. クラスを跨いだ **mask AP@0.5（mAP）** を、カテゴリ別の AP を平均して求める（`ex8_mask_ap50`）。
+9. COCO の **非圧縮 RLE**`counts`（列優先・背景始まり）を `(H,W)` の bool マスクへ復元する（`ex9_rle_decode`）。
+10. カテゴリ別の `(gt_masks, pred_masks)` から全体 `(SQ, RQ, PQ)` を、カテゴリごとに出して最後に平均して求める（`ex10_pq_overall`）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 §10 の「症状→原因→対処」表に加え、つまずきやすい疑問を Q&A 形式でまとめます。

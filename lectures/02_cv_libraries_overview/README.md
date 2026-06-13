@@ -211,6 +211,21 @@ augmented = transform(image=rgb)["image"]   # 入力は RGB の ndarray、戻り
 - [ ] 課題を見て「まず試すライブラリ」を即答でき、行き詰まったら地図上で隣のライブラリへ乗り換えられる。
 - [ ] `mini_project.py` を動かし、JSON とサマリ図から**速度・数値差・往復可否・分布の広がり**を読み取れる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/02_cv_libraries_overview/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。易しい問題から難しい問題へ、ライブラリ間の橋渡し（色順・軸順・値域）を中心に並べてあります。
+
+1. OpenCV の BGR 配列を、色が正しい PIL.Image（RGB）へ変換して返す（`ex1_bgr_to_pil` の TODO）。`fromarray` の前に BGR→RGB を入れ忘れないこと。
+2. RGB の numpy 配列 `(H, W, 3)` から、PIL の `size` タプル `(幅 W, 高さ H)` を返す（`ex2_pil_size` の TODO）。numpy の `shape` と軸順が逆である点に注意。
+3. `cv2.resize` で `(width, height)` のサイズへ縮小し、結果を返す（`ex3_resize_cv2` の TODO）。`dsize` は `(幅, 高さ)` 順で、縮小なので `INTER_AREA` を使う。
+4. RGB 画像を左右反転してから明るさを `+beta` する最小の自作拡張を書く（`ex4_hflip_brighten` の TODO）。uint8 のオーバーフローを避け、clip で飽和させる。
+5. 課題キーワードから「まず選ぶライブラリ名」を返す（`ex5_pick_library` の TODO）。対応表どおりに返し、未知キーは既定の `"OpenCV"` に落とす。
+6. RGB の `(H, W, 3)` 配列を、PyTorch 流の `(3, H, W)` 軸順へ並べ替える（`ex6_to_chw` の TODO）。値は変えず軸順だけを入れ替える。
+7. uint8 画像に `value` を「飽和加算」する（`ex7_saturating_add` の TODO）。`cv2.add` と同じく 255 で頭打ち・0 で下止めになるよう、広い型で加算してから clip する。
+8. アスペクト比を保ったまま「長辺＝`long_side`」になるよう縮小して返す（`ex8_resize_long_side` の TODO）。新サイズは四捨五入し、元が小さければ拡大せずそのまま返す。
+9. `cv2(BGR) → PIL(RGB) → numpy → cv2(BGR)` の往復で元配列を無損失に再現する（`ex9_roundtrip_lossless` の TODO）。行き帰りで色順変換を正しく入れて画素を完全一致させる。
+10. `seed` から決まる「再現可能な」拡張を1回かけて返す（`ex10_reproducible_aug` の TODO）。`np.random.default_rng(seed)` だけを使い、同じ seed なら同じ出力・別 seed なら多くの場合異なる出力にする。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 第12節の「症状→原因→対処」表に加えて、ライブラリをまたぐときに実際に詰まりやすい点を Q&A 形式で補足します。

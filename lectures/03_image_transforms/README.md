@@ -263,6 +263,21 @@ uv run python lectures/03_image_transforms/mini_project.py
 - [ ] **説明できる**: `dsize=(W,H)` と `shape=(H,W)`、PIL の `size=(W,H)` という**軸順の食い違い**がどこで効くか。
 - [ ] **説明できる**: EXIF Orientation とは何で、放置すると検出・認識精度がなぜ落ちるか。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/03_image_transforms/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. BGR を HSV に変換し、`[lower_hsv, upper_hsv]` の色域を抜き出す2値マスク（`(H, W)` の uint8）を返す（`ex1_color_mask` の TODO）。
+2. 画像を「幅 width × 高さ height」にリサイズして返す。`cv2.resize` の `dsize` は `(W, H)` 順である点が要（`ex2_resize_to` の TODO）。
+3. 矩形 `(x0, y0)-(x1, y1)` の領域を numpy スライス `[y0:y1, x0:x1]` で切り出して返す（`ex3_crop` の TODO）。
+4. `cv2.flip` で画像を反転して返す。mode は 1=左右・0=上下・-1=両方（`ex4_flip` の TODO）。
+5. BGR をグレースケール化して返す。返り値の shape は `(H, W)` の2次元になる（`ex5_to_gray` の TODO）。
+6. 色相環の `0/179` をまたぐ「赤」の2値マスクを作る。`[0,10]` と `[170,179]` の2区間を `cv2.bitwise_or` で合成して返す（`ex6_red_mask_wraparound` の TODO）。
+7. アスペクト比を保ったまま `size×size` の正方形に収める（黒余白・中央配置のレターボックス）。返り値の shape は `(size, size, 3)`（`ex7_letterbox_square` の TODO）。
+8. 長辺が `long_side` になるよう、アスペクト比を保ってリサイズして返す（縮小は `INTER_AREA`・拡大は `INTER_CUBIC`）（`ex8_keep_aspect` の TODO）。
+9. 画像中央から「内接する最大の正方形」を切り出して返す。`side = min(H, W)` で中央クロップする（`ex9_center_crop_square` の TODO）。
+10. 2値マスク（0/255）から白画素の外接矩形 `(x0, y0, x1, y1)` を返す。白画素が無ければ `None` を返す（`ex10_bbox_from_mask` の TODO）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 実装中に詰まったら、まずはここを見てください。この章のバグは、ほぼ「軸順」「数値スケール」「色順」のどれかに集約されます。

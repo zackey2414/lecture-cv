@@ -240,6 +240,22 @@ SORT を ByteTrack 流の 2 段対応に拡張する、`03` の外見特徴を R
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/28_tracking/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. **2 ボックスの IoU**（`iou_xyxy` の TODO）。`[x1,y1,x2,y2]` の 2 箱について、交差面積 ÷ 和集合面積を返す。重ならなければ 0。
+2. **中心間のユークリッド距離**（`center_distance` の TODO）。各ボックスの中心 `((x1+x2)/2, (y1+y2)/2)` を求め、その距離を返す。
+3. **等速カルマン予測 1 ステップ**（`predict_constant_velocity` の TODO）。中心を速度 `(vx, vy)` だけ平行移動した新しいボックスを返す（サイズは不変）。
+4. **貪欲法＋閾値ゲートの対応付け**（`gated_greedy_match` の TODO）。IoU 行列（行＝予測・列＝検出）を IoU の大きい組から確定し、使用済みの行・列は飛ばす。`IoU < thr` は採用せず、`(row, col)` のリストを返す。
+5. **1 フレームの FN / FP**（`fn_fp_one_frame` の TODO）。GT と予測のボックス列を IoU 閾値で貪欲対応付けし、対応の付かない GT 数（FN）と予測数（FP）を数える。
+6. **ID スイッチ(IDSW) の総数**（`count_idsw` の TODO）。各フレームの `(gt_id, pred_id)` 対応列から、各 gt_id について直近の pred_id と異なる対応が来た回数を数える。
+7. **MOTA**（`mota` の TODO）。`MOTA = 1 − (FN + FP + IDSW) / GT` を計算する（GT が 0 なら 0.0）。
+8. **IDF1**（`idf1` の TODO）。`IDF1 = 2·IDTP / (2·IDTP + IDFP + IDFN)` を計算する（分母が 0 なら 0.0）。
+9. **HOTA（単一 IoU 閾値の簡易版）**（`hota` の TODO）。`DetA = tp / (tp + fn + fp)` を求め、`HOTA = √(DetA × AssA)` を返す（`tp+fn+fp` が 0 なら 0.0）。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 - **`AttributeError: module 'cv2' has no attribute 'TrackerCSRT_create'`**: headless / 非 contrib

@@ -219,6 +219,20 @@ uv run python lectures/09_video_io_basics/mini_project.py
 - [ ] `mini_project.py` を実行し、出力（ハイライト動画・FPSグラフ・JSON）の意味を自分の言葉で説明できる。
 - [ ] `exercises.py` を**全問 PASS**させた（`exercises_solutions.py` で答え合わせ済み）。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/09_video_io_basics/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. VideoCapture の正準ループ（`while read()`＋`ret` 判定）でフレーム総数を実カウントして返す（`cap.get` に頼らず、最後に `release()`）（`ex1_count_frames`）。
+2. `cap.get` で FPS・総フレーム数・幅・高さを取り、`(fps, frame_count, width, height)` で返す（整数で欲しい値は `int()` で丸める）（`ex2_read_meta`）。
+3. `CAP_PROP_FOURCC` の 32bit 整数を、下位 8bit から 1 バイトずつ取り出して 4 文字のコーデック名へ復元する（`ex3_fourcc_to_str`）。
+4. `POS_FRAMES` で指定 index へシークし、その 1 枚を読み出して返す（読めなければ `None`）（`ex4_seek_and_read`）。
+5. フレーム毎の処理時間リスト（秒）から、`deque(maxlen=window)` で末尾 window 個の移動平均 FPS を返す（空入力や平均 0 のときは `0.0`）（`ex5_moving_average_fps`）。
+6. 総フレーム数 ÷ FPS で動画の長さ（秒）を返す（FPS が 0 以下のときは `0.0`）（`ex6_estimate_duration_sec`）。
+7. フレーム列を `VideoWriter` で書き出してから読み戻し、読めた枚数を返す（`isOpened()` を確認し、開けなければ `0` を返す）（`ex7_write_video_roundtrip`）。
+8. 正準ループで全フレームを走査し、`idx % step == 0` のフレーム番号だけを集めたリストを返す（総フレーム数に頼らない）（`ex8_subsample_indices`）。
+9. 連続フレームをグレー化し、1 つ前との `cv2.absdiff` が閾値を超えた画素数の総和を返す（フレーム差分による動体検出の最小形）（`ex9_count_motion_pixels`）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 第9節の「症状→原因→対処」表に加えて、ここでは実装中に効くデバッグの勘所をまとめます。

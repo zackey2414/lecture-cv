@@ -389,6 +389,22 @@ PatchCore / 評価 / IQA）が分かれているので差し替えが容易で�
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/32_anomaly_iqa/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。numpy だけで、PSNR から coreset まで異常検知と IQA の核を自力で書けることを目指します。
+
+1. MSE と最大値から PSNR（`10·log10(max²/mse)`）を計算して返す。`mse` がほぼ 0 のときは 99.0 を返す（`mse_to_psnr` の TODO）。
+2. 配列を `[0,1]` に線形 min-max 正規化して返す。最大と最小が等しい（定数）ときは全 0 を返す（`min_max_normalize` の TODO）。
+3. 1 点 `x`・平均 `mean`・逆共分散 `inv_cov` から単点のマハラノビス距離 `√((x-μ)ᵀ Σ⁻¹ (x-μ))` を返す（`mahalanobis` の TODO）。
+4. 正常データ `X (N,D)` から平均ベクトルと正則化済み共分散（不偏推定に `εI` を足したもの）を推定して `(mean, cov)` を返す（`fit_gaussian` の TODO）。
+5. 位置別埋め込み `emb (P,D)` の各位置について、`mean`・`inv_cov` を使ったマハラノビス距離 `(P,)` を einsum で一括計算する（`batched_mahalanobis` の TODO）。
+6. 異常マップ `(H,W)` の最大値を image-level スコアとして返す（最も異常な点を採用）（`image_level_score` の TODO）。
+7. スコアとラベル（0/1）から AUROC を Mann-Whitney U の順位公式で自前実装する。同点は平均順位で扱い、正例か負例が 0 件なら 0.5 を返す（`auroc` の TODO）。
+8. 2 窓の統計量 `μ_x, μ_y, σ²_x, σ²_y, σ_xy` から SSIM（単一窓）を定義式どおり計算して返す（`ssim_from_stats` の TODO）。
+9. 点群 `points (M,D)` から最遠点サンプリングで `n_keep` 個を貪欲に選び、選んだ行インデックスの list を返す（PatchCore の coreset）（`farthest_point_sampling` の TODO）。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 - **PaDiM の AUROC が低い / 異常マップが灯らない**: ほぼ「位置合わせがずれている」か「前処理を

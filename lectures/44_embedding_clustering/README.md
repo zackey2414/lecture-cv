@@ -192,6 +192,19 @@ uv run python lectures/44_embedding_clustering/mini_project.py
 - [ ] **一般性**: 顔クラスタリング(30)が本章の特殊例＝埋め込みが替わるだけ、と説明できる（§10）。
 - [ ] **演習**: `exercises.py` を8問すべて自力で PASS させた（`exercises_solutions.py` で答え合わせ）。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/44_embedding_clustering/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 各行を L2 ノルム 1 に正規化する。ノルム 0 の行は 0 除算を避けてそのまま返す（`l2_normalize_rows` の TODO）。
+2. 全ペアのコサイン距離行列 (n, n) を返す。距離 = 1 − コサイン類似度で、対角は 0（`cosine_distance_matrix` の TODO）。
+3. k-means の割り当てステップ（E-step）として、各点を最も近い中心へ割り当てたラベル配列を返す（`assign_to_nearest` の TODO）。
+4. k-means の更新ステップ（M-step）として、各クラスタの平均ベクトルを返す。空クラスタは 0 ベクトルにする（`update_centroids` の TODO）。
+5. inertia（各点と所属クラスタ中心の二乗ユークリッド距離の総和）を計算する。エルボー法で使う締まり具合の量（`compute_inertia` の TODO）。
+6. purity（各予測クラスタを中の多数派の真ラベルに割り当てたときの全体正解率）を返す（`purity` の TODO）。
+7. `{k: silhouette_score}` の dict からスコア最大の k を返す。タイのときは小さい k を選ぶ（`best_k_by_silhouette` の TODO）。
+8. 分割表（行=真クラス・列=予測クラスタ の件数行列）を返す。NMI / homogeneity を自作する土台になる（`contingency_matrix` の TODO）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 **Q1. クラスタリング結果がデタラメ／1つの巨大クラスタになる。** まず、埋め込みを **L2 正規化**したか（`emb.norm(axis=1)≈1.0` か）を確認します。次に、DBSCAN/Agglomerative なら `eps`/`distance_threshold` が大きすぎて全点がつながっていないかを疑い、`03` の距離構造（グループ内 max / グループ間 min）を見て妥当な範囲かを確かめます。k-means なら、k が小さすぎないかを `02` のシルエットで点検します。

@@ -174,6 +174,23 @@ ort_model.save_pretrained("resnet18_onnx")
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/36_onnx_runtime/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 2 つの配列の最大絶対誤差 `max(|a-b|)` を `float` で返す（`ex1_max_abs_diff` の TODO）。ONNX 化の正しさを測る基本指標。
+2. 2 つの配列が `atol`/`rtol` 内で一致するかを `bool` で返す（`ex2_outputs_agree` の TODO）。`np.allclose` を使い、デプロイ前の合否判定にする。
+3. モデルを ONNX へエクスポートして path を返す（`ex3_export_onnx` の TODO）。`dynamo=False`・`opset=18`・`input_names`/`output_names` 指定、かつバッチ次元(0)を動的軸 `'batch'` にする。
+4. グラフ最適化を全有効(`ORT_ENABLE_ALL`)・intra スレッド数を指定値にした `SessionOptions` を返す（`ex4_make_session_options` の TODO）。
+5. セッションに入力を流し、各行の top-k クラス index を `(N,k)` で返す（`ex5_predict_topk` の TODO）。ロジット降順の上位 k 個。
+6. fp32 の ONNX を動的量子化(int8)して書き出し、その path を返す（`ex6_quantize_int8` の TODO）。`quantize_dynamic` で `weight_type=QuantType.QUInt8`。
+7. ONNX を読み、`op_type` ごとのノード数の辞書を返す（`ex7_op_histogram` の TODO）。グラフ構造の点検用ヒストグラム。
+8. サイズ削減比 `fp32 のバイト数 / int8 のバイト数` を `float` で返す（`ex8_size_reduction_ratio` の TODO）。1.0 より大きいほど縮んでいる。
+9. 精度劣化の許容量から `'fp32'`/`'int8'` を選ぶ（`ex9_choose_deployment` の TODO）。劣化が許容内なら小さい int8 を、超えるなら fp32 を返す。
+10. 動的バッチの session に各バッチサイズで入力を流し、出力 shape の list を返す（`ex10_dynamic_batch_shapes` の TODO）。export と違うバッチでも通ることを確認する。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 **Q1. `ModuleNotFoundError: No module named 'onnxscript'` が出てエクスポートできない。**

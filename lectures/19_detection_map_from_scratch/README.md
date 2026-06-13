@@ -241,6 +241,20 @@ uv run python lectures/19_detection_map_from_scratch/exercises_solutions.py
 - [ ] 「AP が妙に低い／微妙にズレる／precision が不当に高い」の各症状から、原因（ソート漏れ・補間方式違い・二重カウント）を逆算できる。
 - [ ] ミニプロジェクトで 2 検出器を比較し、PR から F1 最大の運用しきい値を選べる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/19_detection_map_from_scratch/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 2 つの箱（`xyxy`）の IoU を 1 つ計算して返す（`ex1_iou`）。交差矩形は左上＝max 同士・右下＝min 同士で求め、負は 0 にクリップし、`交差 / (面積A + 面積B − 交差)` を返す（和集合 0 なら 0.0）。
+2. confidence 降順の貪欲マッチングで、各予測の TP=1.0 / FP=0.0 フラグを「スコア降順の順序で」返す（`ex2_match`）。未使用かつ IoU≥閾値の GT のうち IoU 最大へ割り当て、1 つの GT は一度だけ使う（二重カウント防止）。
+3. スコア降順の TP フラグ列から precision 列・recall 列を組み立てて返す（`ex3_pr`）。`cumsum` で TP/FP を累積し、`recall = tp_cum / n_gt`、`precision = tp_cum / (tp_cum + fp_cum)` を `(precision, recall)` の順で返す。
+4. COCO 101 点補間で AP を返す（`ex4_ap_coco101`）。precision を右から単調化し、recall 閾値 0, 0.01, …, 1.0 の各点の precision を `np.searchsorted(..., side="left")` で拾って 101 個を平均する（pycocotools と一致）。
+5. PASCAL VOC 2007 方式の 11 点補間 AP を返す（`ex5_ap_11point`）。recall = 0, 0.1, …, 1.0 の各点で「recall≥r を満たす点の precision の最大値」（無ければ 0）を取り、11 個を平均する。
+6. VOC2010+ 方式の「全点」AP を返す（`ex6_ap_all_point`）。端点を足して precision を右から単調化し、recall が変化した位置だけ `Σ(Δrecall × precision)` を積む、単調化 PR 曲線の真下の面積。
+7. `xyxy` 形式の `(N,4)` ボックス群を COCO の `xywh` 形式へ変換して返す（`ex7_xyxy_to_xywh`）。`[x1, y1, x2, y2] → [x1, y1, x2−x1, y2−y1]`。ここを誤ると箱が歪んで AP が崩壊する。
+8. Non-Maximum Suppression を実装し、残す予測の index 配列（スコア降順）を返す（`ex8_nms`）。スコア降順に先頭を採用し、それと IoU>閾値 の箱を捨てる操作を繰り返す（`torchvision.ops.nms` と同じ残存集合）。
+9. AP[カテゴリ, IoU 閾値] の表から mAP@0.5 / mAP@0.75 / mAP@[.5:.95] を返す（`ex9_map_aggregate`）。列 0 の平均・列 5 の平均・全要素の平均を `np.nanmean` で（空カテゴリ＝NaN を除外して）求める。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 第 10 節のチェックリスト（症状 → 原因 → 対処）に加え、つまずきやすい点を Q&A 形式で補足します。

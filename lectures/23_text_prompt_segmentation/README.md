@@ -273,6 +273,20 @@ uv run python lectures/23_text_prompt_segmentation/exercises_solutions.py
 - [ ] `pipeline("mask-generation")`（プロンプト無し・網羅）と参照セグメ（プロンプト有り・特定対象）の**目的が逆**であることを言える。
 - [ ] 演習 ex8（貪欲マッチング）と ex9（AP 補間）で、**1つの GT に TP は1つだけ**・**precision を右から単調化して面積を取る**という検出評価の核を実装できる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/23_text_prompt_segmentation/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. CLIPSeg のロジットを sigmoid で確率化し、`threshold` 以上を前景にした bool マスクを返す（`ex1_logits_to_mask` の TODO）。
+2. 2値マスクの IoU = |∩| / |∪| を返す（和集合が空なら 1.0）（`ex2_mask_iou` の TODO）。
+3. 2値マスクの Dice = 2|∩| / (|P|+|G|)（= F1）を返す（分母が 0 なら 1.0）（`ex3_mask_dice` の TODO）。
+4. 確率マップをしきい値でスイープし、IoU 最大のしきい値とその IoU を `(best_threshold, best_iou)` で返す（`ex4_best_threshold` の TODO）。
+5. 2つの box `[x0, y0, x1, y1]` の IoU を返す（交差は 0 でクランプ）（`ex5_box_iou` の TODO）。
+6. 複数オブジェクトの IoU 平均（mIoU）を返す（空リストなら 0.0）（`ex6_mean_iou` の TODO）。
+7. 予測マスクの pixel 単位 precision / recall を `(precision, recall)` で返す（`ex7_pixel_pr` の TODO）。
+8. 検出 box を score 降順に GT へ貪欲マッチングし、`(TP, FP, FN)` を返す（1 つの GT に TP は 1 つだけ）（`ex8_greedy_match` の TODO）。
+9. PR 曲線を全点補間して Average Precision (AP) を返す（`n_gt` が 0 なら 0.0）（`ex9_average_precision` の TODO）。
+
 ## 15. ❓ よくある落とし穴・FAQ・デバッグ
 
 第11節の「症状→原因→対処」表が**実行時エラー**の早見表なら、ここは**概念のつまずき**の Q&A です。両方を行き来すると理解が固まります。

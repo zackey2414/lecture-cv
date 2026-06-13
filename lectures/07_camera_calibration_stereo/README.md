@@ -286,6 +286,20 @@ cat outputs/07_camera_calibration_stereo/mini_project_metrics.json
 - [ ] 古典ステレオ（2 眼・絶対距離）と深層単眼深度（1 枚・相対深度、第27回）の**使い分け**を説明できる。
 - [ ] ミニプロジェクトを実行し、校正→補正→深度→実寸計測の総合判定を `ALL PASS` にできる。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/07_camera_calibration_stereo/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. チェスボード内側角の 3D 座標 `(cols*rows, 3)` を `float32` で作る。盤は平面なので Z=0、x が先に進む行優先で並べ `square` 倍する（`ex1_object_points`）。
+2. 3D 点 `objp` を `(rvec, tvec, K, dist)` で再投影し、検出点 `imgp` との平均ユークリッド距離(px)を返す（校正品質の指標）（`ex2_reprojection_error`）。
+3. 視差マップを深度マップへ変換する（`Z = f·baseline/disparity`）。視差が 0 以下の無効画素は深度 0 とし、入力と同じ形・`float32` で返す（`ex3_disparity_to_depth`）。
+4. 平行化済みステレオ（cx=cx'）の再投影行列 `Q`（4x4 float64）を組み立てる。`[X,Y,Z,W]^T = Q·[u,v,d,1]^T` で実 3D 点が得られる（`ex4_reproject_matrix`）。
+5. 1 画素 `(u, v)` と視差を `Q` で 3D 点 `(X, Y, Z)` に変換する。同次ベクトルに `Q` を掛け、最後の要素 `W` で割る（`ex5_pixel_to_3d`）。
+6. 焦点距離 `(fx, fy)` と主点 `(cx, cy)` から内部行列 `K`（3x3 float64）を組む（せん断 skew は 0 とみなす）（`ex6_build_intrinsics`）。
+7. 深度マップを視差マップへ変換する（`disparity = f·baseline/Z`、ex3 の逆）。深度 0 以下は視差 0 とし、視差↔深度の反比例を確かめる（`ex7_depth_to_disparity`）。
+8. 複数視点の RMS 再投影誤差を「総二乗誤差／総点数の平方根」で厳密計算する（`calibrateCamera` の RMS の定義そのもの）（`ex8_rms_reprojection_error`）。
+9. 基礎行列 `F` と内部行列 `K` から基本行列 `E = K^T·F·K` を計算する（3x3 float64）（`ex9_essential_from_fundamental`）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 実装中に詰まったら、まずここを見てください。多くの不具合はこの数個の原因に集約されます（第10節の症状別チェックリストと併せて参照）。

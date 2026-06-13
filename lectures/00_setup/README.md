@@ -179,6 +179,21 @@ uv run python lectures/00_setup/mini_project.py
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/00_setup/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 使えるデバイス一覧と希望から実際に使うデバイス名を返す（`ex1_select_device` の TODO）。prefer が available にあればそれを採用し、無ければ `cuda > mps > cpu` の優先度順で最初に該当するものを返す。
+2. 要求スレッド数を `1..cpu_count` の範囲にクランプして返す（`ex2_clamp_threads` の TODO）。0 や負数は 1 に、cpu_count 超過は cpu_count に丸める。
+3. インストール済みパッケージ一覧から opencv の variant を判定する（`ex3_opencv_variant` の TODO）。`conflict`（両方）/`headless`/`full`/`none` の 4 通りを返す。
+4. HuggingFace 用の環境変数 dict を組み立てて返す（`ex4_build_hf_env` の TODO）。`HF_HOME` と `HF_HUB_OFFLINE`（offline なら "1"、それ以外は "0" の文字列）を入れる。
+5. device が `mps` のときだけ MPS フォールバック env を返す（`ex5_mps_fallback_env` の TODO）。mps なら `{"PYTORCH_ENABLE_MPS_FALLBACK": "1"}`、それ以外は空 dict。
+6. pyproject.toml 文字列の `[dependency-groups]` から各グループのパッケージ個数を集計して返す（`ex6_count_group_packages` の TODO）。`tomllib` でパースし、各グループのリスト長を数える。
+7. 必要グループのうち未導入のものを抽出する（`ex7_missing_groups` の TODO）。重複を除き、昇順のソート済みリストで返す。
+8. 指定 device 上にテンソルを作り、その device 種別を返す（`ex8_tensor_device` の TODO）。`.device.type`（"cpu"/"cuda"/"mps"）を文字列で返す。
+
+---
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 **Q1. `uv sync` したのに `import torch` できない。**

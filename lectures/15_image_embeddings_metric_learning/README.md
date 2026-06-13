@@ -202,6 +202,20 @@ uv run python lectures/15_image_embeddings_metric_learning/exercises_solutions.p
 - [ ] `mini_project.py` の圧縮スイープで、**メトリック学習がより小さい次元で同じ Recall を保つ**ことを自分の言葉で要約できる。
 - [ ] 演習 9 問すべてを `exercises.py` で **自力 PASS** できる（`exercises_solutions.py` を見る前に）。
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/15_image_embeddings_metric_learning/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 各行ベクトルを L2 ノルム 1 に正規化する（ゼロ割回避に `1e-12` の下限を入れる）（`ex1_l2_normalize` の TODO）。
+2. 2 つのベクトル集合を L2 正規化してから内積を取り、コサイン類似度行列 `(len(a), len(b))` を求める（`ex2_cosine_sim_matrix` の TODO）。
+3. コサイン最近傍 k 件のラベルを多数決して、各クエリの予測ラベルを返す（`ex3_knn_predict` の TODO）。
+4. Recall@k（各クエリの上位 k 件に同クラスが 1 件でも入る割合）を計算する（`ex4_recall_at_k` の TODO）。
+5. Triplet マージン損失 `relu(d_ap − d_an + margin)` の平均を返す（`ex5_triplet_margin_loss` の TODO）。
+6. ViT の `last_hidden_state` から CLS 埋め込み `[:,0]` とパッチ平均（mean pooling）埋め込みを取り出す（`ex6_vit_pool` の TODO）。
+7. バッチハード Triplet 損失（最も遠い正例と最も近い負例を選ぶハードネガティブ・マイニング）の平均を返す（`ex7_batch_hard_triplet_loss` の TODO）。
+8. 教師あり InfoNCE（同クラスを正例集合とした温度付き softmax）の平均損失を返す（`ex8_supervised_infonce` の TODO）。
+9. 検索 mAP（mean Average Precision、コサイン類似度の降順で各クエリの AP を平均）を計算する（`ex9_retrieval_map` の TODO）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 §8 のエラー表（症状 → 原因 → 対処）に加えて、つまずきやすい論点を Q&A 形式で補足します。

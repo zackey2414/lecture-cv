@@ -138,6 +138,21 @@ uv run python lectures/37_runtime_edge_optimization/mini_project.py
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/37_runtime_edge_optimization/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 昇順済みリストの `q` パーセンタイル（p50/p99）を線形補間で返す（`ex1_percentile`）。レイテンシは平均でなく中央値・テールで見る。
+2. 速度比 `baseline_ms / candidate_ms` を返す（`ex2_speedup`）。`candidate_ms<=0` は 0除算回避で `nan`。
+3. スループット（images/sec）= 総枚数 / 総秒数 を返す（`ex3_throughput`）。`elapsed_sec<=0` は `nan`。
+4. 基準 `ref` に対する top1 一致率（各行 argmax の一致割合, 0〜1）を返す（`ex4_top1_agreement`）。量子化/変換の精度保持を測る指標。
+5. 2配列の最大絶対誤差 `max(|a-b|)` を返す（`ex5_max_abs_diff`）。ONNX/TorchScript 変換後の数値検証の素。
+6. 圧縮率 = fp32サイズ / 量子化後サイズ を返す（`ex6_compression_ratio`）。`quant_mb<=0` は `nan`。
+7. 先頭 `warmup` 件（初回コンパイル等）を捨てた残りの中央値を返す（`ex7_steady_median`）。残りが空なら `nan`。
+8. 制約（`top1 >= min_top1` かつ `p50_ms <= max_latency_ms`）を満たす中で p50 最小のランタイム名を返す（`ex8_choose_runtime`）。該当なしは `"none"`。
+9. モデルを trace し、同じ入力で eager と TorchScript の最大絶対誤差を返す（`ex9_torchscript_roundtrip`）。0 に近ければ変換成功。
+10. モデルを ONNX 化して onnxruntime で実行し、torch 出力との最大絶対誤差を返す（`ex10_onnx_export_match`）。
+
 ## ❓ 落とし穴・FAQ・デバッグ
 
 **Q1. `torch.compile` が `CppCompileError` / `Can't find Python.h` で失敗する。**

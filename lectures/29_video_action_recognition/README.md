@@ -175,6 +175,19 @@ uv run python lectures/29_video_action_recognition/mini_project.py
 - [ ] **clip-level top-1 / top-5 accuracy** を `np.argsort` から自前実装でき、混同行列を併記できる
 - [ ] **前処理（clip_len/frame_rate/正規化）を崩すと top-k が壊れる**ことを、pseudo-GT を基準に数値で示せる
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/29_video_action_recognition/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 全長 `total` から `num_frames` 枚を等間隔（`np.linspace` を丸めて int 化）で選ぶインデックス配列を返す。`total < num_frames` でも端点が重複しつつ必ず `num_frames` 個返す（`ex1_uniform_indices`）。
+2. `clip_len`(=`num_frames`) ＋ `frame_rate`(=ストライド) 方式のサンプリングを実装する。`start` から `frame_rate` おきに枚数ぶん取り、末尾を超えたら最終フレームへクランプし、`start` 未指定なら中央寄せにする（`ex2_strided_indices`）。
+3. `[0,1]` スケールのクリップを、最後の軸（チャンネル）に沿ってブロードキャストし `(x - mean) / std` でチャンネル別に正規化する（`ex3_normalize_clip`）。
+4. `(T,H,W,C)` のクリップを `transpose` で `(C,T,H,W)` にし、先頭にバッチ次元を足して 3D CNN 入力の `(1,C,T,H,W)` へ並べ替える（`ex4_clip_to_ncthw`）。
+5. 1 次元 `logits` から数値安定な softmax を取り、確率の降順で上位 `k` の `(indices, probs)` を返す（`ex5_softmax_topk`）。
+6. `(N,C)` の `logits` と `(N,)` の `gt_indices` から、各行の上位 `k` 予測に正解が入るサンプルの割合（top-k accuracy）を返す。`N=0` なら `0.0`（`ex6_topk_accuracy`）。
+7. 行＝正解・列＝予測の混同行列 `(num_classes, num_classes)` を `int` で作り、各 `(g, p)` ごとに件数を足し込む（`ex7_confusion_matrix`）。
+8. 正しい前処理の top-1（各行の `argmax`）を pseudo-GT とみなし、別前処理の `logits` の top-k 一致率（robustness 指標）を返す（`ex8_topk_agreement_vs_pseudo_gt`）。
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 本章で詰まりやすい点を「症状 → 原因 → 対処」の形でまとめます。動画特有・transformers v5 特有の罠が多いため、エラーが出たら、まずはここを確認してください。

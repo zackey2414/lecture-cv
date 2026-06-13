@@ -243,6 +243,22 @@ VQA は満点にならず（数え問題で落ちる）、一方でグラウン�
 
 ---
 
+## ✍️ 演習問題
+
+演習は `exercises.py` に TODO 形式で入っています。各 TODO を実装し `uv run python lectures/25_vqa_vlm/exercises.py` を実行すると自己採点できます（`exercises_solutions.py` が解答）。
+
+1. 回答文字列を VQAv2 流に正規化する（小文字化・句読点除去・数詞→数字・冠詞 a/an/the 除去）（`ex1_normalize_answer` の TODO）。
+2. 2つの回答を正規化してから一致するかどうかを判定する（`ex2_answers_match` の TODO）。
+3. 簡易 VQA accuracy `min(予測と一致した人数 / 3, 1.0)` を計算する（`ex3_vqa_accuracy_simple` の TODO）。
+4. 公式 VQAv2 accuracy を leave-one-out（各人を1人ずつ抜いた残り9人で採点し10通りを平均）で計算する（`ex4_vqa_accuracy_vqav2` の TODO）。
+5. データセット全体の平均 VQAv2 accuracy を求める（`ex5_dataset_mean_vqa` の TODO）。
+6. チャット VLM 用メッセージを、画像を `content` の中に埋め込む正準形で組み立てる（`ex6_build_chat_messages` の TODO）。
+7. 分類型 VQA(ViLT) の `logits` を `argmax` し `id2label` で答え文字列に変換する（`ex7_answer_from_logits` の TODO）。
+8. 2つの箱 `(x1,y1,x2,y2)` の IoU を計算する（交差・和集合面積から、ゼロ割を回避）（`ex8_box_iou` の TODO）。
+9. グラウンディングの point accuracy（各点が対応する箱の内側にある割合）を求める（`ex9_point_accuracy` の TODO）。
+
+---
+
 ## ❓ よくある落とし穴・FAQ・デバッグ
 
 **Q. `02_vlm_chat.py` が「num2words が必要」と出て答えが出ない。**
