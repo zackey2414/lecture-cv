@@ -79,7 +79,7 @@ img{max-width:100%}
 .status.done{background:#dcfce7;color:#15803d}.status.wip{background:var(--g100);color:var(--g500)}
 .chip{font-size:.7rem;background:var(--p100);color:var(--p700);padding:.12em .5em;border-radius:6px;font-weight:600;white-space:nowrap}
 /* ===== index view toggle (ジャンル別 / 難易度別) ===== */
-.view-toggle{display:flex;gap:.3rem;justify-content:center;width:max-content;max-width:94%;margin:0 auto 1.6rem;background:#fff;border:1px solid var(--g200);border-radius:999px;padding:.32rem;box-shadow:var(--shadow);position:relative;z-index:1}
+.view-toggle{display:flex;gap:.3rem;justify-content:center;width:max-content;max-width:94%;margin:-2.4rem auto 2.7rem;background:#fff;border:1px solid var(--g200);border-radius:999px;padding:.32rem;box-shadow:var(--shadow);position:relative;z-index:1}
 .vt-btn{border:none;background:transparent;color:var(--g600);font-weight:700;font-size:.9rem;padding:.5rem 1.25rem;border-radius:999px;cursor:pointer;font-family:inherit;white-space:nowrap}
 .vt-btn.active{background:var(--p600);color:#fff}
 .cards-view{display:grid;gap:1.5rem}
