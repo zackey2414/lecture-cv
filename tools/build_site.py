@@ -192,6 +192,9 @@ def md_to_html(text: str) -> tuple[str, str]:
         },
     )
     body = m.convert(text)
+    # FAQ: 「**Q. …**」と次行の「A. …」が同じ段落に連結され同じ行に出てしまうので、
+    # Q の直後に改行(<br>)を入れて A. を次の行から始める。
+    body = re.sub(r"(<strong>Q\d*\..*?</strong>)\n(A\d*\. )", r"\1<br>\2", body)
     return body, getattr(m, "toc", "") or ""
 
 
