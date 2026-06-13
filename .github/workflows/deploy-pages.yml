@@ -1,12 +1,17 @@
 name: Deploy study site to GitHub Pages
 
-# site/ ディレクトリ（tools/build_site.py が生成した静的HTML）を GitHub Pages へ配信する。
-# main への push で site/ が変わったとき、または手動実行で配信を更新する。
+# 教材ソース（lectures/*/README.md, docs/）から tools/build_site.py で静的サイトを
+# CI 上でビルドし、その成果物を GitHub Pages へ配信する。
+# 生成物 site/ はリポジトリにコミットしない（ソースのみ追跡し、毎回ここで作る）。
 on:
   push:
     branches: [main]
     paths:
-      - "site/**"
+      - "lectures/**"
+      - "docs/**"
+      - "tools/build_site.py"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
@@ -21,7 +26,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build-deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -29,6 +34,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Build static site (markdown -> HTML)
+        run: uv run --group site python tools/build_site.py
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload site/ as Pages artifact

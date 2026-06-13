@@ -39,5 +39,8 @@ hf_cache/
 .DS_Store
 Thumbs.db
 
+# ===== 生成物（CIでビルドして配信。コミットしない） =====
+/site/
+
 # 私的なローカル指示（公開しない）
 CLAUDE.md
