@@ -9,22 +9,25 @@ Computer Vision（CV）を「**AI の補助なしでも自分一人でゴリゴ�
 - **GPU 不要**: 全モジュールが CPU のみ（MacBook 等）で完走できるよう設計。GPU は任意の高速化です。
 - **docker + uv**: 環境は `uv` で管理。Docker でも同一構成を再現できます。
 - **ハンズオン**: 各回は「解説（地の文）＋ 実行できる `.py` ＋ 演習」。読むだけでなく**動かして・書き換えて**学びます。
+- **図解つき**: 各回に概念図（インラインSVG）を多数埋め込み、配列の形状・座標系・前処理パイプライン・評価指標などを視覚的につかめます。
 - **評価を重視**: 各タスクで評価指標を必ず実測。`19` では mAP を numpy で一から実装し pycocotools と突き合わせます。
 - **ネット非依存**: 第1回はサンプル画像が無くても合成画像で完走します。
 
 ## 教材サイト（ブラウザで読む）
 
-各回の解説・コード・演習を、見やすい静的サイトのデザイン（紫グラデのヒーロー・トラック別カード・コードハイライト）で一覧・通読できる**静的サイト**を `site/` に用意しています。テキストとして読み込み、内容を根から理解するのに使ってください。
+各回の解説・コード・演習・図解を、見やすい静的サイトで一覧・通読できます。**公開サイトはこちら**:
+
+### 📖 https://zackey2414.github.io/lecture-cv/
+
+オレンジ基調のデザインで、**ジャンル別／難易度別に切り替えられる**カード、各回に埋め込んだ**図解（インラインSVG）**、コードハイライトを備えます。テキストとして読み込み、内容を根から理解するのに使ってください。サイト内の **「学習順序グラフ」**（`graph.html`）には、前提（prerequisite）でつながった**依存グラフ（DAG）・推奨学習順・前提一覧**があり、この講座が番号順の一本道ではなく各回の前提をたどるグラフ構造であることが分かります（後から回を足しても筋道をたどれます）。**ロードマップの一覧表からも各回ページへ飛べます。**
+
+サイトは GitHub Actions が `main` への push 時に自動でビルドし GitHub Pages へ配信します。**生成物 `site/` はリポジトリにはコミットしません**（教材ソースだけを追跡）。手元でプレビューしたいときは次でビルドできます。
 
 ```bash
-# 生成（Markdown→HTML を事前レンダリング。生成物はオフラインで開けます）
+# Markdown→HTML を事前レンダリング（プレビュー用。生成物はオフラインで開けます）
 uv run --group site python tools/build_site.py
 # 生成後、site/index.html をブラウザで開く（macOS: open site/index.html）
 ```
-
-教材を追記・更新したら同じコマンドで再生成します。
-
-サイト内の **「学習順序グラフ」**（`site/graph.html`）に、前提（prerequisite）でつながった**依存グラフ（DAG）・推奨学習順・前提一覧**があります。この講座は番号順の一本道ではなく、各回の前提をたどるグラフ構造です（後から回を足しても筋道をたどれます）。
 
 ## クイックスタート
 
@@ -67,7 +70,7 @@ lecture-cv/
 │   ├── 43_…/                # ★作成済み（色空間と調整: 明るさ/彩度/色相/RGB↔HSV ほか）
 │   └── 45_…/                # ★作成済み（実践: 手書きスケッチで絵文字検索 SBIR）
 │   # ── 全46モジュール（00〜45）作成・実行検証・マスター水準 ──
-├── site/                     # 教材閲覧サイト（静的HTML・生成物）→ site/index.html を開く
+├── site/                     # 教材閲覧サイト（生成物・gitignore。CIでビルドし Pages へ配信）
 ├── tools/build_site.py       # 閲覧サイトのビルダー（Markdown→HTML）
 ├── docs/roadmap.md           # 全 46 モジュールのロードマップ（必読）
 ├── docs/curriculum.json      # 全モジュールのメタ情報（サイト生成・教材作成に使用）
@@ -75,6 +78,7 @@ lecture-cv/
 ├── outputs/                  # 実行結果の出力先
 ├── pyproject.toml            # uv 依存定義（main + dependency-groups）
 ├── Dockerfile / docker-compose.yaml
+├── .github/workflows/        # GitHub Pages 自動ビルド＆配信（deploy-pages.yml）
 └── README.md
 ```
 
@@ -108,9 +112,13 @@ lecture-cv/
 | `vector` | ベクトル検索 | faiss-cpu |
 | `metrics` | 評価指標 | torchmetrics, scikit-learn, pycocotools |
 | `aug` | データ拡張 | albumentations |
+| `diffusion` | 生成・編集（拡散モデル） | diffusers, accelerate |
+| `onnx` | ONNX 変換・推論 | onnx, onnxruntime |
+| `embed` | 効率 CLIP | open-clip-torch |
+| `site` | 教材サイト生成 | markdown, pygments |
 | `dev` | 開発ツール（既定） | ruff, mypy, poethepoet, ipython |
 
-> `detect / face / anomaly / onnx / distill` などの専用トラックは、依存衝突を避けるため**その回に到達してから個別に追加**します（理由は docs/roadmap.md「設計メモ・既知の注意点」）。
+> 生成（`diffusion`）・ONNX（`onnx`）・効率CLIP（`embed`）などの重い/専用グループは、依存衝突や容量を避けるため**その回に到達してから個別に追加**します（理由は docs/roadmap.md「設計メモ・既知の注意点」）。
 
 ## 参考
 
