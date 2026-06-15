@@ -140,6 +140,8 @@ img{max-width:100%}
 .content strong{color:var(--p700)}
 .content a{text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere;word-break:break-word}
 .content blockquote{border-left:4px solid var(--p400);background:var(--p50);padding:.7rem 1rem;border-radius:0 8px 8px 0;margin:1rem 0;color:var(--g700)}
+.content li.task{list-style:none;margin-left:-1.35em}
+.content li.task input[type=checkbox]{margin-right:.55em;width:1.05em;height:1.05em;vertical-align:-2px;accent-color:var(--p500);cursor:pointer;flex:none}
 .content table{border-collapse:collapse;width:100%;margin:1.1rem 0;font-size:.9rem;display:block;overflow-x:auto}
 .content th,.content td{border:1px solid var(--g200);padding:.5rem .75rem;text-align:left;vertical-align:top}
 .content thead th{background:var(--b50);color:var(--b800);font-weight:700;white-space:nowrap}
@@ -197,6 +199,7 @@ def md_to_html(text: str) -> tuple[str, str]:
     # FAQ: 「**Q. …**」と次行の「A. …」が同じ段落に連結され同じ行に出てしまうので、
     # Q の直後に改行(<br>)を入れて A. を次の行から始める。
     body = re.sub(r"(<strong>Q\d*\..*?</strong>)\n(A\d*\. )", r"\1<br>\2", body)
+    body = _tasklists(body)
     return body, getattr(m, "toc", "") or ""
 
 
@@ -224,6 +227,27 @@ def ordered_scripts(d: pathlib.Path) -> list[pathlib.Path]:
 def _short(title: str) -> str:
     """ナビ/グラフ用の短縮タイトル。区切りは em-dash のみ（Cluster-CLIP のハイフンは保持）。"""
     return title.split("—")[0].strip()
+
+
+def _trunc(text: str, limit: int) -> str:
+    """limit 文字を超えるときだけ末尾を … にして切り詰める。"""
+    text = text.strip()
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+
+
+_TASK_RE = re.compile(r"<li>\s*(<p>)?\[([ xX])\]\s+")
+
+
+def _tasklists(html_content: str) -> str:
+    """GitHub 風タスクリスト( - [ ] / - [x] )を、そのまま表示される [ ] ではなく
+    チェックボックスに変換する。markdown 標準拡張は task list を解さないため後処理で対応。"""
+
+    def repl(mobj: "re.Match[str]") -> str:
+        had_p = mobj.group(1) or ""
+        checked = " checked" if mobj.group(2) in "xX" else ""
+        return f'<li class="task">{had_p}<input type="checkbox"{checked}> '
+
+    return _TASK_RE.sub(repl, html_content)
 
 
 def page(title: str, body: str, *, rel: str = "") -> str:
@@ -298,11 +322,7 @@ def sidebar_left(current_id: str | None) -> str:
 # ----------------------------------------------------------------------------- index page
 def _render_card(m: dict) -> str:
     lv = LEVEL_CLASS.get(m["level"], "intro")
-    status = (
-        '<span class="status done">公開</span>'
-        if m["_authored"]
-        else '<span class="status wip">準備中</span>'
-    )
+    status = "" if m["_authored"] else '<span class="status wip">準備中</span>'
     goal = html.escape((m.get("goal") or "")[:108]) + (
         "…" if len(m.get("goal") or "") > 108 else ""
     )
@@ -341,7 +361,7 @@ level_sections = "".join(
 hero = f"""<header class="hero">
   <h1>lecture-cv</h1>
   <p>Computer Vision を「AI の補助なしで自力で書ける」まで叩き込む全{len(modules)}回ハンズオン講座</p>
-  <p class="hero-meta">公開 {len(authored)} / {len(modules)} 回　・　CPU のみで完走　・　各回 解説＋実行コード＋演習</p>
+  <p class="hero-meta">全 {len(modules)} 回　・　CPU のみで完走　・　各回 解説＋実行コード＋演習</p>
 </header>"""
 view_toggle = (
     '<div class="view-toggle" role="tablist">'
@@ -528,7 +548,7 @@ for idx, m in enumerate(modules):
     )
     prereq_html = (
         " ".join(
-            f'<a href="{p}.html">{p[:2]} {html.escape(modmap[p]["title"][:14])}</a>'
+            f'<a href="{p}.html">{p[:2]} {html.escape(_trunc(_short(modmap[p]["title"]), 16))}</a>'
             for p in m.get("prereqs", [])
             if p in modmap
         )
@@ -541,7 +561,6 @@ for idx, m in enumerate(modules):
         f"<tr><th>依存グループ</th><td>{groups}</td></tr>"
         f"<tr><th>評価</th><td>{html.escape(m.get('evaluation') or '—')}</td></tr>"
         f"<tr><th>完成物</th><td>{html.escape(m.get('deliverable') or '—')}</td></tr>"
-        f"<tr><th>状態</th><td>{'公開' if m['_authored'] else '準備中（プレースホルダ）'}</td></tr>"
     )
     banner = (
         f'<div class="mod-banner"><div class="mod-eyebrow">'
