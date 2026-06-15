@@ -31,7 +31,7 @@ FAVICON_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
     '<rect width="32" height="32" rx="7" fill="#f97316"/>'
     '<text x="16" y="22.5" text-anchor="middle" '
-    'font-family="ui-sans-serif, system-ui, \'Segoe UI\', Roboto, sans-serif" '
+    "font-family=\"ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif\" "
     'font-size="15" font-weight="900" fill="#ffffff">CV</text></svg>'
 )
 
@@ -62,6 +62,9 @@ img{max-width:100%}
 .hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:900;letter-spacing:-.02em}
 .hero p{margin-top:.6rem;font-size:1.1rem;opacity:.92}
 .hero .hero-meta{font-size:.9rem;opacity:.95;margin-top:1rem}
+.hero-actions{margin-top:1.5rem}
+.hero-cta{display:inline-block;background:#fff;color:var(--p700);font-weight:800;font-size:.98rem;text-decoration:none;padding:.7rem 1.5rem;border-radius:999px;box-shadow:var(--shadow);transition:transform var(--t),box-shadow var(--t)}
+.hero-cta:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.2)}
 /* ===== index cards ===== */
 .cards{display:grid;gap:1.5rem;max-width:1240px;margin:-3rem auto 4rem;padding:0 1.5rem;position:relative;z-index:1}
 .lang-section{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--g200);padding:1.5rem 1.75rem 1.9rem}
@@ -244,6 +247,7 @@ def page(title: str, body: str, *, rel: str = "") -> str:
     <span class="logo-text"><span class="logo-name">lecture-cv</span><small>Computer Vision を自分の力にする</small></span>
   </a>
   <nav class="topnav">
+    <a href="{rel}getting-started.html">はじめ方</a>
     <a href="{rel}graph.html">学習順序グラフ</a>
     <a href="{rel}roadmap.html">ロードマップ</a>
   </nav>
@@ -276,7 +280,10 @@ for m in modules:
 
 
 def sidebar_left(current_id: str | None) -> str:
-    out = ['<aside class="side-left"><nav class="modnav">', '<a class="modnav-home" href="index.html">🏠 トップ（全体目次）</a>']
+    out = [
+        '<aside class="side-left"><nav class="modnav">',
+        '<a class="modnav-home" href="index.html">🏠 トップ（全体目次）</a>',
+    ]
     for track, ms in tracks.items():
         out.append(f'<div class="nav-track">{html.escape(track)}</div>')
         for m in ms:
@@ -285,7 +292,7 @@ def sidebar_left(current_id: str | None) -> str:
             out.append(
                 f'<a class="nav-item{active}" href="{m["id"]}.html">'
                 f'<span class="dot {lv}"></span><span class="nav-num">{m["_num"]}</span>'
-                f'<span>{html.escape(_short(m["title"]))}</span></a>'
+                f"<span>{html.escape(_short(m['title']))}</span></a>"
             )
     out.append("</nav></aside>")
     return "".join(out)
@@ -294,9 +301,17 @@ def sidebar_left(current_id: str | None) -> str:
 # ----------------------------------------------------------------------------- index page
 def _render_card(m: dict) -> str:
     lv = LEVEL_CLASS.get(m["level"], "intro")
-    status = '<span class="status done">公開</span>' if m["_authored"] else '<span class="status wip">準備中</span>'
-    goal = html.escape((m.get("goal") or "")[:108]) + ("…" if len(m.get("goal") or "") > 108 else "")
-    groups = "".join(f'<code class="chip">{html.escape(g)}</code>' for g in (m.get("needs_groups") or []))
+    status = (
+        '<span class="status done">公開</span>'
+        if m["_authored"]
+        else '<span class="status wip">準備中</span>'
+    )
+    goal = html.escape((m.get("goal") or "")[:108]) + (
+        "…" if len(m.get("goal") or "") > 108 else ""
+    )
+    groups = "".join(
+        f'<code class="chip">{html.escape(g)}</code>' for g in (m.get("needs_groups") or [])
+    )
     return (
         f'<a class="level-card" href="{m["id"]}.html">'
         f'<h3><span class="level-badge {lv}">{m["level"]}</span>'
@@ -309,7 +324,7 @@ def _section(title: str, ms: list) -> str:
     items = "".join(_render_card(m) for m in ms)
     return (
         f'<section class="lang-section"><div class="lang-header">'
-        f'<h2>{html.escape(title)}</h2></div>'
+        f"<h2>{html.escape(title)}</h2></div>"
         f'<div class="lang-levels">{items}</div></section>'
     )
 
@@ -323,12 +338,14 @@ for m in modules:
     by_level.setdefault(m["level"], []).append(m)
 level_sections = "".join(
     _section(f"{lvl}（{len(by_level[lvl])}回）", sorted(by_level[lvl], key=lambda x: x["_num"]))
-    for lvl in LEVEL_ORDER if by_level.get(lvl)
+    for lvl in LEVEL_ORDER
+    if by_level.get(lvl)
 )
 hero = f"""<header class="hero">
   <h1>lecture-cv</h1>
   <p>Computer Vision を「AI の補助なしで自力で書ける」まで叩き込む全{len(modules)}回ハンズオン講座</p>
   <p class="hero-meta">公開 {len(authored)} / {len(modules)} 回　・　CPU のみで完走　・　各回 解説＋実行コード＋演習</p>
+  <p class="hero-actions"><a class="hero-cta" href="getting-started.html">▶ はじめ方ガイド（ローカルで始める・進め方）</a></p>
 </header>"""
 view_toggle = (
     '<div class="view-toggle" role="tablist">'
@@ -357,6 +374,16 @@ index_body = (
 SITE.mkdir(exist_ok=True)
 (SITE / "index.html").write_text(page("lecture-cv 教材", index_body))
 
+# ----------------------------------------------------------------------------- getting-started page
+gs_html, _ = md_to_html((ROOT / "docs" / "getting-started.md").read_text())
+# 本文中の各モジュールID（`<code>00_setup</code>` 等）を各ページへのリンクにする
+for _mid in modmap:
+    gs_html = gs_html.replace(
+        f"<code>{_mid}</code>", f'<a class="rm-link" href="{_mid}.html"><code>{_mid}</code></a>'
+    )
+gs_body = lay(f'<article class="content">{blockify(gs_html)}</article>', left=sidebar_left(None))
+(SITE / "getting-started.html").write_text(page("はじめ方 — lecture-cv", gs_body))
+
 # ----------------------------------------------------------------------------- roadmap page
 roadmap_html, _ = md_to_html((ROOT / "docs" / "roadmap.md").read_text())
 # ロードマップ表中の各モジュールID（`<code>00_setup</code>`）を各ページへのリンクにする
@@ -364,7 +391,9 @@ for _mid in modmap:
     roadmap_html = roadmap_html.replace(
         f"<code>{_mid}</code>", f'<a class="rm-link" href="{_mid}.html"><code>{_mid}</code></a>'
     )
-roadmap_body = lay(f'<article class="content">{blockify(roadmap_html)}</article>', left=sidebar_left(None))
+roadmap_body = lay(
+    f'<article class="content">{blockify(roadmap_html)}</article>', left=sidebar_left(None)
+)
 (SITE / "roadmap.html").write_text(page("ロードマップ — lecture-cv", roadmap_body))
 
 # ----------------------------------------------------------------------------- graph page
@@ -389,16 +418,18 @@ mer = [
 ]
 for m in modules:
     num = m["id"][:2]
-    mer.append(f'  n{num}["{num} {_short(m["title"])[:18]}"]:::{LEVEL_CLASS.get(m["level"], "intro")}')
+    mer.append(
+        f'  n{num}["{num} {_short(m["title"])[:18]}"]:::{LEVEL_CLASS.get(m["level"], "intro")}'
+    )
     mer.append(f'  click n{num} "{m["id"]}.html"')
 for m in modules:
     for p in m.get("prereqs", []):
         if p in modmap:
-            mer.append(f'  n{p[:2]} --> n{m["id"][:2]}')
+            mer.append(f"  n{p[:2]} --> n{m['id'][:2]}")
 mermaid_txt = "\n".join(mer)
 reco_items = "".join(
     f'<li><a href="{m["id"]}.html"><span class="level-badge {LEVEL_CLASS.get(m["level"], "intro")}">'
-    f'{m["level"]}</span>{m["id"][:2]} {html.escape(_short(m["title"]))}</a></li>'
+    f"{m['level']}</span>{m['id'][:2]} {html.escape(_short(m['title']))}</a></li>"
     for m in reco
 )
 
@@ -410,7 +441,7 @@ def _prereq_links(m) -> str:
 
 table_rows = "".join(
     f'<tr><td><a href="{m["id"]}.html">{m["id"]}</a></td>'
-    f'<td>{html.escape(m["track"])}</td><td>{_prereq_links(m)}</td></tr>'
+    f"<td>{html.escape(m['track'])}</td><td>{_prereq_links(m)}</td></tr>"
     for m in modules
 )
 graph_main = f"""<article class="content">
@@ -428,7 +459,9 @@ graph_main = f"""<article class="content">
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
 mermaid.initialize({{ startOnLoad: true, theme: 'neutral', flowchart: {{ useMaxWidth: false }} }});
 </script>"""
-(SITE / "graph.html").write_text(page("学習順序グラフ — lecture-cv", lay(graph_main, left=sidebar_left(None))))
+(SITE / "graph.html").write_text(
+    page("学習順序グラフ — lecture-cv", lay(graph_main, left=sidebar_left(None)))
+)
 
 
 # ----------------------------------------------------------------------------- module pages
@@ -436,7 +469,7 @@ def strip_h1(md: str) -> str:
     lines = md.splitlines()
     for i, ln in enumerate(lines):
         if ln.strip():
-            return "\n".join(lines[i + 1:]) if ln.startswith("# ") else md
+            return "\n".join(lines[i + 1 :]) if ln.startswith("# ") else md
     return md
 
 
@@ -469,16 +502,16 @@ for idx, m in enumerate(modules):
     if ex_files:
         det = "".join(
             f'<details class="srcblock"><summary><code>{html.escape(p.name)}</code> — '
-            f'{"TODO を埋めて自己採点" if p.name == "exercises.py" else "模範解答（先に自分で解く）"}'
+            f"{'TODO を埋めて自己採点' if p.name == 'exercises.py' else '模範解答（先に自分で解く）'}"
             f"</summary>{highlight_py(p.read_text())}</details>"
             for p in ex_files
         )
         ex_html = (
             f'<h2 id="exercises">演習コード（自己採点）</h2>'
             f'<p class="ex-intro">上の「演習問題」を解くコードです。下の <code>exercises.py</code> の <b>TODO</b> を自分で埋め、'
-            f'<code>uv run python lectures/{m["id"]}/exercises.py</code> '
-            f'を実行すると<b>自己採点</b>されます（<code>SHOW_SOLUTION=1</code> または '
-            f'<code>exercises_solutions.py</code> で答え合わせ）。</p>'
+            f"<code>uv run python lectures/{m['id']}/exercises.py</code> "
+            f"を実行すると<b>自己採点</b>されます（<code>SHOW_SOLUTION=1</code> または "
+            f"<code>exercises_solutions.py</code> で答え合わせ）。</p>"
             f"{det}"
         )
 
@@ -491,35 +524,56 @@ for idx, m in enumerate(modules):
     extra_toc = f'<ul class="toc-extra">{"".join(extra)}</ul>' if extra else ""
     right = f'<aside class="side-right"><div class="side-title">このページの目次</div>{toc_html}{extra_toc}</aside>'
 
-    groups = "".join(f'<code class="chip">{html.escape(g)}</code>' for g in (m.get("needs_groups") or [])) or '<span class="muted">追加依存なし</span>'
-    prereq_html = " ".join(
-        f'<a href="{p}.html">{p[:2]} {html.escape(modmap[p]["title"][:14])}</a>'
-        for p in m.get("prereqs", []) if p in modmap
-    ) or '<span class="muted">なし（最初から学べる）</span>'
+    groups = (
+        "".join(
+            f'<code class="chip">{html.escape(g)}</code>' for g in (m.get("needs_groups") or [])
+        )
+        or '<span class="muted">追加依存なし</span>'
+    )
+    prereq_html = (
+        " ".join(
+            f'<a href="{p}.html">{p[:2]} {html.escape(modmap[p]["title"][:14])}</a>'
+            for p in m.get("prereqs", [])
+            if p in modmap
+        )
+        or '<span class="muted">なし（最初から学べる）</span>'
+    )
     meta_rows = (
         f'<tr><th>前提</th><td class="prereq-row">{prereq_html}</td></tr>'
-        f'<tr><th>トラック</th><td>{html.escape(m["track"])}</td></tr>'
+        f"<tr><th>トラック</th><td>{html.escape(m['track'])}</td></tr>"
         f'<tr><th>レベル</th><td><span class="level-badge {lv}">{m["level"]}</span></td></tr>'
-        f'<tr><th>依存グループ</th><td>{groups}</td></tr>'
-        f'<tr><th>評価</th><td>{html.escape(m.get("evaluation") or "—")}</td></tr>'
-        f'<tr><th>完成物</th><td>{html.escape(m.get("deliverable") or "—")}</td></tr>'
-        f'<tr><th>状態</th><td>{"公開" if m["_authored"] else "準備中（プレースホルダ）"}</td></tr>'
+        f"<tr><th>依存グループ</th><td>{groups}</td></tr>"
+        f"<tr><th>評価</th><td>{html.escape(m.get('evaluation') or '—')}</td></tr>"
+        f"<tr><th>完成物</th><td>{html.escape(m.get('deliverable') or '—')}</td></tr>"
+        f"<tr><th>状態</th><td>{'公開' if m['_authored'] else '準備中（プレースホルダ）'}</td></tr>"
     )
     banner = (
         f'<div class="mod-banner"><div class="mod-eyebrow">'
         f'<span class="level-badge {lv}">{m["level"]}</span> {html.escape(m["track"])} ／ 第{int(m["_num"])}回</div>'
-        f'<h1>{html.escape(m["title"])}</h1>'
+        f"<h1>{html.escape(m['title'])}</h1>"
         f'<p class="mod-goal">🎯 {html.escape(m.get("goal") or "")}</p>'
         f'<table class="meta-table">{meta_rows}</table></div>'
     )
     nav = '<nav class="prevnext">'
-    nav += f'<a href="{prev_m["id"]}.html">← {prev_m["_num"]} {html.escape(_short(prev_m["title"])[:22])}</a>' if prev_m else "<span></span>"
-    nav += f'<a href="{next_m["id"]}.html">{next_m["_num"]} {html.escape(_short(next_m["title"])[:22])} →</a>' if next_m else "<span></span>"
+    nav += (
+        f'<a href="{prev_m["id"]}.html">← {prev_m["_num"]} {html.escape(_short(prev_m["title"])[:22])}</a>'
+        if prev_m
+        else "<span></span>"
+    )
+    nav += (
+        f'<a href="{next_m["id"]}.html">{next_m["_num"]} {html.escape(_short(next_m["title"])[:22])} →</a>'
+        if next_m
+        else "<span></span>"
+    )
     nav += "</nav>"
 
-    main = banner + f'<article class="content">{blockify(readme_html + scripts_html + ex_html)}</article>' + nav
+    main = (
+        banner
+        + f'<article class="content">{blockify(readme_html + scripts_html + ex_html)}</article>'
+        + nav
+    )
     body = lay(main, left=sidebar_left(m["id"]), right=right)
-    (SITE / f'{m["id"]}.html').write_text(page(f'{m["_num"]} {m["title"]} — lecture-cv', body))
+    (SITE / f"{m['id']}.html").write_text(page(f"{m['_num']} {m['title']} — lecture-cv", body))
 
 # ----------------------------------------------------------------------------- assets
 ASSETS.mkdir(parents=True, exist_ok=True)
@@ -530,4 +584,6 @@ fmt = HtmlFormatter(style=PYGMENTS_STYLE)
 (ASSETS / "site.css").write_text(SITE_CSS)
 (ASSETS / "favicon.svg").write_text(FAVICON_SVG)
 
-print(f"built site/: {len(modules)} module pages ({len(authored)} authored) + index + roadmap + graph")
+print(
+    f"built site/: {len(modules)} module pages ({len(authored)} authored) + index + roadmap + graph"
+)
