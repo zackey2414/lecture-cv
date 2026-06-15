@@ -62,9 +62,6 @@ img{max-width:100%}
 .hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:900;letter-spacing:-.02em}
 .hero p{margin-top:.6rem;font-size:1.1rem;opacity:.92}
 .hero .hero-meta{font-size:.9rem;opacity:.95;margin-top:1rem}
-.hero-actions{margin-top:1.5rem}
-.hero-cta{display:inline-block;background:#fff;color:var(--p700);font-weight:800;font-size:.98rem;text-decoration:none;padding:.7rem 1.5rem;border-radius:999px;box-shadow:var(--shadow);transition:transform var(--t),box-shadow var(--t)}
-.hero-cta:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.2)}
 /* ===== index cards ===== */
 .cards{display:grid;gap:1.5rem;max-width:1240px;margin:-3rem auto 4rem;padding:0 1.5rem;position:relative;z-index:1}
 .lang-section{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--g200);padding:1.5rem 1.75rem 1.9rem}
@@ -345,7 +342,6 @@ hero = f"""<header class="hero">
   <h1>lecture-cv</h1>
   <p>Computer Vision を「AI の補助なしで自力で書ける」まで叩き込む全{len(modules)}回ハンズオン講座</p>
   <p class="hero-meta">公開 {len(authored)} / {len(modules)} 回　・　CPU のみで完走　・　各回 解説＋実行コード＋演習</p>
-  <p class="hero-actions"><a class="hero-cta" href="getting-started.html">▶ はじめ方ガイド（ローカルで始める・進め方）</a></p>
 </header>"""
 view_toggle = (
     '<div class="view-toggle" role="tablist">'
