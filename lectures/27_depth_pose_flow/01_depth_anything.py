@@ -11,7 +11,7 @@
 （必ず exit 0）。
 
 実行: uv run python lectures/27_depth_pose_flow/01_depth_anything.py
-出力: outputs/27_depth_pose_flow/01_*.png / 01_depth_metrics.json
+出力: lectures/27_depth_pose_flow/outputs/01_*.png / 01_depth_metrics.json
 """
 
 from __future__ import annotations

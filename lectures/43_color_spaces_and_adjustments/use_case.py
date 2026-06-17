@@ -25,7 +25,7 @@ mini_project.py との違い（ここが本ファイルの存在意義）
 
 実行
   uv run python lectures/43_color_spaces_and_adjustments/use_case.py
-  補正後画像と before/after モンタージュは outputs/43_color_spaces_and_adjustments/ に保存します
+  補正後画像と before/after モンタージュは lectures/43_color_spaces_and_adjustments/outputs/ に保存します
   （headless 前提・画面表示はしません）。
 
 拡張アイデア（練習用の出発点としてどうぞ）

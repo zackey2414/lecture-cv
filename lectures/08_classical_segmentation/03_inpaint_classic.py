@@ -15,12 +15,13 @@
 
 実行:
   uv run python lectures/08_classical_segmentation/03_inpaint_classic.py
-結果は outputs/08_classical_segmentation/ に保存される（画面表示はしない）。
+結果は lectures/08_classical_segmentation/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
 
 import os
+import pathlib
 
 import cv2
 import numpy as np
@@ -31,7 +32,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 MODULE_ID = "08_classical_segmentation"
-OUT_DIR = os.path.join("outputs", MODULE_ID)
+OUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 
 
 def panel(img: np.ndarray, title: str, size: tuple[int, int] = (340, 270)) -> np.ndarray:
@@ -204,7 +205,7 @@ def main() -> None:
         print(f"  NS    PSNR / SSIM  : {case['psnr_ns']:.2f} dB / {case['ssim_ns']:.3f}")
     print("\n  → 細い傷は PSNR が大きく回復、大穴は周囲色の引き伸ばしでボケて回復が小さい。")
     print("  これが古典 inpaint の限界で、構造を補完したいときは深層 LaMa(29回) に進む。")
-    print("\n完了。outputs/08_classical_segmentation/ の 03_*.png を確認してください。")
+    print("\n完了。lectures/08_classical_segmentation/outputs/ の 03_*.png を確認してください。")
 
 
 if __name__ == "__main__":

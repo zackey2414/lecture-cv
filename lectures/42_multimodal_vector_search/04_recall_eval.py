@@ -104,7 +104,7 @@ def main() -> None:
     print(f"\n[6] 数値を保存: {json_path.name}")
     _save_recall_curve(out, ks, [recall_curve[k] for k in ks], report["mAP@%d" % max_k], max_k)
 
-    print("\n完了。outputs/42_multimodal_vector_search/ を確認してください。")
+    print("\n完了。lectures/42_multimodal_vector_search/outputs/ を確認してください。")
 
 
 def _save_recall_curve(out: pathlib.Path, ks, recalls, mapk, max_k) -> None:

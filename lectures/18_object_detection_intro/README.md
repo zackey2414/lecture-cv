@@ -106,7 +106,7 @@ drawn = draw_bounding_boxes(canvas, boxes, labels=labels_text, colors="red", wid
 result = Image.fromarray(drawn.permute(1, 2, 0).numpy())  # CHW -> HWC で PIL に戻す
 ```
 
-`01` を実行すると `outputs/18_object_detection_intro/01_torchvision_compare.png` に3モデルの比較パネルが保存されます。合成画像なので検出は乏しく、しかも**ラベルが的外れ**（例: 人物図形が `stop sign`）になります。これは故障ではなく、「COCO で学習した検出器は写実的な写真向けに最適化されており、抽象的な合成図形では妥当なクラスを当てられない」という大事な学びです（§10で詳述）。それでもパイプライン（前処理→推論→閾値→NMS→可視化）は完全に動いており、箱・スコア・NMS の挙動を観察するには十分です。
+`01` を実行すると `lectures/18_object_detection_intro/outputs/01_torchvision_compare.png` に3モデルの比較パネルが保存されます。合成画像なので検出は乏しく、しかも**ラベルが的外れ**（例: 人物図形が `stop sign`）になります。これは故障ではなく、「COCO で学習した検出器は写実的な写真向けに最適化されており、抽象的な合成図形では妥当なクラスを当てられない」という大事な学びです（§10で詳述）。それでもパイプライン（前処理→推論→閾値→NMS→可視化）は完全に動いており、箱・スコア・NMS の挙動を観察するには十分です。
 
 なお matplotlib の図中テキストをあえて ASCII にしているのは、日本語を入れると headless 環境の DejaVu フォントで「豆腐（□）」になってしまうためです。また、図の色が反転して見える場合は、合成画像を RGB のまま扱えているか（`cv2.imread/imwrite` 経由で BGR が混ざっていないか）を確認してください。
 
@@ -206,7 +206,7 @@ uv run python lectures/18_object_detection_intro/01_torchvision_detection.py
 
 ## 11. 動かし方
 
-まず依存グループを入れ、スクリプトを順に実行します。初回はモデル重みのDL（ssdlite≈13MB / retinanet≈130MB / fasterrcnn≈160MB / DETR≈160MB）が走るためネット接続が要りますが、2回目以降はキャッシュから即起動します。すべて CPU・合成画像で完走し、結果は `outputs/18_object_detection_intro/` に図と JSON で保存されます。
+まず依存グループを入れ、スクリプトを順に実行します。初回はモデル重みのDL（ssdlite≈13MB / retinanet≈130MB / fasterrcnn≈160MB / DETR≈160MB）が走るためネット接続が要りますが、2回目以降はキャッシュから即起動します。すべて CPU・合成画像で完走し、結果は `lectures/18_object_detection_intro/outputs/` に図と JSON で保存されます。
 
 ### スクリプト一覧
 

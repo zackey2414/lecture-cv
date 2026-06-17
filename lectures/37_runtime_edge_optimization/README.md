@@ -111,7 +111,7 @@ y = sess.run(None, {"input": x_numpy})[0]
 
 含むランタイムは、この環境で使えるものを自動収集します: `eager fp32` / `eager bf16 autocast` / `TorchScript(trace/script)` / `torch.compile`(ツールチェインがあれば) / `ONNX Runtime(fp32 / int8 動的量子化)` / `OpenVINO`(導入済みなら)。各ランタイムを「numpy in → logits numpy out」の共通インタフェース(`bench_lab.Runtime`)に揃えることで、1つのループで横並び比較できます。
 
-評価軸は4つを必ずセットで見ます: **レイテンシ(p50/p99, batch=1)**・**スループット(img/s, batched)**・**サイズ(MB)**・**精度保持(fp32 eager 基準の top1 一致率と最大絶対誤差)**。意思決定は「①レイテンシ最小 ②サイズ最小(精度保持≥99%) ③総合おすすめ(精度を保ちつつ最速)」を根拠つきで選び、`outputs/37_runtime_edge_optimization/mini_project_report.md` と `mini_project_bench.png` に出力します。
+評価軸は4つを必ずセットで見ます: **レイテンシ(p50/p99, batch=1)**・**スループット(img/s, batched)**・**サイズ(MB)**・**精度保持(fp32 eager 基準の top1 一致率と最大絶対誤差)**。意思決定は「①レイテンシ最小 ②サイズ最小(精度保持≥99%) ③総合おすすめ(精度を保ちつつ最速)」を根拠つきで選び、`lectures/37_runtime_edge_optimization/outputs/mini_project_report.md` と `mini_project_bench.png` に出力します。
 
 実行(数十秒):
 
@@ -202,7 +202,7 @@ uv run python lectures/37_runtime_edge_optimization/03_runtime_bench.py
 uv run python lectures/37_runtime_edge_optimization/04_edge_runtimes_concept.py
 uv run python lectures/37_runtime_edge_optimization/05_decision_order.py
 
-# 章末ミニプロジェクト(成果物: outputs/37_runtime_edge_optimization/ に表+図)
+# 章末ミニプロジェクト(成果物: lectures/37_runtime_edge_optimization/outputs/ に表+図)
 uv run python lectures/37_runtime_edge_optimization/mini_project.py
 
 # 演習(自己採点)→ 模範解答(全PASS)
@@ -214,7 +214,7 @@ uv add --group edge openvino nncf      # Intel/AMD CPU で OpenVINO 実習
 uv add --group viz netron              # モデルグラフ可視化
 ```
 
-成果物・図はすべて `outputs/37_runtime_edge_optimization/` に保存されます(matplotlib は Agg、`cv2.imshow` は呼びません)。
+成果物・図はすべて `lectures/37_runtime_edge_optimization/outputs/` に保存されます(matplotlib は Agg、`cv2.imshow` は呼びません)。
 
 > 版: torch 2.12+cpu / torchvision 0.27+cpu / onnx 1.21 / onnxruntime 1.26 / numpy 2.x ・ 2026-06
 > 注: 本実習環境は CPU のみ。`torch.compile`(要 C++ ツールチェイン)・OpenVINO・CoreML・LiteRT・TensorRT は**実行経路で必須にせず**、未導入時は概念紹介にフォールバックします。

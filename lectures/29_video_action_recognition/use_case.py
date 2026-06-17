@@ -8,7 +8,7 @@
 (JSON / CSV) として書き出す小さな道具です。動画アセット管理・ざっくり分類・
 "このフォルダにはどんな行動の動画が多いか" の俯瞰、といった現実の用途に直結します。
 
-最終成果物（outputs/29_video_action_recognition/ に保存）:
+最終成果物（lectures/29_video_action_recognition/outputs/ に保存）:
   - use_case_tags.json   … 各動画 → 上位 N タグ(確率つき)のカタログ
   - use_case_tags.csv    … 表計算/検索しやすいフラットなタグ表（1 行 = 1 動画）
   - use_case_gallery.png … 各動画の代表フレーム + 主タグを並べたサムネ一覧

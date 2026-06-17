@@ -16,7 +16,7 @@
 入力は腕を振る人型図形の連番フレーム（合成“動画”）。
 
 実行: uv run python lectures/27_depth_pose_flow/02_pose_keypoints.py
-出力: outputs/27_depth_pose_flow/02_*.png / 02_pose.json
+出力: lectures/27_depth_pose_flow/outputs/02_*.png / 02_pose.json
 """
 
 from __future__ import annotations

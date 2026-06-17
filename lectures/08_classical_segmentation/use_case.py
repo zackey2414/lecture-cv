@@ -41,10 +41,10 @@ mini_project.py との違い:
     uv run python lectures/08_classical_segmentation/use_case.py
     USE_CASE_INTERACTIVE=1 uv run python lectures/08_classical_segmentation/use_case.py   # 矩形をドラッグ選択
 出力:
-    outputs/08_classical_segmentation/use_case_cutout.png      … 背景透過の切り抜き（RGBA）
-    outputs/08_classical_segmentation/use_case_panel.png       … 入力/アルファ/白背景/新背景の一覧
-    outputs/08_classical_segmentation/use_case_bokeh.png       … 背景ぼかし（ポートレート風）
-    outputs/08_classical_segmentation/use_case_bg_removal.json … 設定と前景占有率などのログ
+    lectures/08_classical_segmentation/outputs/use_case_cutout.png      … 背景透過の切り抜き（RGBA）
+    lectures/08_classical_segmentation/outputs/use_case_panel.png       … 入力/アルファ/白背景/新背景の一覧
+    lectures/08_classical_segmentation/outputs/use_case_bokeh.png       … 背景ぼかし（ポートレート風）
+    lectures/08_classical_segmentation/outputs/use_case_bg_removal.json … 設定と前景占有率などのログ
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ from PIL import Image
 # 設定（数値をいじって挙動を観察する練習用のツマミ）
 # ---------------------------------------------------------------------
 MODULE_ID = "08_classical_segmentation"
-OUT_DIR = pathlib.Path("outputs") / MODULE_ID
+OUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 DATA_DIR = pathlib.Path("data") / MODULE_ID
 BG_DIR = DATA_DIR / "background"            # 差し替え用の「新しい背景」を置くフォルダ
 IMG_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}

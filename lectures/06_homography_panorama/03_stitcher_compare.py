@@ -8,7 +8,7 @@
 
 実行:
   uv run python lectures/06_homography_panorama/03_stitcher_compare.py
-結果は outputs/06_homography_panorama/ に保存される（画面表示はしない）。
+結果は lectures/06_homography_panorama/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -144,7 +144,7 @@ def main() -> None:
     # === 4. 並べて保存 ====================================================
     save_comparison(out, manual, auto, mode)
     print("\n[まとめ] 手作りは中身が見え学習向き。Stitcher は露出補正+マルチバンド合成まで自動。")
-    print("完了。outputs/06_homography_panorama/ の 03_*.png を確認してください。")
+    print("完了。lectures/06_homography_panorama/outputs/ の 03_*.png を確認してください。")
 
 
 if __name__ == "__main__":

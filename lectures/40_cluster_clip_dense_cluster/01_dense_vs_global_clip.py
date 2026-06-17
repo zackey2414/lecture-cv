@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/40_cluster_clip_dense_cluster/01_dense_vs_global_clip.py
-結果は outputs/40_cluster_clip_dense_cluster/ に保存される。
+結果は lectures/40_cluster_clip_dense_cluster/outputs/ に保存される。
 """
 
 from __future__ import annotations

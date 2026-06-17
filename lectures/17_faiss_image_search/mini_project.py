@@ -16,7 +16,7 @@
     digit で始まらない共通ヘルパ search_helpers から借用する（本ファイルは後者）。
   - すべて CPU・合成データで数十秒以内に完走。CLIP を取得できない環境では
     色記述子へ自動フォールバックし、テキスト検索だけスキップして exit 0 で完走する。
-  - 出力は outputs/17_faiss_image_search/ に保存（matplotlib=Agg, imshow は呼ばない）。
+  - 出力は lectures/17_faiss_image_search/outputs/ に保存（matplotlib=Agg, imshow は呼ばない）。
 
 実行:
   uv run python lectures/17_faiss_image_search/mini_project.py
@@ -354,7 +354,7 @@ def main() -> None:
     json_path = out / "mini_project_report.json"
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n[done] レポートを保存: {json_path.name}")
-    print("完了。outputs/17_faiss_image_search/ を確認してください。")
+    print("完了。lectures/17_faiss_image_search/outputs/ を確認してください。")
 
 
 if __name__ == "__main__":

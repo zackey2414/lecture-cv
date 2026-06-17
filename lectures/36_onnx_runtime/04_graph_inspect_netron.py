@@ -14,7 +14,7 @@
 
 実行:
   uv run python lectures/36_onnx_runtime/04_graph_inspect_netron.py
-結果（図と要約 JSON）は outputs/36_onnx_runtime/ に保存される。
+結果（図と要約 JSON）は lectures/36_onnx_runtime/outputs/ に保存される。
 """
 
 from __future__ import annotations

@@ -48,10 +48,10 @@ import matplotlib.pyplot as plt  # noqa: E402
 torch.set_num_threads(max(1, (os.cpu_count() or 2) // 2))
 
 # ---------------------------------------------------------------------------
-# 0. 定数・パス（プロジェクト規約に合わせて outputs/<module_id>/ に集約）
+# 0. 定数・パス（プロジェクト規約に合わせて lectures/<module_id>/outputs/ に集約）
 # ---------------------------------------------------------------------------
 MODULE_ID = "33_multimodal_embeddings"
-OUTPUT_DIR = pathlib.Path("outputs") / MODULE_ID
+OUTPUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 DATA_DIR = pathlib.Path("data") / MODULE_ID
 
 # 3つの代表モデル。いずれも base サイズで CPU でも数秒〜十数秒で動く。
@@ -115,7 +115,7 @@ def pick_device() -> torch.device:
 
 
 def ensure_output_dir() -> pathlib.Path:
-    """outputs/<module_id>/ を作って返す（既存でもエラーにしない）。"""
+    """lectures/<module_id>/outputs/ を作って返す（既存でもエラーにしない）。"""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     return OUTPUT_DIR
 

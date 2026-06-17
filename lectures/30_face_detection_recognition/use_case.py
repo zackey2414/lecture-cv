@@ -22,7 +22,7 @@ mini_project.py との違い（役割分担）
 - `data/30_face_detection_recognition/` に **画像**（*.jpg / *.jpeg / *.png / *.bmp）を
   置くと、それを実入力として匿名化します。
   例: `data/30_face_detection_recognition/street.jpg` を置けば、その写真の顔を
-  自動でぼかした `outputs/30_face_detection_recognition/use_case_anon_street.png` が出ます。
+  自動でぼかした `lectures/30_face_detection_recognition/outputs/use_case_anon_street.png` が出ます。
 - 置かなければ **合成の集合写真**（複数の顔を 1 枚に並べたもの）で必ず完走します（exit 0）。
 - ★重要な注意: Haar は **実写の顔**で学習されているため、**合成顔は検出されない**ことが
   あります（=ドメインギャップ）。本ツールは合成シーンで検出が弱いときだけ、顔の **正解位置**
@@ -53,7 +53,7 @@ mini_project.py との違い（役割分担）
 実行:
     uv run python lectures/30_face_detection_recognition/use_case.py
 
-出力（outputs/30_face_detection_recognition/ に保存）:
+出力（lectures/30_face_detection_recognition/outputs/ に保存）:
     use_case_anonymized.png   : 元画像 vs 匿名化後 の Before/After モンタージュ
     use_case_methods.png      : 同じ顔に blur / pixelate / box を適用した方式比較（matplotlib）
     use_case_anon_<name>.png  : （実写を置いた場合）各入力の匿名化後フル画像

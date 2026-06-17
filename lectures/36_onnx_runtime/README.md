@@ -256,7 +256,7 @@ uv run python lectures/36_onnx_runtime/exercises_solutions.py
 
 なお `01`〜`05`・`mini_project`・`exercises` は、共通土台 `onnx_helpers.py`（export/検証/ベンチ/合成データを提供）を `import` して再利用している。
 
-成果物（図・JSON・`.onnx`）は `outputs/36_onnx_runtime/` に保存される（matplotlib=Agg、OpenCV headless）。
+成果物（図・JSON・`.onnx`）は `lectures/36_onnx_runtime/outputs/` に保存される（matplotlib=Agg、OpenCV headless）。
 
 ---
 

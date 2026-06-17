@@ -17,7 +17,7 @@
 
 実行:
   uv run python lectures/15_image_embeddings_metric_learning/use_case.py
-結果は outputs/15_image_embeddings_metric_learning/ に保存（画面表示はしない）:
+結果は lectures/15_image_embeddings_metric_learning/outputs/ に保存（画面表示はしない）:
   - use_case_duplicate_groups.png : 見つかった近重複グループのモンタージュ
   - use_case_similarity_hist.png  : 各画像の最近傍コサイン分布（しきい値チューニング用）
   - use_case_groups.json          : グループ・メンバー・類似度・設定値

@@ -11,7 +11,7 @@ TrOCR は『ViT（画像）エンコーダ + テキストデコーダ』の seq2
   4. 印字 TrOCR は出力が大文字寄りになりがち → 正規化（小文字化）の効果を実感する。
 
 実行: uv run python lectures/26_ocr_document/02_trocr.py
-出力: outputs/26_ocr_document/02_*.png / 02_trocr.json
+出力: lectures/26_ocr_document/outputs/02_*.png / 02_trocr.json
 """
 
 from __future__ import annotations

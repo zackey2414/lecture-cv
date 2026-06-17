@@ -14,7 +14,7 @@
   - 合成の並進ペア（真のフローが一定値で自明）に対し、各手法の EPE を比較する。
 
 実行: uv run python lectures/27_depth_pose_flow/03_raft_optical_flow.py
-出力: outputs/27_depth_pose_flow/03_*.png / 03_flow_metrics.json
+出力: lectures/27_depth_pose_flow/outputs/03_*.png / 03_flow_metrics.json
 """
 
 from __future__ import annotations

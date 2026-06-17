@@ -131,7 +131,7 @@ assert np.isclose(pq_manual, float(pq), atol=1e-3)
 
 ## 8. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に読めば「インスタンス → パノプティック → プロンプト型 → 評価」と理解が積み上がります。すべて `outputs/22_instance_panoptic_sam/` に図と JSON を保存し、画面表示（`cv2.imshow`）には依存しません。合成シーンと GT マスクの生成、device 判定、可視化の小道具は `seg_helpers.py` にまとめ、各スクリプトはそれを import します。
+各スクリプトは単一責務で、上から順に読めば「インスタンス → パノプティック → プロンプト型 → 評価」と理解が積み上がります。すべて `lectures/22_instance_panoptic_sam/outputs/` に図と JSON を保存し、画面表示（`cv2.imshow`）には依存しません。合成シーンと GT マスクの生成、device 判定、可視化の小道具は `seg_helpers.py` にまとめ、各スクリプトはそれを import します。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -155,7 +155,7 @@ assert np.isclose(pq_manual, float(pq), atol=1e-3)
 # 依存グループを用意（初回のみ）
 uv sync --group dl --group hf --group metrics
 
-# 各スクリプトを実行（結果は outputs/22_instance_panoptic_sam/ に保存される）
+# 各スクリプトを実行（結果は lectures/22_instance_panoptic_sam/outputs/ に保存される）
 uv run python lectures/22_instance_panoptic_sam/seg_helpers.py             # 道具箱のスモークテスト
 uv run python lectures/22_instance_panoptic_sam/01_maskrcnn_instance.py    # インスタンス
 uv run python lectures/22_instance_panoptic_sam/02_mask2former_panoptic.py # パノプティック
@@ -176,7 +176,7 @@ SHOW_SOLUTION=1 uv run python lectures/22_instance_panoptic_sam/exercises.py
 uv run python lectures/22_instance_panoptic_sam/exercises_solutions.py
 ```
 
-実行後は `outputs/22_instance_panoptic_sam/` の画像と JSON を確認してください。`03_sam_prompt_seg.png`（点/箱で指した領域が綺麗に切れている）と `04_eval_metrics.json`（自作 PQ と torchmetrics が一致）を、本文の解説と照らし合わせると理解が定着します。実写で試したい場合は §7 の通り `data/22_instance_panoptic_sam/` に画像を置いてから再実行します。
+実行後は `lectures/22_instance_panoptic_sam/outputs/` の画像と JSON を確認してください。`03_sam_prompt_seg.png`（点/箱で指した領域が綺麗に切れている）と `04_eval_metrics.json`（自作 PQ と torchmetrics が一致）を、本文の解説と照らし合わせると理解が定着します。実写で試したい場合は §7 の通り `data/22_instance_panoptic_sam/` に画像を置いてから再実行します。
 
 > 補足: `needs_groups` には概念紹介として **Ultralytics SAM**（`SAM('mobile_sam.pt')` / `SAM('sam2.1_t.pt')`）も挙げられますが、`ultralytics` は `opencv-python`（full 版）を引き込み、本講座既定の `opencv-python-headless` と**衝突**します。本スクリプトは衝突を避けるため HF SAM のみを実行経路に使い、Ultralytics 版は「軽量・1行で動く別実装」として概念に留めます（試すなら別環境で `uv add ultralytics`）。
 
@@ -223,8 +223,8 @@ uv run python lectures/22_instance_panoptic_sam/exercises_solutions.py
 
 ```bash
 uv run python lectures/22_instance_panoptic_sam/mini_project.py
-# → outputs/22_instance_panoptic_sam/mini_project.png（input / GT / SAM予測 / overlay）
-#   outputs/22_instance_panoptic_sam/mini_project_report.json（per予測IoU・mask AP・PQ）
+# → lectures/22_instance_panoptic_sam/outputs/mini_project.png（input / GT / SAM予測 / overlay）
+#   lectures/22_instance_panoptic_sam/outputs/mini_project_report.json（per予測IoU・mask AP・PQ）
 ```
 
 **発展課題**（自分で改造してみる）: ①点プロンプトを**箱プロンプト**に替えて IoU/PQ がどう変わるか比べる。②背景 FP の `score` を高くして、AP が下がり始める閾値を探す（AP の score 依存性の体感）。③`mask AP@0.5` を **AP@[.5:.95]**（IoU 閾値を 0.50:0.05:0.95 で平均）に拡張し、`04` の `COCOeval` segm と突き合わせる。
@@ -301,9 +301,9 @@ uv run python lectures/22_instance_panoptic_sam/mini_project.py
 
 ```bash
 uv run python lectures/22_instance_panoptic_sam/use_case.py
-# → outputs/22_instance_panoptic_sam/use_case_cutout_01.png ...（透明背景の切り抜き・物体ごとに1枚）
-#   outputs/22_instance_panoptic_sam/use_case_preview.png   （入力＋クリック点／マスク／透明合成）
-#   outputs/22_instance_panoptic_sam/use_case_cutouts.json  （座標・面積・bbox 等のメタ）
+# → lectures/22_instance_panoptic_sam/outputs/use_case_cutout_01.png ...（透明背景の切り抜き・物体ごとに1枚）
+#   lectures/22_instance_panoptic_sam/outputs/use_case_preview.png   （入力＋クリック点／マスク／透明合成）
+#   lectures/22_instance_panoptic_sam/outputs/use_case_cutouts.json  （座標・面積・bbox 等のメタ）
 ```
 
 **`data/22_instance_panoptic_sam/` への配置**: `.png` / `.jpg` を1枚置くと、その先頭画像を入力に使います（無ければ合成シーンで必ず完走）。狙った物体を切りたいときは `use_case.py` の `CLICK_POINTS` に `(x, y)` を列挙すれば、その座標を“クリック”として複数枚まとめて切り出せます。なお SAM はクラス非依存なので、合成図形でも実写でも指した領域をきれいに切れます（実写で本領を発揮させるには SAM 重みの初回 DL が必要）。

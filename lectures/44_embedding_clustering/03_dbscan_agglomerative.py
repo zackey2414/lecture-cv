@@ -113,7 +113,7 @@ def main() -> None:
     print("  - k が事前に分かる/球状で素直 → k-means（速くて安定）")
     print("  - 外れ値・ノイズを弾きたい/任意形状 → DBSCAN（ただし eps 調整が難しい）")
     print("  - k を決めず、密度の偏りに強く、しきい値で切りたい → Agglomerative（埋め込みで定番）")
-    print(f"\n完了。outputs/{cl.MODULE_ID}/03_*.png と 03_dbscan_agglo.json を確認してください。")
+    print(f"\n完了。lectures/{cl.MODULE_ID}/outputs/03_*.png と 03_dbscan_agglo.json を確認してください。")
 
 
 if __name__ == "__main__":

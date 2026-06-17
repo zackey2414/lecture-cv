@@ -10,7 +10,7 @@
   - クラス不均衡だと accuracy が「多数派に張るだけ」で高く出てしまう罠。
 
 実行: uv run python lectures/14_eval_classification/01_confusion_matrix_prf.py
-結果（混同行列の図・指標 JSON）は outputs/14_eval_classification/ に保存される。
+結果（混同行列の図・指標 JSON）は lectures/14_eval_classification/outputs/ に保存される。
 """
 
 from __future__ import annotations
@@ -202,7 +202,7 @@ def main() -> None:
         "imbalance_trap": trap,
     }
     (out / "01_metrics.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2))
-    print("\n完了。outputs/14_eval_classification/ に 01_confusion_matrix.png と 01_metrics.json を保存しました。")
+    print("\n完了。lectures/14_eval_classification/outputs/ に 01_confusion_matrix.png と 01_metrics.json を保存しました。")
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@
   - 1つの GT に複数予測が当たっても TP は1つだけ（残りは FP）。この二重カウント防止が肝。
 
 実行: uv run python lectures/19_detection_map_from_scratch/01_iou_matching.py
-結果（マッチングの可視化図・カウントの JSON）は outputs/19_detection_map_from_scratch/ に保存。
+結果（マッチングの可視化図・カウントの JSON）は lectures/19_detection_map_from_scratch/outputs/ に保存。
 """
 
 from __future__ import annotations

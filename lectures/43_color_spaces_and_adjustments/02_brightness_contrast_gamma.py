@@ -11,7 +11,7 @@
 
 実行:
   uv run python lectures/43_color_spaces_and_adjustments/02_brightness_contrast_gamma.py
-結果は outputs/43_color_spaces_and_adjustments/ に保存される。
+結果は lectures/43_color_spaces_and_adjustments/outputs/ に保存される。
 """
 
 from __future__ import annotations
@@ -140,7 +140,7 @@ def main() -> None:
     demo_gamma(out)
     demo_equalize_clahe(out)
 
-    print("\n完了。outputs/43_color_spaces_and_adjustments/ の 02_*.png を確認してください。")
+    print("\n完了。lectures/43_color_spaces_and_adjustments/outputs/ の 02_*.png を確認してください。")
 
 
 if __name__ == "__main__":

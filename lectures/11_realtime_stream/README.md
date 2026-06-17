@@ -166,7 +166,7 @@ while good < target_good:
 
 ## 8. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に読めば「軽くする → 並行化する → ネットワークに備える」と理解が積み上がるように並べています。すべて `outputs/11_realtime_stream/` に結果を保存し、画面表示（`cv2.imshow`）には一切依存しません。共通処理（合成フレーム生成・合成ソース・FPS/レイテンシ計測・重い処理の模擬）は `stream_helpers.py` にまとめ、各スクリプトはそれを import して使います。
+各スクリプトは単一責務で、上から順に読めば「軽くする → 並行化する → ネットワークに備える」と理解が積み上がるように並べています。すべて `lectures/11_realtime_stream/outputs/` に結果を保存し、画面表示（`cv2.imshow`）には一切依存しません。共通処理（合成フレーム生成・合成ソース・FPS/レイテンシ計測・重い処理の模擬）は `stream_helpers.py` にまとめ、各スクリプトはそれを import して使います。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -190,7 +190,7 @@ while good < target_good:
 # 依存をインストール（初回のみ。00〜11 は uv sync だけで完走）
 uv sync
 
-# 各スクリプトを実行（結果は outputs/11_realtime_stream/ に保存される）
+# 各スクリプトを実行（結果は lectures/11_realtime_stream/outputs/ に保存される）
 uv run python lectures/11_realtime_stream/01_background_subtraction.py
 uv run python lectures/11_realtime_stream/02_frameskip_grab_retrieve.py
 uv run python lectures/11_realtime_stream/03_threaded_capture.py
@@ -218,7 +218,7 @@ CV_RTSP=rtsp://...      uv run python lectures/11_realtime_stream/04_rtsp_youtub
 CV_YOUTUBE=https://...  uv run python lectures/11_realtime_stream/04_rtsp_youtube_stream.py   # 要 yt-dlp
 ```
 
-実行後は `outputs/11_realtime_stream/` の画像を開いて解説と照らし合わせてください。特に `03_latency_vs_drop.png`（無制限キューは右肩上がり、ドロップ版は横ばい）と `02_throughput_compare.png`（縮小・スキップ・grab で消化レートが上がる）を見比べると、本章の2大テーマ（最適化とドロップ）が視覚的に腑に落ちます。`cv2.imshow` はheadless環境で固まる/落ちるため本章では使わず、結果はすべてファイル保存です。どうしてもローカルGUIで見たい場合のみ、`opencv-python-headless` を `opencv-python`（GUI版）に差し替えてください（両者は排他）。
+実行後は `lectures/11_realtime_stream/outputs/` の画像を開いて解説と照らし合わせてください。特に `03_latency_vs_drop.png`（無制限キューは右肩上がり、ドロップ版は横ばい）と `02_throughput_compare.png`（縮小・スキップ・grab で消化レートが上がる）を見比べると、本章の2大テーマ（最適化とドロップ）が視覚的に腑に落ちます。`cv2.imshow` はheadless環境で固まる/落ちるため本章では使わず、結果はすべてファイル保存です。どうしてもローカルGUIで見たい場合のみ、`opencv-python-headless` を `opencv-python`（GUI版）に差し替えてください（両者は排他）。
 
 ## 10. よくあるエラーと対処（チェックリスト）
 
@@ -258,7 +258,7 @@ CV_YOUTUBE=https://...  uv run python lectures/11_realtime_stream/04_rtsp_youtub
 
 この課題は「固定/移動カメラの映像から動体を低遅延で検出し続ける」という、防犯・監視・入退室カウントなどの最小核です。入力を Webカメラ・動画ファイル・RTSP・ライブ配信に差し替えれば、同じ骨格（取得と処理を分け、キューでつなぎ、満杯なら落とす）がそのまま実運用で効きます。これは最終章（第40・41回）の Cluster-CLIP ストリームパイプラインへ直結する部品でもあります。
 
-**到達の目安**: STAGE2 で「縮小＋スキップ」の消化レートが「原寸・毎フレーム」を上回ること。STAGE3 で**無制限キューの齢が右肩上がりに増える**一方、**ドロップ版の齢はほぼ一定に保たれる**（その代わり一定割合のフレームを捨てる）こと。出力は `outputs/11_realtime_stream/` に以下が保存されます。
+**到達の目安**: STAGE2 で「縮小＋スキップ」の消化レートが「原寸・毎フレーム」を上回ること。STAGE3 で**無制限キューの齢が右肩上がりに増える**一方、**ドロップ版の齢はほぼ一定に保たれる**（その代わり一定割合のフレームを捨てる）こと。出力は `lectures/11_realtime_stream/outputs/` に以下が保存されます。
 
 | 生成物 | 内容 |
 | --- | --- |
@@ -270,7 +270,7 @@ CV_YOUTUBE=https://...  uv run python lectures/11_realtime_stream/04_rtsp_youtub
 
 ```bash
 uv run python lectures/11_realtime_stream/mini_project.py
-cat outputs/11_realtime_stream/mini_project_metrics.json
+cat lectures/11_realtime_stream/outputs/mini_project_metrics.json
 ```
 
 ## ✅ 到達チェックリスト
@@ -351,9 +351,9 @@ cat outputs/11_realtime_stream/mini_project_metrics.json
 uv run python lectures/11_realtime_stream/use_case.py
 
 # 出力を確認
-ls outputs/11_realtime_stream/use_case_snapshots/        # alert_0001.png ... 検出枠つきスナップ
-cat outputs/11_realtime_stream/use_case_alerts.csv       # event_id, start_time_s, duration_s, peak_area_px ...
-cat outputs/11_realtime_stream/use_case_alerts.jsonl     # 1行1イベントの JSON（プログラム連携向け）
+ls lectures/11_realtime_stream/outputs/use_case_snapshots/        # alert_0001.png ... 検出枠つきスナップ
+cat lectures/11_realtime_stream/outputs/use_case_alerts.csv       # event_id, start_time_s, duration_s, peak_area_px ...
+cat lectures/11_realtime_stream/outputs/use_case_alerts.jsonl     # 1行1イベントの JSON（プログラム連携向け）
 ```
 
 **実データの置き方（実映像優先・無ければ合成）**: 監視したい動画を `data/11_realtime_stream/` に置くと、合成の代わりにそれを使います（対応拡張子 `.mp4 / .mov / .avi / .mkv / .webm`、複数あれば名前順で先頭）。特定ファイルを直接指定するなら環境変数で渡せます。

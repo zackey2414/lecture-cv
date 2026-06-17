@@ -30,7 +30,7 @@
 
 実行:
   uv run python lectures/42_multimodal_vector_search/use_case.py
-成果物（図・JSON・index キャッシュ）は outputs/42_multimodal_vector_search/ に保存されます。
+成果物（図・JSON・index キャッシュ）は lectures/42_multimodal_vector_search/outputs/ に保存されます。
 """
 
 from __future__ import annotations

@@ -223,7 +223,7 @@ uv run python lectures/41_cluster_clip_pipeline/exercises.py
 uv run python lectures/41_cluster_clip_pipeline/exercises_solutions.py
 ```
 
-出力（フレーム・カプセル・図）は `outputs/41_cluster_clip_pipeline/` に保存される。初回は CLIP（ViT-B-32, openai）の重みダウンロードが走る（以降はキャッシュされる）。すべて CPU で数十秒以内に完走する。
+出力（フレーム・カプセル・図）は `lectures/41_cluster_clip_pipeline/outputs/` に保存される。初回は CLIP（ViT-B-32, openai）の重みダウンロードが走る（以降はキャッシュされる）。すべて CPU で数十秒以内に完走する。
 
 ---
 

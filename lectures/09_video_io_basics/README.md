@@ -141,7 +141,7 @@ while True:
 
 ## 8. headless / Docker での確認 — imshow を使わない
 
-ローカルのデスクトップであれば、`cv2.imshow(...)` + `cv2.waitKey(1)` で動画をウィンドウ再生するのが手軽です。しかし、本講座が使う **opencv-python-headless には `imshow`/`waitKey` がそもそも存在せず**、呼ぶと `cv2.error` になります。これは Docker・SSH・CI といった GUI の無い環境でも同様で、画面表示に頼った確認方法は使えません。だからこそ本章のスクリプトは**一切 `imshow` を呼ばず**、結果はすべて `outputs/09_video_io_basics/` にファイルとして残します。
+ローカルのデスクトップであれば、`cv2.imshow(...)` + `cv2.waitKey(1)` で動画をウィンドウ再生するのが手軽です。しかし、本講座が使う **opencv-python-headless には `imshow`/`waitKey` がそもそも存在せず**、呼ぶと `cv2.error` になります。これは Docker・SSH・CI といった GUI の無い環境でも同様で、画面表示に頼った確認方法は使えません。だからこそ本章のスクリプトは**一切 `imshow` を呼ばず**、結果はすべて `lectures/09_video_io_basics/outputs/` にファイルとして残します。
 
 headless での確認手段は、主に3つあります。**(1) `cv2.imwrite` で代表フレームをPNG保存**して目視する、**(2) `cv2.VideoWriter` で結果を動画にまとめて**後で再生する、**(3) matplotlib(Agg) で複数フレームを並べた図**を保存する、の3つです。本章では、この3つを全部使い分けています（`01` のフレーム保存・`03` の動画再書き出し・`02`/`03` の matplotlib モンタージュ）。なお matplotlib を使うときは、必ず冒頭で `import matplotlib; matplotlib.use("Agg")` とバックエンドを固定し、フレームは BGR→RGB に直してから渡す、という第3節の作法を守ります。
 
@@ -182,7 +182,7 @@ headless での確認手段は、主に3つあります。**(1) `cv2.imwrite` �
 
 <figure class="lec-fig"><svg viewBox="0 0 660 200" role="img" aria-label="ミニプロジェクトは合成・メタ確認・本体処理・シーク確認・レポート化の5ステップを順に流す動体ハイライトパイプライン" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="330" y="32" text-anchor="middle" font-size="15" font-weight="700" fill="#c2410c">章末ミニプロジェクト：動体ハイライトの 5 ステップ</text><rect x="16" y="64" width="104" height="64" rx="6" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/><rect x="147" y="64" width="104" height="64" rx="6" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/><rect x="278" y="64" width="104" height="64" rx="6" fill="#ffedd5" stroke="#c2410c" stroke-width="2"/><rect x="409" y="64" width="104" height="64" rx="6" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/><rect x="540" y="64" width="104" height="64" rx="6" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/><text x="68" y="92" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">1 合成</text><text x="68" y="112" text-anchor="middle" font-size="10.5" fill="#52525b">素材を書出</text><text x="199" y="92" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">2 メタ確認</text><text x="199" y="112" text-anchor="middle" font-size="10.5" fill="#52525b">CAP_PROP</text><text x="330" y="92" text-anchor="middle" font-size="14" font-weight="700" fill="#c2410c">3 本体処理</text><text x="330" y="112" text-anchor="middle" font-size="10.5" fill="#52525b">差分→赤塗り</text><text x="461" y="92" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">4 シーク確認</text><text x="461" y="112" text-anchor="middle" font-size="10.5" fill="#52525b">POS_FRAMES</text><text x="592" y="92" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">5 レポート化</text><text x="592" y="112" text-anchor="middle" font-size="10.5" fill="#52525b">グラフ/JSON</text><line x1="122" y1="96" x2="139" y2="96" stroke="#71717a" stroke-width="2"/><polygon points="145,96 137,91 137,101" fill="#71717a"/><line x1="253" y1="96" x2="270" y2="96" stroke="#71717a" stroke-width="2"/><polygon points="276,96 268,91 268,101" fill="#71717a"/><line x1="384" y1="96" x2="401" y2="96" stroke="#71717a" stroke-width="2"/><polygon points="407,96 399,91 399,101" fill="#71717a"/><line x1="515" y1="96" x2="532" y2="96" stroke="#71717a" stroke-width="2"/><polygon points="538,96 530,91 530,101" fill="#71717a"/><text x="68" y="164" text-anchor="middle" font-size="10.5" fill="#71717a">第1・6節</text><text x="199" y="164" text-anchor="middle" font-size="10.5" fill="#71717a">第4節</text><text x="330" y="164" text-anchor="middle" font-size="10.5" fill="#71717a">第2・3・7節</text><text x="461" y="164" text-anchor="middle" font-size="10.5" fill="#71717a">第5節</text><text x="592" y="164" text-anchor="middle" font-size="10.5" fill="#71717a">出力</text></svg><figcaption>章末ミニプロジェクトは、<b>合成 → メタ確認 → 本体処理 → シーク確認 → レポート化</b>の 5 ステップを順に流す<b>動体ハイライト・パイプライン</b>です。<b>合成</b>で素材動画を <code>VideoWriter</code> 書き出し、<b>本体処理</b>で 1 つ前のフレームとの <code>cv2.absdiff</code> が閾値超えの画素を赤く塗り、<b>レポート化</b>で処理FPSと動体画素数を <code>mini_project_report.png</code> ／ <code>.json</code> に出力します。各ステップが本章の各節にそのまま対応します。</figcaption></figure>
 
-実行（`outputs/09_video_io_basics/` に成果物が出ます）:
+実行（`lectures/09_video_io_basics/outputs/` に成果物が出ます）:
 
 ```bash
 uv run python lectures/09_video_io_basics/mini_project.py
@@ -259,7 +259,7 @@ uv run python lectures/09_video_io_basics/mini_project.py
 
 ## 動かし方
 
-これらのスクリプトはすべて CPUのみ・ネット非依存・カメラ不要・追加依存なしで動きます（サンプル動画は各スクリプトが `numpy`/`cv2` で合成生成します）。リポジトリのルートで、以下を順に実行してください。結果はすべて `outputs/09_video_io_basics/` に画像・動画として保存され、画面表示はしません（headless 安全）。
+これらのスクリプトはすべて CPUのみ・ネット非依存・カメラ不要・追加依存なしで動きます（サンプル動画は各スクリプトが `numpy`/`cv2` で合成生成します）。リポジトリのルートで、以下を順に実行してください。結果はすべて `lectures/09_video_io_basics/outputs/` に画像・動画として保存され、画面表示はしません（headless 安全）。
 
 ```bash
 # 1) VideoCapture の正準ループ（isOpened/read/ret/release）とフレーム基本操作
@@ -282,7 +282,7 @@ SHOW_SOLUTION=1 uv run python lectures/09_video_io_basics/exercises.py
 uv run python lectures/09_video_io_basics/exercises_solutions.py
 ```
 
-実行後は、`outputs/09_video_io_basics/` の成果物を順に開いて、本文の確認ポイントと照らし合わせてください。特に `01_bgr_vs_rgb.png`（BGR/RGB の崩れ）、`02_seek_grid.png`（シーク先の円の位置とフレーム番号の一致）、`03_fps_plot.png`（処理FPS が ソースFPS を上回る様子）、`03_processed.mp4`（再書き出しした縮小動画）を見ると、各節の内容が一気に腑に落ちるはずです。なお `cv_helpers.py` を単体で実行すると、合成動画の「書き出し→読み戻し」が一周するスモークテストになります。
+実行後は、`lectures/09_video_io_basics/outputs/` の成果物を順に開いて、本文の確認ポイントと照らし合わせてください。特に `01_bgr_vs_rgb.png`（BGR/RGB の崩れ）、`02_seek_grid.png`（シーク先の円の位置とフレーム番号の一致）、`03_fps_plot.png`（処理FPS が ソースFPS を上回る様子）、`03_processed.mp4`（再書き出しした縮小動画）を見ると、各節の内容が一気に腑に落ちるはずです。なお `cv_helpers.py` を単体で実行すると、合成動画の「書き出し→読み戻し」が一周するスモークテストになります。
 
 ## まとめ
 

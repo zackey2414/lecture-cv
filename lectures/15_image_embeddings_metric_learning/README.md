@@ -106,7 +106,7 @@ loss = -(same_mask * F.log_softmax(sim, 1)).sum(1) / same_mask.sum(1)
 
 ## 6. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で書かれており、上から順に「取り出す → 測る → 作り変える」と理解が積み上がるよう並べてあります。いずれも結果は `outputs/15_image_embeddings_metric_learning/` に保存し、画面表示はしません。入力画像は `embed_helpers.py` が合成生成するため外部データは不要で、モデル重みだけを初回にダウンロードしてキャッシュします。
+各スクリプトは単一責務で書かれており、上から順に「取り出す → 測る → 作り変える」と理解が積み上がるよう並べてあります。いずれも結果は `lectures/15_image_embeddings_metric_learning/outputs/` に保存し、画面表示はしません。入力画像は `embed_helpers.py` が合成生成するため外部データは不要で、モデル重みだけを初回にダウンロードしてキャッシュします。
 
 <figure class="lec-fig"><svg viewBox="0 0 640 240" role="img" aria-label="この章は取り出す→測る→作り変える→統合の順で、埋め込み抽出・評価・メトリック学習・検索エンジンへと積み上がる" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="320" y="32" text-anchor="middle" font-size="14" fill="#3f3f46">この章の流れ：取り出す → 測る → 作り変える → 統合</text><rect x="14" y="66" width="126" height="120" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/><text x="77" y="104" text-anchor="middle" font-size="14.5" font-weight="700" fill="#1d4ed8">01 取り出す</text><text x="77" y="130" text-anchor="middle" font-size="12" fill="#3f3f46">埋め込み抽出</text><text x="77" y="154" text-anchor="middle" font-size="10.5" fill="#52525b">ViT / ResNet / timm</text><line x1="144" y1="126" x2="166" y2="126" stroke="#71717a" stroke-width="2"/><polygon points="172,126 162,121 162,131" fill="#71717a"/><rect x="176" y="66" width="126" height="120" rx="10" fill="#ffffff" stroke="#16a34a" stroke-width="2"/><text x="239" y="104" text-anchor="middle" font-size="14.5" font-weight="700" fill="#15803d">02 測る</text><text x="239" y="130" text-anchor="middle" font-size="12" fill="#3f3f46">品質を評価</text><text x="239" y="154" text-anchor="middle" font-size="11" fill="#52525b">kNN・Recall@k</text><line x1="306" y1="126" x2="328" y2="126" stroke="#71717a" stroke-width="2"/><polygon points="334,126 324,121 324,131" fill="#71717a"/><rect x="338" y="66" width="126" height="120" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/><text x="401" y="104" text-anchor="middle" font-size="14.5" font-weight="700" fill="#c2410c">03 作り変える</text><text x="401" y="130" text-anchor="middle" font-size="12" fill="#3f3f46">メトリック学習</text><text x="401" y="154" text-anchor="middle" font-size="11" fill="#52525b">Triplet / InfoNCE</text><line x1="468" y1="126" x2="490" y2="126" stroke="#71717a" stroke-width="2"/><polygon points="496,126 486,121 486,131" fill="#71717a"/><rect x="500" y="66" width="126" height="120" rx="10" fill="#18181b" stroke="#18181b" stroke-width="2"/><text x="563" y="104" text-anchor="middle" font-size="14.5" font-weight="700" fill="#ffffff">mini 統合</text><text x="563" y="130" text-anchor="middle" font-size="12" fill="#e4e4e7">検索エンジン</text><text x="563" y="154" text-anchor="middle" font-size="11" fill="#d4d4d8">圧縮スイープ</text></svg><figcaption>この章は <b>取り出す → 測る → 作り変える → 統合</b> の順に積み上がります。<b>01</b> で <code>ViT</code>/<code>ResNet</code>/<code>timm</code> から<b>埋め込みを抽出</b>し、<b>02</b> で <b>kNN 精度・Recall@k</b> により品質を測り、<b>03</b> で <b>Triplet / InfoNCE</b> のメトリック学習で空間を作り変え、最後に <b>mini</b> でこれらを<b>コンパクト検索エンジン</b>へ統合します。</figcaption></figure>
 
@@ -121,7 +121,7 @@ loss = -(same_mask * F.log_softmax(sim, 1)).sum(1) / same_mask.sum(1)
 | `exercises.py` | TODO 形式の演習 9 問（自己採点ランナー `grade()` 付き）。numpy だけで完結しモデル DL 不要 |
 | `exercises_solutions.py` | 演習 9 問の模範解答（全 PASS）。`exercises.py` の `grade()` を再利用して採点（採点ロジックは重複なし） |
 
-表のとおり、`mini_project.py` が deliverable の中核（埋め込み抽出・評価・メトリック学習の統合）であり、`03` がそのメトリック学習部分、`01`・`02` が前提（取り出しと評価）にあたります。まずは `01` から順に実行し、各 `outputs/15_*.png` を開きながら本文を読み返すと、理解が定着します。
+表のとおり、`mini_project.py` が deliverable の中核（埋め込み抽出・評価・メトリック学習の統合）であり、`03` がそのメトリック学習部分、`01`・`02` が前提（取り出しと評価）にあたります。まずは `01` から順に実行し、各 `lectures/15_image_embeddings_metric_learning/outputs/*.png` を開きながら本文を読み返すと、理解が定着します。
 
 ## 7. 動かし方
 
@@ -131,7 +131,7 @@ loss = -(same_mask * F.log_softmax(sim, 1)).sum(1) / same_mask.sum(1)
 # 依存をインストール（初回のみ。深層トラックのグループを足す）
 uv sync --group dl --group hf
 
-# 各スクリプトを実行（結果は outputs/15_image_embeddings_metric_learning/ に保存される）
+# 各スクリプトを実行（結果は lectures/15_image_embeddings_metric_learning/outputs/ に保存される）
 uv run python lectures/15_image_embeddings_metric_learning/01_vit_resnet_embeddings.py
 uv run python lectures/15_image_embeddings_metric_learning/02_knn_recall_eval.py
 uv run python lectures/15_image_embeddings_metric_learning/03_triplet_infonce.py
@@ -258,7 +258,7 @@ uv run python lectures/15_image_embeddings_metric_learning/use_case.py
 # 2 枚以上あれば自動でそちらを対象に切り替わる
 ```
 
-出力は `outputs/15_image_embeddings_metric_learning/` に `use_case_duplicate_groups.png`（グループのモンタージュ。緑枠＝同一グループ）・`use_case_similarity_hist.png`（閾値チューニング用）・`use_case_groups.json`（グループ・メンバー・類似度・設定値）。**練習（拡張）アイデア**: (a) `SIM_THRESHOLD` をヒストグラムの谷から自動決定する、(b) 埋め込みを CLIP（16 回）に替えて構図違いの「意味的な近重複」まで拾う、(c) 各グループの代表 1 枚（最大解像度など）を残して他を退避する整理アクションを足す、(d) pHash を粗いフィルタにして埋め込み計算を減らす、(e) 数万枚規模なら総当たりをやめて FAISS（17 回）で近傍だけ引く。
+出力は `lectures/15_image_embeddings_metric_learning/outputs/` に `use_case_duplicate_groups.png`（グループのモンタージュ。緑枠＝同一グループ）・`use_case_similarity_hist.png`（閾値チューニング用）・`use_case_groups.json`（グループ・メンバー・類似度・設定値）。**練習（拡張）アイデア**: (a) `SIM_THRESHOLD` をヒストグラムの谷から自動決定する、(b) 埋め込みを CLIP（16 回）に替えて構図違いの「意味的な近重複」まで拾う、(c) 各グループの代表 1 枚（最大解像度など）を残して他を退避する整理アクションを足す、(d) pHash を粗いフィルタにして埋め込み計算を減らす、(e) 数万枚規模なら総当たりをやめて FAISS（17 回）で近傍だけ引く。
 
 ### 2. 学習データのリーク検出（train/val の near-dup チェック）
 
@@ -276,4 +276,4 @@ uv run python lectures/15_image_embeddings_metric_learning/use_case.py
 
 > 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
 > Python 3.12 ／ torch 2.12+cpu（2.12.0+cpu）／ torchvision 0.27+cpu（0.27.0+cpu）／ transformers 5.11（5.11.0）／ timm 1.0.27 ／ huggingface-hub 1.18 ／ safetensors 0.8 ／ numpy 2.4（2.4.6）／ scikit-learn 1.9（1.9.0）。
-> 関連章で使う faiss-cpu 1.14.2（17 回）も同環境で動作します。すべて CPU のみで完走し、ネット接続は初回のモデル重みダウンロードのみ（以後キャッシュ）。結果は `outputs/15_image_embeddings_metric_learning/` に保存します。
+> 関連章で使う faiss-cpu 1.14.2（17 回）も同環境で動作します。すべて CPU のみで完走し、ネット接続は初回のモデル重みダウンロードのみ（以後キャッシュ）。結果は `lectures/15_image_embeddings_metric_learning/outputs/` に保存します。

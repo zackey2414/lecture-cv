@@ -9,7 +9,7 @@ Grounding DINO→SAM の2段構成）を1つに統合し、『同じシーンを
   (2) CLIPSeg @best       … 各プロンプトでしきい値をスイープして IoU 最大点を採用
   (3) Grounded-SAM        … Grounding DINO の box を SAM でマスク化（2段・高精度）
 
-成果物（outputs/23_text_prompt_segmentation/ に保存）:
+成果物（lectures/23_text_prompt_segmentation/outputs/ に保存）:
   - mini_project_compare.png   … オブジェクト×手法 の IoU 棒グラフ
   - mini_project_panel.png     … GT / CLIPSeg@best / Grounded-SAM の重ね合わせ
   - mini_project_report.json   … 全数値・オブジェクト別の勝者・手法別平均 IoU

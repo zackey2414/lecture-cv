@@ -14,7 +14,7 @@
     （CLIP が使えずフォールバックに替わった等で起こりうるので、その場合は索引を組み直す）。
 
 出力:
-  outputs/45_sketch_emoji_search/03_search_topn.png
+  lectures/45_sketch_emoji_search/outputs/03_search_topn.png
 
 実行:
   uv run python lectures/45_sketch_emoji_search/03_search_topn.py
@@ -131,7 +131,7 @@ def main() -> None:
     save_result_panel(sketch, result_imgs, result_scores, result_labels, panel_path,
                       title="Sketch -> emoji search (top-N, left: query)")
     print(f"\n[done] 結果パネルを保存: {panel_path}")
-    print("outputs/45_sketch_emoji_search/ を確認してください。")
+    print("lectures/45_sketch_emoji_search/outputs/ を確認してください。")
 
 
 if __name__ == "__main__":

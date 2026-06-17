@@ -11,7 +11,7 @@
   - ONNX Runtime(fp32 / int8 動的量子化)
   - OpenVINO(導入済みなら。CPU 実習の主力。未導入なら自動スキップ)
 
-成果物(outputs/37_runtime_edge_optimization/ に保存):
+成果物(lectures/37_runtime_edge_optimization/outputs/ に保存):
   - mini_project_report.md : latency(p50/p99)・throughput・size・精度保持の比較表＋推奨
   - mini_project_bench.png : レイテンシ/スループットの可視化
 

@@ -14,7 +14,7 @@
 最後に、同じシーンを CLIPSeg(最良しきい値) と Grounded-SAM で解き、両手法の IoU を並べる。
 
 実行: uv run python lectures/23_text_prompt_segmentation/03_referring_iou_eval.py
-出力: outputs/23_text_prompt_segmentation/03_*.png / 03_eval.json
+出力: lectures/23_text_prompt_segmentation/outputs/03_*.png / 03_eval.json
 """
 
 from __future__ import annotations

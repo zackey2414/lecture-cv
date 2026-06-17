@@ -13,7 +13,7 @@
     コサインは大きさを無視するので頽健、生の内積は大きさに引きずられて検索が崩壊する。
 
 実行: uv run python lectures/16_clip_zeroshot_retrieval/03_text_image_retrieval.py
-出力: outputs/16_clip_zeroshot_retrieval/03_*.png / 03_retrieval_metrics.json
+出力: lectures/16_clip_zeroshot_retrieval/outputs/03_*.png / 03_retrieval_metrics.json
 """
 
 from __future__ import annotations

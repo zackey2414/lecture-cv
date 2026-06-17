@@ -21,7 +21,7 @@ HF での正準フロー（transformers v5）:
 さらに軽くするなら SlimSAM（Zigeng/SlimSAM-uniform-77）に MODEL_ID を変えるだけ。
 
 実行: uv run python lectures/22_instance_panoptic_sam/03_sam_prompt_seg.py
-出力: outputs/22_instance_panoptic_sam/03_sam_prompt_seg.png / 03_sam.json
+出力: lectures/22_instance_panoptic_sam/outputs/03_sam_prompt_seg.png / 03_sam.json
 """
 
 from __future__ import annotations

@@ -10,7 +10,7 @@
 
 実行:
   uv run python lectures/33_multimodal_embeddings/02_siglip_retrieval.py
-結果は outputs/33_multimodal_embeddings/ に保存される。
+結果は lectures/33_multimodal_embeddings/outputs/ に保存される。
 """
 
 from __future__ import annotations

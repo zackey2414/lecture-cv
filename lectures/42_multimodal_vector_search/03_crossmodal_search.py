@@ -105,7 +105,7 @@ def main() -> None:
     print("    テキスト→テキスト: search(テキストemb, modality='text')")
     print("    クロスモーダル: search(任意emb, modality=None)  ← 混在のまま近い順")
 
-    print("\n完了。outputs/42_multimodal_vector_search/ を確認してください。")
+    print("\n完了。lectures/42_multimodal_vector_search/outputs/ を確認してください。")
 
 
 def _print_hits(hits: list[dict]) -> None:

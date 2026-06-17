@@ -21,7 +21,7 @@
   - 末尾で（任意）実モデル LR-ASPP の推論パイプラインも試すが、重みDLに失敗しても exit 0。
 
 実行: uv run python lectures/21_segmentation_intro/mini_project.py
-結果（ダッシュボード画像・レポート JSON）は outputs/21_segmentation_intro/ に保存される。
+結果（ダッシュボード画像・レポート JSON）は lectures/21_segmentation_intro/outputs/ に保存される。
 """
 
 from __future__ import annotations

@@ -21,7 +21,7 @@
     # 3) 提案どおりに実際にコピーして整理する（元ファイルは消さない・コピー）
     uv run python lectures/44_embedding_clustering/use_case.py --apply
 
-  出力（すべて outputs/44_embedding_clustering/ 配下）:
+  出力（すべて lectures/44_embedding_clustering/outputs/ 配下）:
     use_case_organizer.png       … クラスタ別アルバム（行＝提案サブフォルダ）
     use_case_organizer_plan.json … 仕分け計画（どのファイルをどのフォルダへ）
     organized/<folder>/...       … --apply のときだけ。実際にコピーした結果
@@ -316,7 +316,7 @@ def main() -> None:
     parser.add_argument(
         "--apply",
         action="store_true",
-        help="提案どおりに outputs/.../organized/ へ実際にコピーする（既定はドライラン）",
+        help="提案どおりに lectures/.../outputs/organized/ へ実際にコピーする（既定はドライラン）",
     )
     args = parser.parse_args()
 
@@ -373,7 +373,7 @@ def main() -> None:
         copied = apply_plan(plan, images, file_names, out)
         print(f"\n--apply: {copied} 枚を {out / 'organized'}/<folder>/ へコピーしました（元は保持）。")
     else:
-        print("\n（--apply を付けると outputs/.../organized/ へ実際にコピーします）")
+        print("\n（--apply を付けると lectures/.../outputs/organized/ へ実際にコピーします）")
 
     print(f"\n完了。計画: {plan_path}  アルバム: {album_path}")
 

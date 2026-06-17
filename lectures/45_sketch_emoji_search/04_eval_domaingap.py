@@ -25,8 +25,8 @@
     方が効く、という対比が本実験の主眼。グレースケール既定は色の混入を防ぐ安全策。
 
 出力:
-  outputs/45_sketch_emoji_search/04_domaingap_recall.png（エンコーダ×style の Recall）
-  outputs/45_sketch_emoji_search/04_styles_example.png（同じ絵文字の4様式）
+  lectures/45_sketch_emoji_search/outputs/04_domaingap_recall.png（エンコーダ×style の Recall）
+  lectures/45_sketch_emoji_search/outputs/04_styles_example.png（同じ絵文字の4様式）
 
 実行:
   uv run python lectures/45_sketch_emoji_search/04_eval_domaingap.py
@@ -131,7 +131,7 @@ def main() -> None:
     # === 4. 可視化 =====================================================
     _save_recall_bars(out, results)
     _save_styles_example(out, emojis_color[0])
-    print("\n完了。outputs/45_sketch_emoji_search/ を確認してください。")
+    print("\n完了。lectures/45_sketch_emoji_search/outputs/ を確認してください。")
 
 
 # =====================================================================

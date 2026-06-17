@@ -206,7 +206,7 @@ Z = points_3d[:, :, 2]                              # 深度チャンネル
 
 ## 動かし方
 
-すべて CPUのみ・ネット非依存・追加依存なしで動きます（チェスボード画像・歪み画像・ステレオ対は各スクリプトが `numpy`/`cv2` で合成生成します）。リポジトリのルートで以下を順に実行してください。結果はすべて `outputs/07_camera_calibration_stereo/` に保存され、画面表示はしません（headless 安全）。
+すべて CPUのみ・ネット非依存・追加依存なしで動きます（チェスボード画像・歪み画像・ステレオ対は各スクリプトが `numpy`/`cv2` で合成生成します）。リポジトリのルートで以下を順に実行してください。結果はすべて `lectures/07_camera_calibration_stereo/outputs/` に保存され、画面表示はしません（headless 安全）。
 
 ```bash
 # 1) カメラ校正（コーナー検出 → calibrateCamera → RMS 評価 → calib.npz 保存）
@@ -232,7 +232,7 @@ SHOW_SOLUTION=1 uv run python lectures/07_camera_calibration_stereo/exercises.py
 uv run python lectures/07_camera_calibration_stereo/exercises_solutions.py
 ```
 
-`01` は `calib.npz`（`K, dist`）を保存し、`02` はそれがあれば読み込んで使います（無ければ真値カメラにフォールバックするので、`02` 単体でも動きます）。実行後は `outputs/07_camera_calibration_stereo/` の画像を順に開いて、本文の確認ポイントと照らし合わせてください。特に `01_detected_corners.png`（全視点でコーナーが格子に乗る）、`02_undistort_compare.png`（湾曲した格子が補正で直線に戻る）、`03_disparity_sgbm.png`／`03_depth.png`（奥行きで色が変わる）、`03_epipolar_lines.png`（エピポーラ線が水平）を見比べると、各節の内容が一気に腑に落ちます。`cv_helpers.py` 単体を実行すると、合成と検出のスモークテストになります。
+`01` は `calib.npz`（`K, dist`）を保存し、`02` はそれがあれば読み込んで使います（無ければ真値カメラにフォールバックするので、`02` 単体でも動きます）。実行後は `lectures/07_camera_calibration_stereo/outputs/` の画像を順に開いて、本文の確認ポイントと照らし合わせてください。特に `01_detected_corners.png`（全視点でコーナーが格子に乗る）、`02_undistort_compare.png`（湾曲した格子が補正で直線に戻る）、`03_disparity_sgbm.png`／`03_depth.png`（奥行きで色が変わる）、`03_epipolar_lines.png`（エピポーラ線が水平）を見比べると、各節の内容が一気に腑に落ちます。`cv_helpers.py` 単体を実行すると、合成と検出のスモークテストになります。
 
 ## まとめ
 
@@ -255,7 +255,7 @@ uv run python lectures/07_camera_calibration_stereo/exercises_solutions.py
 
 この課題は「2 台のカメラと校正だけから、シーン中の物体までの**絶対距離（メートル）**とサイズを測る」という、ロボット・自動運転・3D 計測の最小核です。合成チェスボードを実写の盤に、合成ステレオを実 2 眼カメラの画像に差し替えれば、そのまま実運用のひな形になります。
 
-**到達の目安**: 4 ステージすべてが PASS（校正 RMS<1px・`K` が真値±5px、補正 MAD<8、深度 MAE<0.05m、実寸幅の参照値との差<0.02m）で、総合判定が `ALL PASS` になること。出力は `outputs/07_camera_calibration_stereo/` に以下が保存されます。
+**到達の目安**: 4 ステージすべてが PASS（校正 RMS<1px・`K` が真値±5px、補正 MAD<8、深度 MAE<0.05m、実寸幅の参照値との差<0.02m）で、総合判定が `ALL PASS` になること。出力は `lectures/07_camera_calibration_stereo/outputs/` に以下が保存されます。
 
 | 生成物 | 内容 |
 | --- | --- |
@@ -266,7 +266,7 @@ uv run python lectures/07_camera_calibration_stereo/exercises_solutions.py
 
 ```bash
 uv run python lectures/07_camera_calibration_stereo/mini_project.py
-cat outputs/07_camera_calibration_stereo/mini_project_metrics.json
+cat lectures/07_camera_calibration_stereo/outputs/mini_project_metrics.json
 ```
 
 ## ✅ 到達チェックリスト
@@ -352,14 +352,14 @@ uv run python lectures/07_camera_calibration_stereo/use_case.py
 #   例 data/07_camera_calibration_stereo/measure.jpg
 # 盤のマス幅(mm)や内側角数、自前校正結果は環境変数で渡せる
 CHESSBOARD_SQUARE_MM=25 CHESSBOARD_COLS=9 CHESSBOARD_ROWS=6 \
-  CALIB_NPZ=outputs/07_camera_calibration_stereo/calib.npz \
+  CALIB_NPZ=lectures/07_camera_calibration_stereo/outputs/calib.npz \
   uv run python lectures/07_camera_calibration_stereo/use_case.py
 
 # 2 点クリックで任意の寸法を測る GUI（DISPLAY 有りのデスクトップのみ。headless では自動スキップ）
 MEASURE_GUI=1 uv run python lectures/07_camera_calibration_stereo/use_case.py
 ```
 
-結果は `outputs/07_camera_calibration_stereo/` に `use_case_measured.png`（検出＋mm ラベル付きの計測線）・`use_case_summary.png`・`use_case_metrics.json`（計測値と誤差）で保存されます。`mini_project.py`（2 眼ステレオの 3D 計測）に対し、本ツールは**単眼＋平面拘束の実寸計測**という別アプローチで、2 台もステレオも要りません。
+結果は `lectures/07_camera_calibration_stereo/outputs/` に `use_case_measured.png`（検出＋mm ラベル付きの計測線）・`use_case_summary.png`・`use_case_metrics.json`（計測値と誤差）で保存されます。`mini_project.py`（2 眼ステレオの 3D 計測）に対し、本ツールは**単眼＋平面拘束の実寸計測**という別アプローチで、2 台もステレオも要りません。
 
 **拡張アイデア**: 基準を `cv2.aruco` の ArUco/ChArUco マーカに変えて一部が隠れても基準を取れるようにする／A4 用紙(210×297mm)の四隅を基準点にする／`warpPerspective` で**鳥瞰図**を作り画素↔mm を一定スケールにする／物体検出と組んで自動採寸する。
 

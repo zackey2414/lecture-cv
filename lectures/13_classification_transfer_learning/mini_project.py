@@ -23,7 +23,7 @@
 
 実行:
     uv run python lectures/13_classification_transfer_learning/mini_project.py
-結果（図・JSON）は outputs/13_classification_transfer_learning/ に保存される（画面表示はしない）。
+結果（図・JSON）は lectures/13_classification_transfer_learning/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations

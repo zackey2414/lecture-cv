@@ -268,15 +268,13 @@ def id_color(track_id: int):
 
 
 def ensure_outdir(module_id: str = "28_tracking") -> str:
-    """outputs/<module_id>/ を作って絶対パスを返す。"""
-    import os
+    """lectures/28_tracking/outputs/ を作って絶対パスを返す。"""
+    import pathlib
 
-    # このファイルから見てリポジトリ直下の outputs/ を狙う
-    here = os.path.dirname(os.path.abspath(__file__))
-    repo = os.path.abspath(os.path.join(here, "..", ".."))
-    out = os.path.join(repo, "outputs", module_id)
-    os.makedirs(out, exist_ok=True)
-    return out
+    # このファイルの隣（lectures/28_tracking/）に outputs/ を作る
+    out = pathlib.Path(__file__).resolve().parent / "outputs"
+    out.mkdir(parents=True, exist_ok=True)
+    return str(out)
 
 
 if __name__ == "__main__":

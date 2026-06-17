@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/01_image_basics/03_pillow_numpy_interop.py
-結果は outputs/01_image_basics/ に保存される。
+結果は lectures/01_image_basics/outputs/ に保存される。
 """
 
 from __future__ import annotations
@@ -94,7 +94,7 @@ def main() -> None:
     blurred.save(out / "03_blur.png")
     print("\n[6][7] ImageDraw と GaussianBlur を保存しました。")
 
-    print("\n完了。outputs/01_image_basics/ を確認してください。")
+    print("\n完了。lectures/01_image_basics/outputs/ を確認してください。")
 
 
 if __name__ == "__main__":

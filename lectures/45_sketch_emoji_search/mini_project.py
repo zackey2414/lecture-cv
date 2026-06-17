@@ -14,7 +14,7 @@
     手書き入力だけ本ファイルに最小実装する（フォールバック込み）。
   - すべて CPU・数十秒以内に完走。CLIP を取得できない環境では画素記述子へ自動
     フォールバックし、display 無しでは合成スケッチに切り替えて exit 0 で完走する。
-  - 出力は outputs/45_sketch_emoji_search/ に保存（matplotlib=Agg, cv2.imshow は呼ばない）。
+  - 出力は lectures/45_sketch_emoji_search/outputs/ に保存（matplotlib=Agg, cv2.imshow は呼ばない）。
 
 実行:
   uv run python lectures/45_sketch_emoji_search/mini_project.py
@@ -192,7 +192,7 @@ def main() -> None:
     report_path = out / "mini_project_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n[done] 結果パネル: mini_project_result.png / レポート: {report_path.name}")
-    print("完了。outputs/45_sketch_emoji_search/ を確認してください。")
+    print("完了。lectures/45_sketch_emoji_search/outputs/ を確認してください。")
 
 
 if __name__ == "__main__":

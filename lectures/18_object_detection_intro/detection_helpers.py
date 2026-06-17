@@ -37,9 +37,9 @@ import matplotlib  # noqa: E402
 matplotlib.use("Agg")  # headless 環境（GUI なし）でも図を保存できるバックエンド
 import matplotlib.pyplot as plt  # noqa: E402
 
-# プロジェクトの規約に合わせ、結果は outputs/<module_id>/ に集約する。
+# プロジェクトの規約に合わせ、結果は lectures/<module_id>/outputs/ に集約する。
 MODULE_ID = "18_object_detection_intro"
-OUTPUT_DIR = pathlib.Path("outputs") / MODULE_ID
+OUTPUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 DATA_DIR = pathlib.Path("data") / MODULE_ID
 
 
@@ -57,7 +57,7 @@ def pick_device() -> torch.device:
 
 
 def ensure_output_dir() -> pathlib.Path:
-    """outputs/<module_id>/ を作って返す（既にあってもエラーにしない）。"""
+    """lectures/<module_id>/outputs/ を作って返す（既にあってもエラーにしない）。"""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     return OUTPUT_DIR
 

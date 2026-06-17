@@ -17,7 +17,7 @@ CLIPSeg との対比:
 SAM 単体のマスク品質は必ず確認できるようにしてある（スクリプトは常に exit 0）。
 
 実行: uv run python lectures/23_text_prompt_segmentation/02_grounded_sam.py
-出力: outputs/23_text_prompt_segmentation/02_*.png / 02_grounded_sam.json
+出力: lectures/23_text_prompt_segmentation/outputs/02_*.png / 02_grounded_sam.json
 """
 
 from __future__ import annotations

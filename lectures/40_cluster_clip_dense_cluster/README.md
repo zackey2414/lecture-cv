@@ -18,7 +18,7 @@
 - テキスト / 画像クエリで領域検索し、ヒット領域をマスク重畳で可視化できる。
 - これらを **Split → Build → Search → Stream** の 1 本のパイプライン（capstone）に束ね、`multiprocessing` で取得と推論を分離し、キュー満杯でフレームをドロップする実時間設計まで通せる。
 
-このディレクトリのスクリプトは、リポジトリのルートから次のように動かします（出力は `outputs/40_cluster_clip_dense_cluster/`）。
+このディレクトリのスクリプトは、リポジトリのルートから次のように動かします（出力は `lectures/40_cluster_clip_dense_cluster/outputs/`）。
 
 ```bash
 uv run python lectures/40_cluster_clip_dense_cluster/01_dense_vs_global_clip.py
@@ -129,7 +129,7 @@ D, I = index.search(np.ascontiguousarray(query, np.float32), k)
 uv run python lectures/40_cluster_clip_dense_cluster/mini_project.py
 ```
 
-- **Split**: 黄色いボールが左→右に動く合成フレーム列を JPEG に分解（`outputs/.../mini_project/frames/`）。OpenCV は BGR をそのまま保存します。
+- **Split**: 黄色いボールが左→右に動く合成フレーム列を JPEG に分解（`lectures/40_cluster_clip_dense_cluster/outputs/mini_project/frames/`）。OpenCV は BGR をそのまま保存します。
 - **Build**: 各フレームを dense CLIP → 空間連結クラスタリング → 代表ベクトル化。`cluster_maps/*.npy`・`vectors/*.npy` を保存し、`local_index.faiss`（IndexFlatIP+IDMap）と `local_metadata.db`（`Frames` / `VectorMapping`、`faiss_id` は SQLite の `lastrowid`）を構築。各クラスタの bbox（領域マスクの外接矩形）も登録。
 - **Search**: テキストクエリ → `encode_text` → FAISS → SQLite join → ヒット領域をマスク重畳で `mini_project_search.png` に出力。`faiss_id == -1` をスキップし、メタ解決できることを assert で検証。
 - **Stream**: `multiprocessing`（spawn）の capture / consumer / writer。`queue_size=2` の満杯キューに 8 フレームを投入し、推論が追いつかない分はドロップ。実行例では **投入 8 / 処理 2 / ドロップ 6**、実効 FPS と合わせて「取得が推論を追い越すと捨てる」挙動が観察できます。
@@ -224,7 +224,7 @@ uv run python lectures/40_cluster_clip_dense_cluster/exercises.py
 uv run python lectures/40_cluster_clip_dense_cluster/exercises_solutions.py
 ```
 
-出力画像は `outputs/40_cluster_clip_dense_cluster/` に保存されます（matplotlib は Agg バックエンド、`imshow` は呼びません。BGR↔RGB の変換に注意）。
+出力画像は `lectures/40_cluster_clip_dense_cluster/outputs/` に保存されます（matplotlib は Agg バックエンド、`imshow` は呼びません。BGR↔RGB の変換に注意）。
 
 ---
 

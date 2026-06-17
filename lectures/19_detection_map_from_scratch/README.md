@@ -144,7 +144,7 @@ map_75   = np.nanmean(ap[:, 5])  # IoU=0.75 のみ
 
 ## 8. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に読めば「IoU とマッチング → PR と AP 補間 → mAP と公式照合」と理解が積み上がる構成です。いずれも結果を `outputs/19_detection_map_from_scratch/` に図と JSON として保存し、画面表示には依存しません。なお、合成データの生成・COCO 形式変換・IoU・正準マッチングエンジンは `det_helpers.py` にまとめてあり、各スクリプトはそれを import して使います。
+各スクリプトは単一責務で、上から順に読めば「IoU とマッチング → PR と AP 補間 → mAP と公式照合」と理解が積み上がる構成です。いずれも結果を `lectures/19_detection_map_from_scratch/outputs/` に図と JSON として保存し、画面表示には依存しません。なお、合成データの生成・COCO 形式変換・IoU・正準マッチングエンジンは `det_helpers.py` にまとめてあり、各スクリプトはそれを import して使います。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -166,7 +166,7 @@ map_75   = np.nanmean(ap[:, 5])  # IoU=0.75 のみ
 # 依存グループを用意（初回のみ）。dl=torch/torchvision, metrics=pycocotools
 uv sync --group dl --group metrics
 
-# 各スクリプトを実行（結果は outputs/19_detection_map_from_scratch/ に保存される）
+# 各スクリプトを実行（結果は lectures/19_detection_map_from_scratch/outputs/ に保存される）
 uv run python lectures/19_detection_map_from_scratch/01_iou_matching.py
 uv run python lectures/19_detection_map_from_scratch/02_pr_ap_interpolation.py
 uv run python lectures/19_detection_map_from_scratch/03_map_vs_pycocotools.py
@@ -181,7 +181,7 @@ SHOW_SOLUTION=1 uv run python lectures/19_detection_map_from_scratch/exercises.p
 uv run python lectures/19_detection_map_from_scratch/exercises_solutions.py
 ```
 
-実行後は `outputs/19_detection_map_from_scratch/` に生成された画像と JSON を確認してください。`01_matching.png`（GT=緑 / TP=青 / FP=赤）、`02_pr_curve.png`（raw PR・単調包絡・11 点標本）、`03_map_compare.png`（左: IoU 閾値ごとの mAP 低下曲線、右: 自作と pycocotools の棒が重なる＝一致）を本文の解説と照らし合わせると、理解が定着します。各 JSON には自作と公式双方の数値が記録されているので、一致を自分の目でも確かめられます。なお、`03` は初回に pycocotools のインデックス作成ログを標準出力へ出しますが、これはネットアクセスではなくローカル処理のログであり、モデル DL も発生しません。
+実行後は `lectures/19_detection_map_from_scratch/outputs/` に生成された画像と JSON を確認してください。`01_matching.png`（GT=緑 / TP=青 / FP=赤）、`02_pr_curve.png`（raw PR・単調包絡・11 点標本）、`03_map_compare.png`（左: IoU 閾値ごとの mAP 低下曲線、右: 自作と pycocotools の棒が重なる＝一致）を本文の解説と照らし合わせると、理解が定着します。各 JSON には自作と公式双方の数値が記録されているので、一致を自分の目でも確かめられます。なお、`03` は初回に pycocotools のインデックス作成ログを標準出力へ出しますが、これはネットアクセスではなくローカル処理のログであり、モデル DL も発生しません。
 
 > **合成データの限界と実写への拡張**: 本章の合成データは「GT を少しずらした予測 + 検出漏れ + 無関係な誤検出」で PR 曲線に起伏を作っていますが、小物体（面積 < 32² px）を含まないため `AP_S` は −1（該当なし）になります。`data/` に COCO 形式（`xywh`）の GT/予測を置き、`make_detection_dataset` の代わりにそれを読み込めば、面積別 AP や AR を含めた実用的な評価ができます。評価ロジック自体は、合成でも実写でも完全に同じです。
 
@@ -221,7 +221,7 @@ uv run python lectures/19_detection_map_from_scratch/exercises_solutions.py
 
 <figure class="lec-fig"><svg viewBox="0 0 660 240" role="img" aria-label="ミニプロジェクトの4ステップ。同一GTに2検出器を合成し、自作mAPで評価、pycocotoolsで検算、F1で運用しきい値を決める" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="330" y="34" text-anchor="middle" font-size="15" font-weight="700" fill="#18181b">2台の検出器を比べ、運用しきい値を決めるまで</text><rect x="16" y="64" width="138" height="120" rx="8" fill="#ffedd5" stroke="#c2410c" stroke-width="2"/><circle cx="85" cy="92" r="14" fill="#c2410c"/><text x="85" y="97" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">1</text><text x="85" y="126" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">同一GTに</text><text x="85" y="146" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">2検出器を合成</text><text x="85" y="168" text-anchor="middle" font-size="11" fill="#52525b">strong / weak</text><rect x="176" y="64" width="138" height="120" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><circle cx="245" cy="92" r="14" fill="#2563eb"/><text x="245" y="97" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">2</text><text x="245" y="126" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">自作mAPで</text><text x="245" y="146" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">評価</text><text x="245" y="168" text-anchor="middle" font-size="11" fill="#52525b">@.5 / .75 / .5:.95</text><rect x="336" y="64" width="138" height="120" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="2"/><circle cx="405" cy="92" r="14" fill="#16a34a"/><text x="405" y="97" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">3</text><text x="405" y="126" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">pycocotoolsで</text><text x="405" y="146" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">一致を検算</text><text x="405" y="168" text-anchor="middle" font-size="11" fill="#52525b">差 ≈ 0</text><rect x="496" y="64" width="138" height="120" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/><circle cx="565" cy="92" r="14" fill="#ea580c"/><text x="565" y="97" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">4</text><text x="565" y="126" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">F1最大の点を</text><text x="565" y="146" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">運用しきい値に</text><text x="565" y="168" text-anchor="middle" font-size="11" fill="#52525b">推奨しきい値</text><line x1="154" y1="124" x2="166" y2="124" stroke="#52525b" stroke-width="2"/><polygon points="176,124 166,119 166,129" fill="#52525b"/><line x1="314" y1="124" x2="326" y2="124" stroke="#52525b" stroke-width="2"/><polygon points="336,124 326,119 326,129" fill="#52525b"/><line x1="474" y1="124" x2="486" y2="124" stroke="#52525b" stroke-width="2"/><polygon points="496,124 486,119 486,129" fill="#52525b"/></svg><figcaption><b>ミニプロジェクト</b>は 4 ステップの一気通貫です。①同一の <b>GT</b> に品質の違う 2 検出器（<b>strong / weak</b>）を合成し、②自作の <b>mAP</b>（<code>@0.5 / 0.75 / [.5:.95]</code>）で評価、③<b>pycocotools</b> の COCOeval と一致するか検算（差はほぼ 0）、④<b>strong</b> の PR を掃引して <b>F1 が最大</b>になる 1 点を運用しきい値に選びます。mAP は<b>しきい値非依存の総合力</b>、運用は<b>1 点を選ぶ</b>——この役割分担を 1 本のスクリプトで体験します。</figcaption></figure>
 
-成果物は `outputs/19_detection_map_from_scratch/` に出ます。`mini_detector_report.png` は 4 枚パネル構成で、(左上) 2 検出器の PR 曲線（strong が右上に張り出す）、(右上) IoU 閾値に対する mAP の右肩下がり（strong が常に上）、(左下) カテゴリ別 AP50 の棒比較、(右下) strong の F1 掃引と推奨しきい値の縦線、を一望できます。また、`mini_project_report.json` には両検出器の全指標・pycocotools との最大差・推奨しきい値が記録されます。実行すると `strong: mAP@[.5:.95]≈0.74 / weak≈0.16`、`推奨しきい値≈0.55 (F1≈0.99)` のような数字が出ます。
+成果物は `lectures/19_detection_map_from_scratch/outputs/` に出ます。`mini_detector_report.png` は 4 枚パネル構成で、(左上) 2 検出器の PR 曲線（strong が右上に張り出す）、(右上) IoU 閾値に対する mAP の右肩下がり（strong が常に上）、(左下) カテゴリ別 AP50 の棒比較、(右下) strong の F1 掃引と推奨しきい値の縦線、を一望できます。また、`mini_project_report.json` には両検出器の全指標・pycocotools との最大差・推奨しきい値が記録されます。実行すると `strong: mAP@[.5:.95]≈0.74 / weak≈0.16`、`推奨しきい値≈0.55 (F1≈0.99)` のような数字が出ます。
 
 > **発展課題（自分で手を動かす）**: (a) `make_predictions` の `shift_frac` だけを 0.06→0.18 に上げ、`mAP@0.5` はあまり下がらないのに `mAP@[.5:.95]` が大きく下がること（＝位置が甘いと厳しい IoU で効く）を確認する。(b) しきい値選びの基準を F1 から「recall を 0.9 以上に保ちつつ precision 最大」へ変え、運用要件で最適点が動くことを見る。(c) `data/` に実画像の COCO 形式（GT/予測）を置き、`make_ground_truth` の代わりにそれを読んで `AP_S`（小物体）が意味を持つようにする。
 

@@ -233,7 +233,7 @@ camshift はもともと**顔・手の追跡**（肌色ヒストグラムで顔�
 
 ## 動かし方
 
-これらはすべて CPUのみ・ネット非依存・カメラ不要・追加依存なしで動きます（サンプルの連番フレームは各スクリプトが `numpy`/`cv2` で合成生成します）。リポジトリのルートで、以下を順に実行してください。結果はすべて `outputs/10_classical_video_motion/` に画像・動画・JSON として保存され、画面表示はしません（headless 安全）。
+これらはすべて CPUのみ・ネット非依存・カメラ不要・追加依存なしで動きます（サンプルの連番フレームは各スクリプトが `numpy`/`cv2` で合成生成します）。リポジトリのルートで、以下を順に実行してください。結果はすべて `lectures/10_classical_video_motion/outputs/` に画像・動画・JSON として保存され、画面表示はしません（headless 安全）。
 
 ```bash
 # 0) 共通ヘルパ単体（合成フレーム生成・各APIのスモークテスト）
@@ -265,7 +265,7 @@ SHOW_SOLUTION=1 uv run python lectures/10_classical_video_motion/exercises.py
 uv run python lectures/10_classical_video_motion/exercises_solutions.py
 ```
 
-実行後は、`outputs/10_classical_video_motion/` の画像を順に開いて、本文の確認ポイントと照らし合わせてください。特に `01_framediff_mask.png`→`01_mog2_boxes.png`（縁だけ→頑健な動体検出へ）、`02_lk_tracks.png`（動く点だけ長い軌跡）、`03_farneback_hsv.png`↔`03_flow_color_wheel.png`（色＝向きの読み方）、`04_meanshift_trace.png`↔`04_camshift_snapshots.png`（窓サイズ固定 vs 追従）を見比べると、各節の内容が一気に腑に落ちるはずです。
+実行後は、`lectures/10_classical_video_motion/outputs/` の画像を順に開いて、本文の確認ポイントと照らし合わせてください。特に `01_framediff_mask.png`→`01_mog2_boxes.png`（縁だけ→頑健な動体検出へ）、`02_lk_tracks.png`（動く点だけ長い軌跡）、`03_farneback_hsv.png`↔`03_flow_color_wheel.png`（色＝向きの読み方）、`04_meanshift_trace.png`↔`04_camshift_snapshots.png`（窓サイズ固定 vs 追従）を見比べると、各節の内容が一気に腑に落ちるはずです。
 
 ## まとめ
 
@@ -289,7 +289,7 @@ uv run python lectures/10_classical_video_motion/exercises_solutions.py
 
 なお `digit` 始まりの 01〜04 は import できないため、各アルゴリズムの核心は `mini_project.py` 内に**自己完結**の形で実装しています（合成データ生成と可視化部品だけは `cv_helpers` から借用）。
 
-**到達の目安**: 既知シフト `(6, 3)` の EPE がほぼ 0（合成を正しく復元）、CamShift の窓成長率が概ね 2 倍以上（円の拡大に追従）、そして背景差分が動く 2 物体を概ね拾うこと。出力としては、`outputs/10_classical_video_motion/` に以下が保存されます。
+**到達の目安**: 既知シフト `(6, 3)` の EPE がほぼ 0（合成を正しく復元）、CamShift の窓成長率が概ね 2 倍以上（円の拡大に追従）、そして背景差分が動く 2 物体を概ね拾うこと。出力としては、`lectures/10_classical_video_motion/outputs/` に以下が保存されます。
 
 | 生成物 | 内容 |
 | --- | --- |
@@ -301,7 +301,7 @@ uv run python lectures/10_classical_video_motion/exercises_solutions.py
 
 ```bash
 uv run python lectures/10_classical_video_motion/mini_project.py
-cat outputs/10_classical_video_motion/mini_project_metrics.json
+cat lectures/10_classical_video_motion/outputs/mini_project_metrics.json
 ```
 
 ## 💡 実践ユースケース集
@@ -320,10 +320,10 @@ cat outputs/10_classical_video_motion/mini_project_metrics.json
 
 ```bash
 uv run python lectures/10_classical_video_motion/use_case.py
-cat outputs/10_classical_video_motion/use_case_events.json
+cat lectures/10_classical_video_motion/outputs/use_case_events.json
 ```
 
-- **実データの置き方**: `data/10_classical_video_motion/` に**動画**（`*.mp4` / `*.avi` / `*.mov` / `*.mkv`）か**連番画像**（`*.png` / `*.jpg`）を置くと、それを実入力として使います（例: `data/10_classical_video_motion/hallway.mp4`）。**無ければ合成シーン**（静止 → 物体が横切る → 静止、を 2 回）で必ず完走します（`exit 0`）。出力は `outputs/10_classical_video_motion/` に、イベントごとの `use_case_event{k}.mp4`、代表フレーム一覧 `use_case_event_montage.png`、動き量の折れ線＋録画区間を帯で示した `use_case_motion_timeline.png`、イベント表 `use_case_events.json`（録画区間・ピーク動き量・**ストレージ節約率**）が保存されます。
+- **実データの置き方**: `data/10_classical_video_motion/` に**動画**（`*.mp4` / `*.avi` / `*.mov` / `*.mkv`）か**連番画像**（`*.png` / `*.jpg`）を置くと、それを実入力として使います（例: `data/10_classical_video_motion/hallway.mp4`）。**無ければ合成シーン**（静止 → 物体が横切る → 静止、を 2 回）で必ず完走します（`exit 0`）。出力は `lectures/10_classical_video_motion/outputs/` に、イベントごとの `use_case_event{k}.mp4`、代表フレーム一覧 `use_case_event_montage.png`、動き量の折れ線＋録画区間を帯で示した `use_case_motion_timeline.png`、イベント表 `use_case_events.json`（録画区間・ピーク動き量・**ストレージ節約率**）が保存されます。
 - **拡張アイデア**: しきい値を「前景画素率」から「**最大ブロブ面積**」や「動体の個数」に変えて誤検知を減らす／ROI マスクでドア付近だけ監視する／イベント発生時に通知やサムネイル生成を足して簡易セキュリティ通知へ／背景差分を YOLO 等の検出器に差し替えて「**人が映った時だけ録画**」に高度化／`cv2.VideoCapture(0)` のライブループ＋リングバッファで実カメラの常時監視録画にする。
 
 ### ② 通行量・滞留カウント（人流/交通の計測）

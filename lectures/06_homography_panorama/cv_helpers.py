@@ -11,7 +11,7 @@
      （= 真のホモグラフィが分かるので、推定結果を答え合わせできる）
   3. ORB マッチング＋Lowe 比率テストで対応点を得る（章の入口）
   4. findHomography(RANSAC)・再投影誤差・キャンバス計算・フェザー合成といった部品
-  5. 出力先 outputs/06_homography_panorama/ の管理と、評価用の SSIM
+  5. 出力先 lectures/06_homography_panorama/outputs/ の管理と、評価用の SSIM
 
 コーディング原則: 各関数は1つのことだけを行い、賢すぎる抽象化は避けます。
 スクリプト本体側は、学習上重要な処理（findHomography 等）をあえて生のまま書いて
@@ -30,7 +30,7 @@ import numpy as np
 #   parents[2] = プロジェクトルート（lecture-cv/）。どこから実行しても場所がぶれない。
 _HERE = pathlib.Path(__file__).resolve()
 PROJECT_ROOT = _HERE.parents[2]
-OUTPUT_ROOT = PROJECT_ROOT / "outputs"
+OUTPUT_ROOT = _HERE.parent / "outputs"
 
 
 def output_dir() -> pathlib.Path:
@@ -39,7 +39,7 @@ def output_dir() -> pathlib.Path:
     headless 環境では「画面に出す」代わりに「ファイルに保存して後で見る」のが基本。
     存在しなければ自動で作成する。
     """
-    d = OUTPUT_ROOT / "06_homography_panorama"
+    d = OUTPUT_ROOT
     d.mkdir(parents=True, exist_ok=True)
     return d
 

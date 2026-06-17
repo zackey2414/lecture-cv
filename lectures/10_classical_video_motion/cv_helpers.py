@@ -11,7 +11,7 @@
        - テクスチャ付きスプライト（角が多い）= 疎/密オプティカルフロー向き。
        - 緑色の円（色が背景と明確に違う）   = meanshift/camshift の色追跡向き。
   3. 既知の平行移動だけの画像ペアを作る（密フローの終点誤差 EPE を答え合わせするため）。
-  4. 出力先 outputs/10_classical_video_motion/ の管理と、フロー場の HSV 可視化。
+  4. 出力先 lectures/10_classical_video_motion/outputs/ の管理と、フロー場の HSV 可視化。
 
 コーディング原則: 各関数は1つのことだけを行い、賢すぎる抽象化は避けます。
 スクリプト本体側は、学習上重要な処理（calcOpticalFlowPyrLK 等）をあえて生のまま書いて
@@ -30,7 +30,7 @@ import numpy as np
 #   parents[2] = プロジェクトルート（lecture-cv/）。どこから実行しても場所がぶれない。
 _HERE = pathlib.Path(__file__).resolve()
 PROJECT_ROOT = _HERE.parents[2]
-OUTPUT_ROOT = PROJECT_ROOT / "outputs"
+OUTPUT_ROOT = _HERE.parent / "outputs"
 MODULE_ID = "10_classical_video_motion"
 
 
@@ -40,7 +40,7 @@ def output_dir() -> pathlib.Path:
     headless 環境では「画面に出す」代わりに「ファイルに保存して後で見る」のが基本。
     存在しなければ自動で作成する（os.makedirs 相当）。
     """
-    d = OUTPUT_ROOT / MODULE_ID
+    d = OUTPUT_ROOT
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -190,4 +190,4 @@ if __name__ == "__main__":
     gt = np.zeros_like(flow)
     gt[..., 0], gt[..., 1] = shift
     print(f"既知シフト {shift} に対する EPE 平均 = {endpoint_error(flow, gt).mean():.3f} px")
-    print(f"スモークOK。outputs/{MODULE_ID}/ に _smoke_*.png を保存しました。")
+    print(f"スモークOK。lectures/{MODULE_ID}/outputs/ に _smoke_*.png を保存しました。")

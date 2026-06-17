@@ -15,7 +15,7 @@
       SigLIP は sigmoid = 各ラベル独立（0〜1を別々に判定、全部低い＝該当なしも表現できる）。
 
 実行: uv run python lectures/16_clip_zeroshot_retrieval/02_clip_siglip_manual.py
-出力: outputs/16_clip_zeroshot_retrieval/02_*.png / 02_softmax_vs_sigmoid.json
+出力: lectures/16_clip_zeroshot_retrieval/outputs/02_*.png / 02_softmax_vs_sigmoid.json
 """
 
 from __future__ import annotations

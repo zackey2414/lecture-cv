@@ -242,7 +242,7 @@ CPU 運用の勘所: 推論は必ず `model.eval()` ＋ `torch.inference_mode()`
   6. vitgpt2/greedy ...                    CLIP=25.10
 ```
 
-ねらいは「**どのモデル × どの探索戦略が、この題材で一番マシか**を一望できる比較表を作る」こと。実データ投入時に参照が無ければ、主指標は自動で CLIPScore に切り替わります（`has_references` 判定）。出力は `outputs/24_image_captioning/mini_*.{png,json,txt}` に保存されます。
+ねらいは「**どのモデル × どの探索戦略が、この題材で一番マシか**を一望できる比較表を作る」こと。実データ投入時に参照が無ければ、主指標は自動で CLIPScore に切り替わります（`has_references` 判定）。出力は `lectures/24_image_captioning/outputs/mini_*.{png,json,txt}` に保存されます。
 
 ---
 
@@ -356,7 +356,7 @@ uv run python lectures/24_image_captioning/use_case.py git
 - **実データの置き方**: `data/24_image_captioning/` に自分の `.png/.jpg` を置くだけで、その
   フォルダが対象になります（参照キャプション不要。CLIPScore は参照なしで動くため品質スクリーニングも
   そのまま機能）。画像が無ければ合成シーン（夕焼け/赤い車/木）に自動フォールバックして必ず完走します。
-- **出力**: `outputs/24_image_captioning/` に `use_case_alt_text.json`（台帳）・`use_case_gallery.html`
+- **出力**: `lectures/24_image_captioning/outputs/` に `use_case_alt_text.json`（台帳）・`use_case_gallery.html`
   （画像を base64 埋め込みした実 `<img alt>` 付き・ブラウザで読み上げ確認可）・`use_case_preview.png`・
   `alt_text/<name>.alt.txt`（CMS が読むサイドカー形式）。
 - **拡張アイデア**: 多言語 alt（英語生成＋翻訳で日本語併記）／詳細版 longdesc（`max_new_tokens` 増）の
@@ -392,7 +392,7 @@ uv run python lectures/24_image_captioning/use_case.py git
 # 依存グループをインストール（初回のみ）
 uv sync --group dl --group hf --group metrics
 
-# 各スクリプト（結果は outputs/24_image_captioning/ に保存。初回はモデル DL が走る）
+# 各スクリプト（結果は lectures/24_image_captioning/outputs/ に保存。初回はモデル DL が走る）
 uv run python lectures/24_image_captioning/caption_helpers.py     # 合成シーンの確認（DL 無し）
 uv run python lectures/24_image_captioning/caption_metrics.py     # 指標のスモーク（DL 無し）
 uv run python lectures/24_image_captioning/01_blip_caption.py     # BLIP 無条件/条件付き/pipeline

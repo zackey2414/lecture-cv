@@ -61,7 +61,7 @@ faiss.write_index(index, "emoji_index.faiss")  # ベクトル+IDを保存
 meta_path.write_text(json.dumps(meta, ...))    # ID->ラベルは別ファイル
 ```
 
-`01_build_emoji_index.py` を実行すると、`emoji_index.faiss` と `emoji_meta.json`、それに「色 vs グレースケール」を見比べられるギャラリー画像が `outputs/45_sketch_emoji_search/` に出力されます。`read_index` 後の `ntotal` が保存前と一致すれば永続化は成功で、アプリ再起動をまたいでも索引を引き継げます。
+`01_build_emoji_index.py` を実行すると、`emoji_index.faiss` と `emoji_meta.json`、それに「色 vs グレースケール」を見比べられるギャラリー画像が `lectures/45_sketch_emoji_search/outputs/` に出力されます。`read_index` 後の `ntotal` が保存前と一致すれば永続化は成功で、アプリ再起動をまたいでも索引を引き継げます。
 
 ## 5. Tkinter での手書き入力（headless フォールバック）
 
@@ -79,7 +79,7 @@ except Exception as e:                    # import 不可 / TclError などを�
     source = "合成スケッチ（display 無しのフォールバック）"
 ```
 
-保存先は2か所あります。1つは `outputs/.../02_sketch.png`（成果物）、もう1つは `data/45_sketch_emoji_search/sketch.png`（`03` が既定で読みに行く受け渡し場所）です。ローカルで実際に絵を描いて試す手順は §「▶ 動かし方」に書きました。手元に GUI があるなら、ぜひ自分の落書きで検索してみてください。
+保存先は2か所あります。1つは `lectures/45_sketch_emoji_search/outputs/02_sketch.png`（成果物）、もう1つは `data/45_sketch_emoji_search/sketch.png`（`03` が既定で読みに行く受け渡し場所）です。ローカルで実際に絵を描いて試す手順は §「▶ 動かし方」に書きました。手元に GUI があるなら、ぜひ自分の落書きで検索してみてください。
 
 ## 6. スケッチの前処理（白背景・黒線・正方化）
 
@@ -124,7 +124,7 @@ except Exception as e:                    # import 不可 / TclError などを�
 
 <figure class="lec-fig"><svg viewBox="0 0 660 300" role="img" aria-label="ミニプロジェクトの実行順序。絵文字を索引化、スケッチ入力(手書きか合成)、同じCLIPで検索、結果をPNGとJSONに出力の4ステップが左から右へ流れる" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="330" y="32" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">ミニプロジェクト — ① から ④ を一気通貫で実行</text><rect x="16" y="92" width="140" height="70" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/><rect x="178" y="92" width="140" height="70" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/><rect x="340" y="92" width="140" height="70" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/><rect x="502" y="92" width="140" height="70" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/><text x="86" y="122" text-anchor="middle" font-size="14" font-weight="700" fill="#c2410c">① 索引化</text><text x="86" y="144" text-anchor="middle" font-size="11" fill="#71717a">絵文字 → .faiss/.json</text><text x="248" y="122" text-anchor="middle" font-size="14" font-weight="700" fill="#1d4ed8">② スケッチ入力</text><text x="248" y="144" text-anchor="middle" font-size="11" fill="#71717a">手書き or 合成</text><text x="410" y="122" text-anchor="middle" font-size="14" font-weight="700" fill="#c2410c">③ CLIP で検索</text><text x="410" y="144" text-anchor="middle" font-size="11" fill="#71717a">index.search</text><text x="572" y="122" text-anchor="middle" font-size="14" font-weight="700" fill="#1d4ed8">④ 結果を出力</text><text x="572" y="144" text-anchor="middle" font-size="11" fill="#71717a">PNG + JSON</text><line x1="156" y1="127" x2="172" y2="127" stroke="#71717a" stroke-width="2"/><polygon points="178,127 168,122 168,132" fill="#71717a"/><line x1="318" y1="127" x2="334" y2="127" stroke="#71717a" stroke-width="2"/><polygon points="340,127 330,122 330,132" fill="#71717a"/><line x1="480" y1="127" x2="496" y2="127" stroke="#71717a" stroke-width="2"/><polygon points="502,127 492,122 492,132" fill="#71717a"/><line x1="248" y1="162" x2="248" y2="206" stroke="#2563eb" stroke-width="1.8" stroke-dasharray="5 3"/><polygon points="248,212 243,202 253,202" fill="#2563eb"/><rect x="178" y="212" width="140" height="46" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.6"/><text x="248" y="232" text-anchor="middle" font-size="12" font-weight="700" fill="#1d4ed8">合成スケッチ</text><text x="248" y="249" text-anchor="middle" font-size="10.5" fill="#52525b">display 無し時に自動切替</text><text x="330" y="282" text-anchor="middle" font-size="12" fill="#52525b">二重フォールバック（画素記述子・合成）で必ず exit 0</text></svg><figcaption><code>mini_project.py</code> は <b>① 絵文字を索引化（.faiss/.json）→ ② スケッチ入力 → ③ 同じ CLIP で検索 → ④ 結果を出力（PNG＋JSON）</b>の順に一気通貫で走ります。山場は <b>②</b> で、<b>display があれば Tkinter キャンバスで手書き</b>、無ければ <b>合成スケッチへ自動フォールバック</b>します。さらに CLIP が取れなければ画素記述子へ切り替わり、<b>二重のフォールバック</b>で必ず <code>exit 0</code> で完走します。</figcaption></figure>
 
-すべて CPU で数十秒以内に完走し、CLIP が取れない環境では画素記述子へ、display が無い環境では合成スケッチへ、と**二重のフォールバック**で必ず `exit 0` になります。出力先は `outputs/45_sketch_emoji_search/` で、`mini_project_result.png`・`mini_project_report.json`・`mini_emoji_index.faiss`＋`mini_emoji_meta.json`・`mini_sketch.png` が並びます。
+すべて CPU で数十秒以内に完走し、CLIP が取れない環境では画素記述子へ、display が無い環境では合成スケッチへ、と**二重のフォールバック**で必ず `exit 0` になります。出力先は `lectures/45_sketch_emoji_search/outputs/` で、`mini_project_result.png`・`mini_project_report.json`・`mini_emoji_index.faiss`＋`mini_emoji_meta.json`・`mini_sketch.png` が並びます。
 
 ```bash
 uv run python lectures/45_sketch_emoji_search/mini_project.py

@@ -13,7 +13,7 @@
   3. 高レベル API pipeline("image-text-to-text") で同じことを1行で
 
 実行: uv run python lectures/24_image_captioning/01_blip_caption.py
-出力: outputs/24_image_captioning/01_*.png / 01_blip_results.json
+出力: lectures/24_image_captioning/outputs/01_*.png / 01_blip_results.json
 """
 
 from __future__ import annotations

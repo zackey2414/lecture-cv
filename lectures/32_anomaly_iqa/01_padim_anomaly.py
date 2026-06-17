@@ -14,8 +14,8 @@
 実行:
   uv run python lectures/32_anomaly_iqa/01_padim_anomaly.py
 出力:
-  outputs/32_anomaly_iqa/01_anomaly_maps.png   … 入力・GT・異常マップ・重ね合わせ
-  outputs/32_anomaly_iqa/01_score_hist.png     … 正常/異常の image-level スコア分布
+  lectures/32_anomaly_iqa/outputs/01_anomaly_maps.png   … 入力・GT・異常マップ・重ね合わせ
+  lectures/32_anomaly_iqa/outputs/01_score_hist.png     … 正常/異常の image-level スコア分布
 """
 
 from __future__ import annotations

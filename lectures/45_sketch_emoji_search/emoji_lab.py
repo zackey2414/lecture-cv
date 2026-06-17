@@ -58,8 +58,8 @@ def _root() -> pathlib.Path:
 
 
 def output_dir() -> pathlib.Path:
-    """outputs/45_sketch_emoji_search/ を作って返す（無ければ作成）。"""
-    out = _root() / "outputs" / MODULE_ID
+    """lectures/45_sketch_emoji_search/outputs/ を作って返す（無ければ作成）。"""
+    out = pathlib.Path(__file__).resolve().parent / "outputs"
     out.mkdir(parents=True, exist_ok=True)
     return out
 

@@ -177,7 +177,7 @@ for i in result_ids:
 
 ## 11. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で書かれており、上から順に読むと「FAISS の基礎 → 実画像検索 → ANN → 評価」と理解が積み上がります。いずれも結果（PNG/JSON/.faiss）を `outputs/17_faiss_image_search/` に保存し、画面表示には依存しません。共通処理（出力先・正規化・Recall・合成データ・CLIP埋め込み）は `search_helpers.py` にまとめてあり、各スクリプトがこれを import します。
+各スクリプトは単一責務で書かれており、上から順に読むと「FAISS の基礎 → 実画像検索 → ANN → 評価」と理解が積み上がります。いずれも結果（PNG/JSON/.faiss）を `lectures/17_faiss_image_search/outputs/` に保存し、画面表示には依存しません。共通処理（出力先・正規化・Recall・合成データ・CLIP埋め込み）は `search_helpers.py` にまとめてあり、各スクリプトがこれを import します。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -201,7 +201,7 @@ for i in result_ids:
 # 依存をインストール（初回のみ）
 uv sync --group dl --group hf --group vector --group metrics
 
-# 各スクリプトを実行（結果は outputs/17_faiss_image_search/ に保存される）
+# 各スクリプトを実行（結果は lectures/17_faiss_image_search/outputs/ に保存される）
 uv run python lectures/17_faiss_image_search/01_flat_ip_cosine.py
 uv run python lectures/17_faiss_image_search/02_idmap_persist_sqlite.py   # 初回はCLIP重みDL
 uv run python lectures/17_faiss_image_search/03_ivf_hnsw_pq.py
@@ -217,7 +217,7 @@ SHOW_SOLUTION=1 uv run python lectures/17_faiss_image_search/exercises.py
 uv run python lectures/17_faiss_image_search/exercises_solutions.py
 ```
 
-実行後は、`outputs/17_faiss_image_search/` の図を確認してください。`01_flat_scores.png`（IP素/コサイン/L2 のスコアの並び）、`02_query_results.png`（クエリ画像と類似画像）、`03_ann_tradeoff.png`（精度↔速度の散布図）、`04_qps_recall_curve.png`（スイープ曲線）と `04_eval_report.json`（数値）が出ます。なお `02` で CLIP を取得できない環境では、色記述子に自動フォールバックし、テキスト検索だけスキップして完走します（画像→画像検索は動きます）。
+実行後は、`lectures/17_faiss_image_search/outputs/` の図を確認してください。`01_flat_scores.png`（IP素/コサイン/L2 のスコアの並び）、`02_query_results.png`（クエリ画像と類似画像）、`03_ann_tradeoff.png`（精度↔速度の散布図）、`04_qps_recall_curve.png`（スイープ曲線）と `04_eval_report.json`（数値）が出ます。なお `02` で CLIP を取得できない環境では、色記述子に自動フォールバックし、テキスト検索だけスキップして完走します（画像→画像検索は動きます）。
 
 ## 13. よくあるエラーと対処（チェックリスト）
 
@@ -258,7 +258,7 @@ uv run python lectures/17_faiss_image_search/exercises_solutions.py
 
 <figure class="lec-fig"><svg viewBox="0 0 660 348" role="img" aria-label="ミニプロジェクトPart Bの流れ。2万件64次元データから厳密IndexFlatで正解を作り、IVFとHNSWをスイープしてRecallとQPSを測定し、目標Recallを満たす最速設定を推薦する" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="330" y="28" text-anchor="middle" font-size="14" font-weight="700" fill="#3f3f46">Part B：正解は Flat で作り、ANN を Recall・QPS で評価</text><rect x="24" y="150" width="120" height="64" rx="8" fill="#f4f4f5" stroke="#71717a" stroke-width="1.8"/><text x="84" y="178" text-anchor="middle" font-size="13.5" font-weight="700" fill="#3f3f46">2万件</text><text x="84" y="198" text-anchor="middle" font-size="13" fill="#52525b">64 次元</text><rect x="188" y="72" width="216" height="60" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/><text x="296" y="97" text-anchor="middle" font-size="14" font-weight="700" fill="#1d4ed8">厳密 IndexFlat で</text><text x="296" y="118" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1d4ed8">正解(GT) を作る</text><rect x="188" y="232" width="216" height="60" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/><text x="296" y="257" text-anchor="middle" font-size="14" font-weight="700" fill="#c2410c">IVF・HNSW を</text><text x="296" y="278" text-anchor="middle" font-size="12.5" font-weight="700" fill="#c2410c">nprobe・efSearch スイープ</text><rect x="448" y="152" width="188" height="60" rx="8" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/><text x="542" y="177" text-anchor="middle" font-size="13.5" font-weight="700" fill="#c2410c">Recall@10 ・ QPS</text><text x="542" y="197" text-anchor="middle" font-size="13" font-weight="700" fill="#c2410c">を測定</text><line x1="148" y1="168" x2="181" y2="118" stroke="#71717a" stroke-width="2"/><polygon points="186,110 184.7,121.1 176.3,115.6" fill="#71717a"/><line x1="148" y1="196" x2="181" y2="246" stroke="#71717a" stroke-width="2"/><polygon points="186,254 176.3,248.4 184.7,242.9" fill="#71717a"/><line x1="406" y1="110" x2="440" y2="162" stroke="#71717a" stroke-width="2"/><polygon points="446,170 436.3,164.5 444.6,158.9" fill="#71717a"/><line x1="406" y1="254" x2="440" y2="202" stroke="#71717a" stroke-width="2"/><polygon points="446,194 444.6,205.1 436.3,199.6" fill="#71717a"/><line x1="542" y1="212" x2="542" y2="264" stroke="#71717a" stroke-width="2"/><polygon points="542,270 537,260 547,260" fill="#71717a"/><rect x="440" y="270" width="204" height="62" rx="8" fill="#f4f4f5" stroke="#16a34a" stroke-width="2"/><text x="542" y="294" text-anchor="middle" font-size="13.5" font-weight="700" fill="#15803d">目標 Recall 0.95 を満たす</text><text x="542" y="316" text-anchor="middle" font-size="13" font-weight="700" fill="#15803d">最速設定を ★ で推薦</text></svg><figcaption><b>Part B</b> は規模を上げて ANN を評価します。<b>2万件・64次元</b>のデータに対し、<b>正解(ground truth) は必ず厳密 <code>IndexFlat</code></b> で作り（ANN 自身で作ると満点になり無意味）、<code>IVFFlat</code>（<code>nprobe</code>）と <code>HNSW</code>（<code>efSearch</code>）をスイープして <b>Recall@10 と QPS</b> を測定します。<b>目標 Recall（既定 0.95）を満たす中で最速</b>の設定を自動で選び、QPS-recall 曲線に ★ で重ねます。</figcaption></figure>
 
-実行すると、`outputs/17_faiss_image_search/` に `mini_project_search.png`（検索結果サムネ）、`mini_project_curve.png`（推薦点つき QPS-recall 曲線）、`mini_project_report.json`（エンジン統計＋mAP＋ANN 推薦）、`mini_project_engine.faiss` ＋ `mini_project_meta.db`（永続化したエンジン）が出ます。
+実行すると、`lectures/17_faiss_image_search/outputs/` に `mini_project_search.png`（検索結果サムネ）、`mini_project_curve.png`（推薦点つき QPS-recall 曲線）、`mini_project_report.json`（エンジン統計＋mAP＋ANN 推薦）、`mini_project_engine.faiss` ＋ `mini_project_meta.db`（永続化したエンジン）が出ます。
 
 ```bash
 uv run python lectures/17_faiss_image_search/mini_project.py
@@ -353,7 +353,7 @@ uv run python lectures/17_faiss_image_search/mini_project.py
 <figure class="lec-fig"><svg viewBox="0 0 600 300" role="img" aria-label="逆画像検索use_case.pyの流れ。ギャラリー索引を作り、クエリ画像をベクトル化してsearchし、コサイン類似度が0.90以上なら重複と判定する" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="300" y="28" text-anchor="middle" font-size="13.5" font-weight="700" fill="#3f3f46">逆画像検索（use_case.py）：閾値で near-duplicate を判定</text><rect x="20" y="120" width="150" height="70" rx="8" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/><text x="95" y="144" text-anchor="middle" font-size="13" font-weight="700" fill="#c2410c">ギャラリー索引</text><text x="95" y="163" text-anchor="middle" font-size="11.5" fill="#52525b">CLIP→正規化→add</text><text x="95" y="180" text-anchor="middle" font-size="11.5" fill="#52525b">→ 永続化</text><rect x="210" y="120" width="160" height="70" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/><text x="290" y="144" text-anchor="middle" font-size="13" font-weight="700" fill="#1d4ed8">クエリ画像を</text><text x="290" y="163" text-anchor="middle" font-size="12" fill="#3f3f46">ベクトル化 →</text><text x="290" y="182" text-anchor="middle" font-size="13" font-weight="700" fill="#1d4ed8">search(k)</text><rect x="410" y="120" width="160" height="70" rx="8" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/><text x="490" y="148" text-anchor="middle" font-size="13" font-weight="700" fill="#c2410c">コサイン類似度</text><text x="490" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="#c2410c">≥ 0.90 ?</text><line x1="170" y1="155" x2="204" y2="155" stroke="#71717a" stroke-width="2"/><polygon points="210,155 200,150 200,160" fill="#71717a"/><line x1="370" y1="155" x2="404" y2="155" stroke="#71717a" stroke-width="2"/><polygon points="410,155 400,150 400,160" fill="#71717a"/><line x1="490" y1="120" x2="490" y2="98" stroke="#71717a" stroke-width="2"/><polygon points="490,92 485,102 495,102" fill="#71717a"/><line x1="490" y1="190" x2="490" y2="212" stroke="#71717a" stroke-width="2"/><polygon points="490,218 485,208 495,208" fill="#71717a"/><rect x="410" y="40" width="160" height="52" rx="8" fill="#fff7ed" stroke="#dc2626" stroke-width="2"/><text x="490" y="62" text-anchor="middle" font-size="13" font-weight="700" fill="#dc2626">はい → [DUP]</text><text x="490" y="82" text-anchor="middle" font-size="12" fill="#dc2626">near-duplicate</text><rect x="410" y="218" width="160" height="52" rx="8" fill="#f4f4f5" stroke="#16a34a" stroke-width="2"/><text x="490" y="240" text-anchor="middle" font-size="13" font-weight="700" fill="#15803d">いいえ → 通常の</text><text x="490" y="260" text-anchor="middle" font-size="12.5" fill="#15803d">類似ヒット</text></svg><figcaption><b>逆画像検索</b>（<code>use_case.py</code>）の流れです。フォルダ画像を <b>CLIP→正規化→<code>IndexIDMap2(IndexFlatIP)</code></b> に <code>add_with_ids</code> してギャラリー索引を作り永続化、クエリ画像を同じ手順でベクトル化して <code>search(k)</code>。返ったコサイン類似度が<b>しきい値（既定 0.90）以上なら near-duplicate（<code>[DUP]</code>）</b>、未満なら通常の類似ヒットと判定します。<b>DB・クエリ両方を正規化</b>し、<code>-1</code> は弾きます。</figcaption></figure>
 
 ```bash
-# 合成画像（色×形）で即実行（exit 0）。結果は outputs/17_faiss_image_search/ に保存
+# 合成画像（色×形）で即実行（exit 0）。結果は lectures/17_faiss_image_search/outputs/ に保存
 uv run python lectures/17_faiss_image_search/use_case.py
 
 # 外部の画像をクエリにする

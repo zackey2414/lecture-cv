@@ -13,7 +13,7 @@
 
 実行:
   uv run python lectures/37_runtime_edge_optimization/03_runtime_bench.py
-結果(表+図)は outputs/37_runtime_edge_optimization/ に保存される。
+結果(表+図)は lectures/37_runtime_edge_optimization/outputs/ に保存される。
 """
 
 from __future__ import annotations

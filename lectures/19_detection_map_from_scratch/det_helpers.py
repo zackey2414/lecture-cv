@@ -4,7 +4,7 @@
 教材の核心（IoU の定義式・confidence 降順マッチング・PR/AP の組み立て）は各スクリプトの
 本体で改めて手で書き下す。ここではそれらを支える次の4つだけを提供する:
 
-  - output_dir()        : 出力先 outputs/19_detection_map_from_scratch/ を作って返す
+  - output_dir()        : 出力先 lectures/19_detection_map_from_scratch/outputs/ を作って返す
   - box_iou_numpy()     : xyxy 同士の IoU 行列を numpy だけで計算する（検出評価の心臓部）
   - match_image()       : 1画像・1閾値で予測を GT に貪欲対応付けし TP/FP を決める正準エンジン
   - make_detection_dataset() / to_coco_gt() / to_coco_dt() : 合成データと COCO 形式変換
@@ -35,7 +35,7 @@ IMAGE_H, IMAGE_W = 480, 640  # 合成シーンの大きさ（ピクセル）
 
 def output_dir() -> pathlib.Path:
     """このモジュールの出力先を作って返す（headless 環境でも結果を後から確認できるように）。"""
-    out = pathlib.Path(__file__).resolve().parents[2] / "outputs" / "19_detection_map_from_scratch"
+    out = pathlib.Path(__file__).resolve().parent / "outputs"
     out.mkdir(parents=True, exist_ok=True)
     return out
 

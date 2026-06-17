@@ -11,7 +11,7 @@
   - ガウスノイズ＋ごま塩ノイズ（センサ/圧縮ノイズ相当）
   - 低コントラスト
 
-出力は outputs/04_filtering_edges_morphology/ に:
+出力は lectures/04_filtering_edges_morphology/outputs/ に:
   - mini_project_pipeline.png : 各工程を並べた 1 枚（工程の流れを目で追える）
   - mini_project_scan.png     : 最終成果物（正面化された二値スキャン）
   - mini_project_hist.png     : CLAHE 前後の輝度ヒストグラム（matplotlib, Agg）
@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import pathlib
 
 import cv2
 import numpy as np
@@ -37,7 +38,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 MODULE_ID = "04_filtering_edges_morphology"
-OUT_DIR = os.path.join("outputs", MODULE_ID)
+OUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 
 
 # ---------------------------------------------------------------------------
@@ -327,7 +328,7 @@ def main() -> None:
         f"→ CLAHE後 {report['enhance']['clahe_std']}（広がる＝コントラスト向上）"
     )
     print(f"[7] 最終スキャンのインク比率 : {report['scan']['ink_ratio']}")
-    print("\n完了。outputs/04_filtering_edges_morphology/ に以下を保存しました:")
+    print("\n完了。lectures/04_filtering_edges_morphology/outputs/ に以下を保存しました:")
     print("  mini_project_pipeline.png / mini_project_scan.png / "
           "mini_project_hist.png / mini_project_report.json")
 

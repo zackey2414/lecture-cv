@@ -13,7 +13,7 @@
   uv run python lectures/31_generation_editing/01_sd_turbo_t2i.py
 初回はモデル重み(~2.5GB)をダウンロードします。以後はキャッシュから高速に動きます。
 モデルをロードできない（オフライン等）場合も、合成画像で代替して **必ず exit 0** で終わります。
-結果は outputs/31_generation_editing/ に保存（画面表示はしない・headless）。
+結果は lectures/31_generation_editing/outputs/ に保存（画面表示はしない・headless）。
 """
 
 from __future__ import annotations
@@ -108,7 +108,7 @@ def main() -> None:
     pipe = gl.load_t2i_pipeline()  # 失敗時は None
     if pipe is None:
         fallback_without_model()
-        print("\n完了（フォールバック）。outputs/31_generation_editing/ を確認してください。")
+        print("\n完了（フォールバック）。lectures/31_generation_editing/outputs/ を確認してください。")
         return
 
     demo_text_to_image(pipe)
@@ -118,7 +118,7 @@ def main() -> None:
     print("\n[注意] safety checker: 通常の SD は NSFW 判定で黒画像を返すことがある。")
     print("  SD-Turbo の既定構成は safety_checker=None（黒画像にはならないが、")
     print("  公開サービスでは内容フィルタを別途用意するのが実務上の作法）。")
-    print("\n完了。outputs/31_generation_editing/01_*.png を確認してください。")
+    print("\n完了。lectures/31_generation_editing/outputs/01_*.png を確認してください。")
 
 
 if __name__ == "__main__":

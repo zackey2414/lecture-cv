@@ -22,7 +22,7 @@
 
 ## 2. 主要ライブラリ早見表
 
-まずは全体像を一枚の表で押さえましょう。下の表は `01_library_map.py` が生成する早見表（`outputs/02_cv_libraries_overview/01_library_cheatsheet.png`）と同じ内容で、「色順」「主なデータ表現」「GPU/微分可能」「主な役割」「こういう時に選ぶ」を並べてあります。表を眺める前に一つだけ予告しておくと、**色順の列で OpenCV だけが BGR**であり、ほかはすべて RGB です。これは第1回でも強調した最重要の非対称で、ライブラリをまたぐたびに効いてきます。
+まずは全体像を一枚の表で押さえましょう。下の表は `01_library_map.py` が生成する早見表（`lectures/02_cv_libraries_overview/outputs/01_library_cheatsheet.png`）と同じ内容で、「色順」「主なデータ表現」「GPU/微分可能」「主な役割」「こういう時に選ぶ」を並べてあります。表を眺める前に一つだけ予告しておくと、**色順の列で OpenCV だけが BGR**であり、ほかはすべて RGB です。これは第1回でも強調した最重要の非対称で、ライブラリをまたぐたびに効いてきます。
 
 | ライブラリ | 色順 | 主なデータ表現 | GPU/微分 | 主な役割・こういう時に選ぶ |
 | --- | --- | --- | --- | --- |
@@ -167,7 +167,7 @@ augmented = transform(image=rgb)["image"]   # 入力は RGB の ndarray、戻り
 
 ## 10. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で書かれており、上から順に読めば理解が積み上がるように並べています。いずれも結果を `outputs/02_cv_libraries_overview/` に保存し、画面表示には依存しません。共通処理（合成画像生成・出力先管理・任意ライブラリの導入判定 `probe`）は `cv_helpers.py` にまとめてあり、各スクリプトはそれを import して使います。
+各スクリプトは単一責務で書かれており、上から順に読めば理解が積み上がるように並べています。いずれも結果を `lectures/02_cv_libraries_overview/outputs/` に保存し、画面表示には依存しません。共通処理（合成画像生成・出力先管理・任意ライブラリの導入判定 `probe`）は `cv_helpers.py` にまとめてあり、各スクリプトはそれを import して使います。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -192,7 +192,7 @@ augmented = transform(image=rgb)["image"]   # 入力は RGB の ndarray、戻り
 
 <figure class="lec-fig"><svg viewBox="0 0 480 330" role="img" aria-label="ミニプロジェクトの流れ。合成画像1枚を入力に、1書き比べ2往復チェック3拡張×300の分布4意思決定表チェックを順に実行し、JSONとサマリ図のレポートを出力する" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><rect x="130" y="14" width="220" height="36" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/><text x="240" y="37" text-anchor="middle" font-size="13" font-weight="700" fill="#1d4ed8">入力：合成画像 1枚</text><line x1="240" y1="50" x2="240" y2="58" stroke="#52525b" stroke-width="2"/><polygon points="240,66 235,58 245,58" fill="#52525b"/><rect x="44" y="66" width="392" height="38" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/><text x="240" y="90" text-anchor="middle" font-size="13.5" font-weight="700" fill="#c2410c">1. 書き比べ：処理時間・平均絶対差(MAD)</text><line x1="240" y1="104" x2="240" y2="110" stroke="#52525b" stroke-width="2"/><polygon points="240,118 235,110 245,110" fill="#52525b"/><rect x="44" y="118" width="392" height="38" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/><text x="240" y="142" text-anchor="middle" font-size="13.5" font-weight="700" fill="#c2410c">2. 往復チェック：色順・軸順が画素一致か</text><line x1="240" y1="156" x2="240" y2="162" stroke="#52525b" stroke-width="2"/><polygon points="240,170 235,162 245,162" fill="#52525b"/><rect x="44" y="170" width="392" height="38" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/><text x="240" y="194" text-anchor="middle" font-size="13.5" font-weight="700" fill="#c2410c">3. 拡張×300：明るさ分布の std・range</text><line x1="240" y1="208" x2="240" y2="214" stroke="#52525b" stroke-width="2"/><polygon points="240,222 235,214 245,214" fill="#52525b"/><rect x="44" y="222" width="392" height="38" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/><text x="240" y="246" text-anchor="middle" font-size="13.5" font-weight="700" fill="#c2410c">4. 意思決定表の自己整合チェック</text><line x1="240" y1="260" x2="240" y2="266" stroke="#52525b" stroke-width="2"/><polygon points="240,274 235,266 245,266" fill="#52525b"/><rect x="110" y="274" width="260" height="42" rx="8" fill="#f4f4f5" stroke="#16a34a" stroke-width="1.8"/><text x="240" y="300" text-anchor="middle" font-size="13" font-weight="700" fill="#15803d">レポート：JSON ＋ サマリ図</text></svg><figcaption><b>章末ミニプロジェクトの流れ</b>です。合成画像 <b>1枚</b>を入力に、<b>1.書き比べ</b>（時間・MAD）→ <b>2.往復チェック</b>（色順・軸順）→ <b>3.拡張×300</b>（明るさ分布の std・range）→ <b>4.意思決定表</b>の自己整合チェック、の4検証を順に実行し、結果を <code>mini_project_report.json</code> と <code>mini_project_summary.png</code> の<b>レポート</b>にまとめます。</figcaption></figure>
 
-実行すると、結果は機械可読な `outputs/02_cv_libraries_overview/mini_project_report.json`（時間・MAD・往復可否・分布統計・環境のライブラリ版）と、`mini_project_summary.png`（左＝ライブラリ別リサイズ時間の棒グラフに MAD を注記／右＝拡張後の明るさ分布ヒストグラム）の2つに出力されます。そこでは、OpenCV が最速・MAD=0（基準）で、Pillow は数階調ぶん値がズレる——という「速度も画素値もライブラリで違う」事実を、図と JSON の両方から確認してください。実行は `uv run python lectures/02_cv_libraries_overview/mini_project.py` で行えます（CPU 完結・ネット不要・任意ライブラリは未導入でも動く）。
+実行すると、結果は機械可読な `lectures/02_cv_libraries_overview/outputs/mini_project_report.json`（時間・MAD・往復可否・分布統計・環境のライブラリ版）と、`mini_project_summary.png`（左＝ライブラリ別リサイズ時間の棒グラフに MAD を注記／右＝拡張後の明るさ分布ヒストグラム）の2つに出力されます。そこでは、OpenCV が最速・MAD=0（基準）で、Pillow は数階調ぶん値がズレる——という「速度も画素値もライブラリで違う」事実を、図と JSON の両方から確認してください。実行は `uv run python lectures/02_cv_libraries_overview/mini_project.py` で行えます（CPU 完結・ネット不要・任意ライブラリは未導入でも動く）。
 
 実務では、このレポートがそのまま**ライブラリ選定の判断材料**になります。「速度が効くホットパスは OpenCV」「学習と一体化したいなら torchvision/kornia」「往復で色が壊れていないかは CI で機械的にチェック」——こうした意思決定を、地図（定性）と実測（定量）の両面から下せるようになることが、この課題のゴールです。
 
@@ -258,7 +258,7 @@ augmented = transform(image=rgb)["image"]   # 入力は RGB の ndarray、戻り
 # 依存をインストール（初回のみ）
 uv sync
 
-# 各スクリプトを実行（結果は outputs/02_cv_libraries_overview/ に保存される）
+# 各スクリプトを実行（結果は lectures/02_cv_libraries_overview/outputs/ に保存される）
 uv run python lectures/02_cv_libraries_overview/01_library_map.py
 uv run python lectures/02_cv_libraries_overview/02_same_op_across_libs.py
 uv run python lectures/02_cv_libraries_overview/03_augmentation_albumentations.py
@@ -276,7 +276,7 @@ uv run python lectures/02_cv_libraries_overview/exercises_solutions.py
 uv add --group aug scikit-image albumentations   # 02 に skimage 列 / 03 に albumentations グリッド
 ```
 
-実行後は、`outputs/02_cv_libraries_overview/` に生成された PNG を画像ビューアで開いてください。`01_library_cheatsheet.png`（早見表・緑=導入済み/赤=未導入）と `01_library_quadrant_map.png`（2軸の地図）で全体像を、`02_same_op_compare.png` で同一処理の書き比べを、`03_aug_distribution.png`（分布の広がり）と `03_manual_aug_grid.png`（拡張サンプル）で拡張の効果を、それぞれ目で確認しましょう。コンソールにも早見表・選択ガイド・数値差が出力されるので、図と合わせて読んでください。
+実行後は、`lectures/02_cv_libraries_overview/outputs/` に生成された PNG を画像ビューアで開いてください。`01_library_cheatsheet.png`（早見表・緑=導入済み/赤=未導入）と `01_library_quadrant_map.png`（2軸の地図）で全体像を、`02_same_op_compare.png` で同一処理の書き比べを、`03_aug_distribution.png`（分布の広がり）と `03_manual_aug_grid.png`（拡張サンプル）で拡張の効果を、それぞれ目で確認しましょう。コンソールにも早見表・選択ガイド・数値差が出力されるので、図と合わせて読んでください。
 
 ## 12. よくある落とし穴（チェックリスト）
 

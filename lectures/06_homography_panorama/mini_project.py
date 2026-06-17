@@ -10,7 +10,7 @@
   [C] cv2.Stitcher（自動）でも合成し、手作り版と重なり領域 SSIM で比較する。
   [D] 平面物体（書類カード）を散らかったシーンに射影で貼り込み、検出して四辺形を描き、
       逆ホモグラフィで「正面（まっすぐ）」に復元（rectify）して忠実度を SSIM で測る。
-  [E] すべての指標を JSON に、図を PNG にまとめて outputs/06_homography_panorama/ に保存。
+  [E] すべての指標を JSON に、図を PNG にまとめて lectures/06_homography_panorama/outputs/ に保存。
 
 実行:
   uv run python lectures/06_homography_panorama/mini_project.py
@@ -370,7 +370,7 @@ def main() -> None:
     with open(out / "mp_report.json", "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
     print("\n[E] mp_summary.png と mp_report.json を保存しました。")
-    print("完了。outputs/06_homography_panorama/ の mp_*.png / mp_report.json を確認してください。")
+    print("完了。lectures/06_homography_panorama/outputs/ の mp_*.png / mp_report.json を確認してください。")
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/10_classical_video_motion/02_optical_flow_lk.py
-結果は outputs/10_classical_video_motion/ に保存される（画面表示はしない）。
+結果は lectures/10_classical_video_motion/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -113,7 +113,7 @@ def main() -> None:
     print("  - 前提『輝度一定』: 同じ点は明るさが変わらない、という仮定の上で成り立つ。")
     print("  - 弱点『開口問題』: のっぺりした線上では“線に沿う動き”が決められない。")
     print("    だから角(コーナー)を選ぶ goodFeaturesToTrack と相性が良い。")
-    print("\n完了。outputs/10_classical_video_motion/ の 02_lk_tracks.png を見てください。")
+    print("\n完了。lectures/10_classical_video_motion/outputs/ の 02_lk_tracks.png を見てください。")
 
 
 if __name__ == "__main__":

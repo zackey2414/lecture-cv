@@ -83,8 +83,8 @@ def repo_root() -> Path:
 
 
 def outputs_dir(sub: str | None = None) -> Path:
-    """成果物保存先 outputs/41_cluster_clip_pipeline[/sub] を作って返す。"""
-    d = repo_root() / "outputs" / MODULE_ID
+    """成果物保存先 lectures/41_cluster_clip_pipeline/outputs[/sub] を作って返す。"""
+    d = Path(__file__).resolve().parent / "outputs"
     if sub:
         d = d / sub
     d.mkdir(parents=True, exist_ok=True)

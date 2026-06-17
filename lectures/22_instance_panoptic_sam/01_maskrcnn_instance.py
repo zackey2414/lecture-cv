@@ -18,7 +18,7 @@ draw_segmentation_masks（uint8画像 + bool マスクを要求）に渡す。
 人や車などが検出され、実用的なオーバーレイになる。
 
 実行: uv run python lectures/22_instance_panoptic_sam/01_maskrcnn_instance.py
-出力: outputs/22_instance_panoptic_sam/01_maskrcnn_instance.png / 01_maskrcnn.json
+出力: lectures/22_instance_panoptic_sam/outputs/01_maskrcnn_instance.png / 01_maskrcnn.json
 """
 
 from __future__ import annotations

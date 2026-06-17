@@ -39,7 +39,7 @@ matplotlib.use("Agg")  # headless（GUIなし）でも図を保存できるバ�
 import matplotlib.pyplot as plt  # noqa: E402
 
 MODULE_ID = "22_instance_panoptic_sam"
-OUTPUT_DIR = pathlib.Path("outputs") / MODULE_ID
+OUTPUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 DATA_DIR = pathlib.Path("data") / MODULE_ID
 
 # 可視化用のはっきり区別できるパレット（RGB, 0-255）。インデックス0は背景=黒に近い灰。
@@ -74,7 +74,7 @@ def pick_device() -> torch.device:
 
 
 def ensure_output_dir() -> pathlib.Path:
-    """outputs/<module_id>/ を作って返す（既にあってもエラーにしない）。"""
+    """lectures/<module_id>/outputs/ を作って返す（既にあってもエラーにしない）。"""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     return OUTPUT_DIR
 

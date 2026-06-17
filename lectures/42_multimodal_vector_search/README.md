@@ -283,7 +283,7 @@ ImageBind（<https://github.com/facebookresearch/ImageBind>）/ 17回（FAISS �
 uv run python lectures/42_multimodal_vector_search/use_case.py
 ```
 
-実行すると `outputs/42_multimodal_vector_search/` に `use_case_text_search.png`（自然文→写真）/
+実行すると `lectures/42_multimodal_vector_search/outputs/` に `use_case_text_search.png`（自然文→写真）/
 `use_case_image_search.png`（見本→似た写真）/ `use_case_report.json` / `use_case_library.faiss`（+`.meta.json`、次回起動を速くするキャッシュ）が出る。
 `data/42_multimodal_vector_search/` に自分の写真（`.png/.jpg`）を置いて再実行すれば、**合成より優先**して実写ライブラリ検索になる
 （1枚も無ければ合成「色×形」で必ず完走）。
@@ -335,7 +335,7 @@ uv run python lectures/42_multimodal_vector_search/exercises.py
 uv run python lectures/42_multimodal_vector_search/exercises_solutions.py
 ```
 
-成果物（図・JSON・index）は `outputs/42_multimodal_vector_search/` に保存される。
+成果物（図・JSON・index）は `lectures/42_multimodal_vector_search/outputs/` に保存される。
 `data/42_multimodal_vector_search/` に実画像（`.png/.jpg`）を置くと、合成より優先して使われる。
 
 ---

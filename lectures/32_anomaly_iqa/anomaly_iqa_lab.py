@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import os
+import pathlib
 
 import cv2
 import numpy as np
@@ -29,7 +30,7 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 
 # --- 共通設定 -------------------------------------------------------------------
 MODULE_ID = "32_anomaly_iqa"
-OUT_DIR = os.path.join("outputs", MODULE_ID)
+OUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 DATA_DIR = os.path.join("data", MODULE_ID)  # 実画像を置けば make_dataset が拾う（任意）
 IMG_SIZE = 128  # 入力解像度。128 なら resnet18 の layer1=32x32 / layer2=16 / layer3=8。
 
@@ -42,7 +43,7 @@ torch.set_num_threads(max(1, min(4, os.cpu_count() or 1)))
 
 
 def ensure_out_dir() -> str:
-    """outputs/32_anomaly_iqa/ を作って返す。"""
+    """lectures/32_anomaly_iqa/outputs/ を作って返す。"""
     os.makedirs(OUT_DIR, exist_ok=True)
     return OUT_DIR
 

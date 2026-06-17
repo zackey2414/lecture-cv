@@ -21,12 +21,12 @@ import cv2
 import numpy as np
 
 # ----------------------------------------------------------------------------
-# パス定数（このモジュールの出力は outputs/31_generation_editing/ に集約）
+# パス定数（このモジュールの出力は lectures/31_generation_editing/outputs/ に集約）
 # ----------------------------------------------------------------------------
 MODULE_ID = "31_generation_editing"
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
-OUT_DIR = os.path.join(_ROOT, "outputs", MODULE_ID)
+OUT_DIR = os.path.join(_HERE, "outputs")
 DATA_DIR = os.path.join(_ROOT, "data", MODULE_ID)
 
 

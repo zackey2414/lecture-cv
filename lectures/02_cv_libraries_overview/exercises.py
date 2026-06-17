@@ -20,7 +20,7 @@
      模範解答そのものは exercises_solutions.py にもあります（まずは自力で！）。
 
 ヒント: サンプル画像は cv_helpers.get_sample_bgr() で得られる（BGR uint8）。
-出力の保存先は cv_helpers.output_dir() を使うと outputs/02_cv_libraries_overview/ になる。
+出力の保存先は cv_helpers.output_dir() を使うと lectures/02_cv_libraries_overview/outputs/ になる。
 """
 
 from __future__ import annotations

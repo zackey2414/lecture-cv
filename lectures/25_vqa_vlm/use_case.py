@@ -41,7 +41,7 @@ mini_project.py との違い（役割分担）
 実行:
     uv run python lectures/25_vqa_vlm/use_case.py
 
-出力（outputs/25_vqa_vlm/ に保存）:
+出力（lectures/25_vqa_vlm/outputs/ に保存）:
     use_case_qa_XX.png : 画像の横に Q&A を並べたパネル（画像ごとに 1 枚）
     use_case_qa.json   : 全画像・全質問・回答（機械可読）
 """

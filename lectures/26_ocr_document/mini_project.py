@@ -11,7 +11,7 @@
 （必ず exit 0）。実画像で試したい場合は data/26_ocr_document/ に請求書画像を置く。
 
 実行: uv run python lectures/26_ocr_document/mini_project.py
-出力: outputs/26_ocr_document/mini_*.png / mini_report.json
+出力: lectures/26_ocr_document/outputs/mini_*.png / mini_report.json
 """
 
 from __future__ import annotations
@@ -134,7 +134,7 @@ def main() -> None:
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     print(f"\nsaved: {out / 'mini_summary.png'}, {out / 'mini_report.json'}")
-    print("完了。outputs/26_ocr_document/ の図とレポートで、認識精度(CER)と理解精度(ANLS)を確認。")
+    print("完了。lectures/26_ocr_document/outputs/ の図とレポートで、認識精度(CER)と理解精度(ANLS)を確認。")
 
 
 if __name__ == "__main__":

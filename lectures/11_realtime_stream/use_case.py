@@ -46,7 +46,7 @@ mini_project.py との違い（役割分担）
 
 実行:
     uv run python lectures/11_realtime_stream/use_case.py
-結果（スナップショット・ログ・タイムライン図）は outputs/11_realtime_stream/ に保存（画面表示なし）。
+結果（スナップショット・ログ・タイムライン図）は lectures/11_realtime_stream/outputs/ に保存（画面表示なし）。
 """
 
 from __future__ import annotations
@@ -422,7 +422,7 @@ def main() -> None:
               f"boxes={ev['peak_boxes']}  peak_area={ev['peak_area_px']:6d}px  "
               f"-> {ev['snapshot']}")
 
-    print("\n  保存物 (outputs/11_realtime_stream/):")
+    print("\n  保存物 (lectures/11_realtime_stream/outputs/):")
     print(f"    - スナップショット : use_case_snapshots/alert_*.png  ({len(events)} 枚, 検出枠つき)")
     print(f"    - アラートログCSV  : {csv_path.name}")
     print(f"    - アラートログJSONL: {jsonl_path.name}")

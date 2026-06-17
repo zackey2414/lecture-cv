@@ -99,7 +99,7 @@ def main() -> None:
     print("  - 左図 inertia は単調減少。傾きが急に緩む“肘”あたりが目安（やや主観的）。")
     print("  - 右図 silhouette のピークが自動選択した k。NMI のピークと一致していれば筋が良い。")
     print("  - 教訓: ラベルが無くても silhouette だけで k を選べる。NMI は本来見えない確認用。")
-    print(f"\n完了。outputs/{cl.MODULE_ID}/02_choosing_k.png を確認してください。")
+    print(f"\n完了。lectures/{cl.MODULE_ID}/outputs/02_choosing_k.png を確認してください。")
 
 
 if __name__ == "__main__":

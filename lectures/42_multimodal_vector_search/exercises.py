@@ -169,7 +169,7 @@ def grade(funcs: dict) -> bool:
     def c5():
         base = faiss.IndexFlatIP(d)
         base.add(np.ascontiguousarray(xb, dtype=np.float32))
-        nt = funcs["ex5"](base, pathlib.Path("outputs/42_multimodal_vector_search/ex_index.faiss"))
+        nt = funcs["ex5"](base, pathlib.Path(__file__).resolve().parent / "outputs" / "ex_index.faiss")
         return (nt == len(xb), "write/read 永続化")
 
     def c6():
@@ -222,5 +222,5 @@ def current_funcs() -> dict:
 
 
 if __name__ == "__main__":
-    os.makedirs("outputs/42_multimodal_vector_search", exist_ok=True)
+    os.makedirs(pathlib.Path(__file__).resolve().parent / "outputs", exist_ok=True)
     grade(current_funcs())

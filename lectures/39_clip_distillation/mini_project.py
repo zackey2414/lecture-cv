@@ -7,7 +7,7 @@
 
 出力:
   - コンソールに評価テーブル（teacher vs student, before vs after）
-  - outputs/39_clip_distillation/mini_project_summary.png（メトリクス棒グラフ）
+  - lectures/39_clip_distillation/outputs/mini_project_summary.png（メトリクス棒グラフ）
 
 実行:
     uv run python lectures/39_clip_distillation/mini_project.py

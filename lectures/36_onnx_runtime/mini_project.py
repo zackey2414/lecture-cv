@@ -11,7 +11,7 @@
 
 実行:
   uv run python lectures/36_onnx_runtime/mini_project.py
-成果物（図・JSON）は outputs/36_onnx_runtime/ に保存される。
+成果物（図・JSON）は lectures/36_onnx_runtime/outputs/ に保存される。
 """
 
 from __future__ import annotations

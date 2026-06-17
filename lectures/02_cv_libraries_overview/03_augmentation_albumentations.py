@@ -15,7 +15,7 @@
 
 実行:
   uv run python lectures/02_cv_libraries_overview/03_augmentation_albumentations.py
-結果は outputs/02_cv_libraries_overview/ に保存される（画面表示はしない）。
+結果は lectures/02_cv_libraries_overview/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations

@@ -158,7 +158,7 @@ def main() -> None:
     print("  - しきい値は『社会的コスト』で決まる: 誤受入(FAR)が危険な入退管理は FAR を極小に、")
     print("    アルバム整理は多少の誤りより快適さ（TAR）を優先、と用途で動作点を変える。")
     print(
-        f"\n完了。outputs/{fl.MODULE_ID}/04_eps_sweep.png と 04_metrics.json を確認してください。"
+        f"\n完了。lectures/{fl.MODULE_ID}/outputs/04_eps_sweep.png と 04_metrics.json を確認してください。"
     )
 
 

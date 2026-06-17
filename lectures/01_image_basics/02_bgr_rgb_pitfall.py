@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/01_image_basics/02_bgr_rgb_pitfall.py
-結果は outputs/01_image_basics/ に保存される。
+結果は lectures/01_image_basics/outputs/ に保存される。
 """
 
 from __future__ import annotations
@@ -94,7 +94,7 @@ def main() -> None:
                                          np.full((1, 1, 3), 100, np.uint8)).reshape(3).tolist(),
           "← 255で頭打ち（飽和）")
 
-    print("\n完了。outputs/01_image_basics/ で色と明るさの違いを見比べてください。")
+    print("\n完了。lectures/01_image_basics/outputs/ で色と明るさの違いを見比べてください。")
 
 
 if __name__ == "__main__":

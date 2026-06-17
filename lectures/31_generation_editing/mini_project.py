@@ -12,7 +12,7 @@
 
 実行:
   uv run python lectures/31_generation_editing/mini_project.py
-結果: outputs/31_generation_editing/mini_project_montage.png と mini_project_report.json
+結果: lectures/31_generation_editing/outputs/mini_project_montage.png と mini_project_report.json
 """
 
 from __future__ import annotations

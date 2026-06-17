@@ -13,7 +13,7 @@
        - max_new_tokens                          : 長さの上限
 
 実行: uv run python lectures/24_image_captioning/02_vitgpt2_git.py
-出力: outputs/24_image_captioning/02_*.png / 02_generation_params.json
+出力: lectures/24_image_captioning/outputs/02_*.png / 02_generation_params.json
 """
 
 from __future__ import annotations

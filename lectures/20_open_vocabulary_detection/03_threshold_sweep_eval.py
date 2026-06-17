@@ -13,7 +13,7 @@
 もっと現実的な（precision と recall がトレードオフする）曲線になる。
 
 実行: uv run python lectures/20_open_vocabulary_detection/03_threshold_sweep_eval.py
-出力: outputs/20_open_vocabulary_detection/03_*.png / 03_sweep_results.json
+出力: lectures/20_open_vocabulary_detection/outputs/03_*.png / 03_sweep_results.json
 """
 
 from __future__ import annotations

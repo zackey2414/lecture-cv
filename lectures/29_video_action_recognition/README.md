@@ -154,7 +154,7 @@ print(topk_accuracy(broken, pseudo_gt, k=1))           # → 0.50（崩れた）
 
 ```bash
 uv run python lectures/29_video_action_recognition/mini_project.py
-# → outputs/29_video_action_recognition/mini_summary.png（サンプリング掃引）,
+# → lectures/29_video_action_recognition/outputs/mini_summary.png（サンプリング掃引）,
 #    mini_confusion_cliplen2.png（粗サンプリングの崩れ）, mini_report.json, mini_clip_XX.mp4
 ```
 
@@ -237,7 +237,7 @@ uv run python lectures/29_video_action_recognition/use_case.py
 ```
 
 - **実データの置き方**: `data/29_video_action_recognition/` に手持ちの動画（`.mp4` / `.avi` / `.mov` / `.mkv` / `.webm`）を置くと、それを優先してタグ付けします。1 本も無ければ合成「行動クリップ」を数本 mp4 に書き出し、実動画と同じ `cv2.VideoCapture` 経路でデコードしてタグ付けするので、ネットもデータも無しで `exit 0`（合成クリップに本物の Kinetics ラベルは無いため、付くタグは「例示」です。実写を置くとタグが意味を持ちます）。
-- **出力**（`outputs/29_video_action_recognition/`）: `use_case_tags.json`（動画→上位Nタグのカタログ）／ `use_case_tags.csv`（1 行=1 動画の検索しやすい表）／ `use_case_gallery.png`（代表フレーム＋主タグのサムネ一覧）／ `use_case_tagfreq.png`（ライブラリ全体の主タグ頻度）。実行末尾では、最頻タグの語でカタログを横断検索するデモも走ります（タグ付けの実利＝「あとから探せる」を体感）。
+- **出力**（`lectures/29_video_action_recognition/outputs/`）: `use_case_tags.json`（動画→上位Nタグのカタログ）／ `use_case_tags.csv`（1 行=1 動画の検索しやすい表）／ `use_case_gallery.png`（代表フレーム＋主タグのサムネ一覧）／ `use_case_tagfreq.png`（ライブラリ全体の主タグ頻度）。実行末尾では、最頻タグの語でカタログを横断検索するデモも走ります（タグ付けの実利＝「あとから探せる」を体感）。
 - **`mini_project.py` との違い**: ミニプロジェクトは合成データセットで `clip_len`/`frame_rate` を掃引し「前処理を崩すと予測がどれだけ壊れるか」を pseudo-GT 基準で**定量化する学習用**パイプライン。`use_case.py` は学習の話を脇に置き、**現実のフォルダ**を入力に「検索できる成果物（カタログ）」を作る**実アプリの出発点**です。
 - **拡張アイデア**: (1) `top-1` 確率にしきい値を設けて低信頼タグを捨てる、(2) 1 動画から時間窓を複数取って logits を平均する multi-clip TTA で頑健化、(3) `H.load_videomae()` に差し替えて精度を上げる（重い）、(4) `use_case_tags.csv` を pandas/SQLite に読み込んでタグ検索・集計 UI を作る、(5) 主タグごとに代表フレームを切り出してプレビューを量産。
 
@@ -252,7 +252,7 @@ uv sync --group dl --group hf
 # 道具箱の自己点検（モデル不要・純計算）＋合成クリップ/サンプリングの確認
 uv run python lectures/29_video_action_recognition/action_helpers.py
 
-# 各スクリプト（結果は outputs/29_video_action_recognition/ に保存）
+# 各スクリプト（結果は lectures/29_video_action_recognition/outputs/ に保存）
 uv run python lectures/29_video_action_recognition/01_videomae_action.py    # VideoMAE(Transformer)＋v5バイアス手当て
 uv run python lectures/29_video_action_recognition/02_r3d18_action.py       # r3d_18(3D CNN)＋手書き/公式前処理＋cv2 I/O
 uv run python lectures/29_video_action_recognition/03_action_topk_eval.py   # top-1/top-5＋前処理を壊す実験＋混同行列
@@ -268,7 +268,7 @@ uv run python lectures/29_video_action_recognition/exercises_solutions.py
 # （任意）別モデルに差し替え: 01 の MODEL_NAME を編集（例: TimeSformer/ViViT 系）
 ```
 
-実行後は、`outputs/29_video_action_recognition/` の図と json を、解説と照合してください。とくに `02_top5.png`（r3d_18 の top-5）、`03_topk_by_variant.png`（前処理を壊したときの top-1/top-5 の崩れ）、`03_confusion_no_normalize.png`（正規化を外したときの予測の散り）、`mini_summary.png`（clip_len/frame_rate 掃引）の4枚を見ると、本章の要点――**サンプリングと正規化が予測を支配する**――が視覚的に腑に落ちるはずです。なお、図中の文字は CJK フォントの豆腐（□）を避けるため、ASCII にしてあります。
+実行後は、`lectures/29_video_action_recognition/outputs/` の図と json を、解説と照合してください。とくに `02_top5.png`（r3d_18 の top-5）、`03_topk_by_variant.png`（前処理を壊したときの top-1/top-5 の崩れ）、`03_confusion_no_normalize.png`（正規化を外したときの予測の散り）、`mini_summary.png`（clip_len/frame_rate 掃引）の4枚を見ると、本章の要点――**サンプリングと正規化が予測を支配する**――が視覚的に腑に落ちるはずです。なお、図中の文字は CJK フォントの豆腐（□）を避けるため、ASCII にしてあります。
 
 ## このモジュールの構成（スクリプト一覧）
 

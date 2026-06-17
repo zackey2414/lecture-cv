@@ -15,7 +15,7 @@ cm[g, p] = 「正解 g・予測 p の画素数」になり、全指標がそこ�
   torchmetrics は MeanIoU が -1.0 のセンチネル、DiceScore が NaN を返す。自作と突き合わせる。
 
 実行: uv run python lectures/21_segmentation_intro/03_miou_dice_eval.py
-出力: outputs/21_segmentation_intro/03_*.png / 03_miou_dice_eval.json
+出力: lectures/21_segmentation_intro/outputs/03_*.png / 03_miou_dice_eval.json
 """
 
 from __future__ import annotations

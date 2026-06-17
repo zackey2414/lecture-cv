@@ -6,7 +6,7 @@
 本体に“生のまま”書いて、読んで学べるようにしています）。
 
 ここに置くもの:
-  1. 出力先 outputs/12_data_pipeline_augmentation/ の場所を返す
+  1. 出力先 lectures/12_data_pipeline_augmentation/outputs/ の場所を返す
   2. ネット非依存で動かすための「合成画像フォルダ」生成
      （3クラス＝円/四角/三角の小画像。カスタム Dataset の練習台）
   3. ImageNet と CLIP の正規化統計（mean/std）— この2つは別物である点が重要
@@ -58,7 +58,7 @@ def output_dir() -> pathlib.Path:
     headless では「画面に出す」代わりに「ファイルに保存して後で見る」のが基本。
     存在しなければ自動で作成する。
     """
-    d = PROJECT_ROOT / "outputs" / MODULE_ID
+    d = _HERE.parent / "outputs"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -131,7 +131,7 @@ def find_or_make_dataset(per_class: int = 8) -> pathlib.Path:
 
     優先順位:
       1. data/synth_shapes/ がクラスフォルダを持っていればそれを使う（自分の画像で試せる）
-      2. 無ければ outputs/<module>/synthetic_dataset/ に合成画像を作って使う
+      2. 無ければ lectures/<module>/outputs/synthetic_dataset/ に合成画像を作って使う
     """
     user_dir = PROJECT_ROOT / "data" / "synth_shapes"
     if user_dir.exists() and any(p.is_dir() for p in user_dir.iterdir()):

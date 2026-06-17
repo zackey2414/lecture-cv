@@ -10,7 +10,7 @@
 
 実行:
   uv run python lectures/05_classical_features_matching/02_template_matching.py
-結果は outputs/05_classical_features_matching/ に保存される（画面表示はしない）。
+結果は lectures/05_classical_features_matching/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -120,7 +120,7 @@ def main() -> None:
 
     print("\n[6] まとめ: テンプレートマッチングは「同じ見た目・同じ向き・同じ大きさ」なら最強に簡単。")
     print("     だが回転・スケール・視点変化には弱い。そこを乗り越えるのが次の局所特徴量(SIFT/ORB)。")
-    print("\n完了。outputs/05_classical_features_matching/ の 02_*.png を確認してください。")
+    print("\n完了。lectures/05_classical_features_matching/outputs/ の 02_*.png を確認してください。")
 
 
 if __name__ == "__main__":

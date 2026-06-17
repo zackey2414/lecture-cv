@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import os
+import pathlib
 
 import cv2
 import numpy as np
@@ -23,7 +24,7 @@ import torch
 from PIL import Image
 
 MODULE_ID = "15_image_embeddings_metric_learning"
-OUT_DIR = os.path.join("outputs", MODULE_ID)
+OUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 
 
 # ---------------------------------------------------------------------------

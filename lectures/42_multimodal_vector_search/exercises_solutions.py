@@ -116,7 +116,7 @@ def solution_funcs() -> dict:
 
 
 if __name__ == "__main__":
-    os.makedirs("outputs/42_multimodal_vector_search", exist_ok=True)
+    os.makedirs(pathlib.Path(__file__).resolve().parent / "outputs", exist_ok=True)
     ok = grade(solution_funcs())
     if not ok:
         raise SystemExit("模範解答が全PASSになっていません（バグです）")

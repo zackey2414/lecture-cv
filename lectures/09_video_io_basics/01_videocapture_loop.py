@@ -10,7 +10,7 @@
 
 実行:
   uv run python lectures/09_video_io_basics/01_videocapture_loop.py
-結果は outputs/09_video_io_basics/ に保存される（cv2.imshow は呼ばない＝headless 安全）。
+結果は lectures/09_video_io_basics/outputs/ に保存される（cv2.imshow は呼ばない＝headless 安全）。
 """
 
 from __future__ import annotations
@@ -127,7 +127,7 @@ def main() -> None:
     bgr_vs_rgb_figure(first, out)
     note_webcam()
 
-    print("\n完了。outputs/09_video_io_basics/ の 01_*.png を確認してください。")
+    print("\n完了。lectures/09_video_io_basics/outputs/ の 01_*.png を確認してください。")
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@
   - 「torch と OpenMP を揃える」べき理由（オーバーサブスクライブ）
   - HF_HOME / HF_HUB_OFFLINE でモデルキャッシュとオフライン動作を制御する
 
-CPU のみ・合成データ・ネット不要で完走する。結果図は outputs/00_setup/ に保存。
+CPU のみ・合成データ・ネット不要で完走する。結果図は lectures/00_setup/outputs/ に保存。
 """
 
 from __future__ import annotations
@@ -26,8 +26,8 @@ from device import configure_threads, hf_home  # noqa: E402
 
 
 def _output_dir() -> pathlib.Path:
-    """このモジュール専用の出力先 outputs/00_setup/ を作って返す。"""
-    d = pathlib.Path(__file__).resolve().parents[2] / "outputs" / "00_setup"
+    """このモジュール専用の出力先 lectures/00_setup/outputs/ を作って返す。"""
+    d = pathlib.Path(__file__).resolve().parent / "outputs"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

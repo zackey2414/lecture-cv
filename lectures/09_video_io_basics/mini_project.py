@@ -8,7 +8,7 @@
   - time.perf_counter + collections.deque で**処理FPS の移動平均**を計測（ソースFPSと対比）。
   - cap.get(CAP_PROP_*) で**メタデータ**取得＋ FOURCC を 4 文字へデコード。
   - POS_FRAMES で**シーク**し、代表フレームのモンタージュを作る（headless 安全に保存）。
-  - 図(PNG)・JSONレポートを outputs/09_video_io_basics/ に出力する。
+  - 図(PNG)・JSONレポートを lectures/09_video_io_basics/outputs/ に出力する。
 
 設計上の注意:
   - digit始まりの既存スクリプト(01_/02_/03_)は import できないため、必要な処理はすべて
@@ -354,7 +354,7 @@ def main() -> None:
     plot_report(fps_history, motion_counts, out)
     write_json_report(out, source, src_mode, meta, stats, has_montage)
 
-    print("\n完了。outputs/09_video_io_basics/ の mini_project_* を確認してください。")
+    print("\n完了。lectures/09_video_io_basics/outputs/ の mini_project_* を確認してください。")
 
 
 if __name__ == "__main__":

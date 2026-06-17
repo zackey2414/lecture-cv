@@ -13,7 +13,7 @@
 
 実行:
   uv run python lectures/30_face_detection_recognition/01_face_detection.py
-結果は outputs/30_face_detection_recognition/ に保存（画面表示はしない・headless）。
+結果は lectures/30_face_detection_recognition/outputs/ に保存（画面表示はしない・headless）。
 """
 
 from __future__ import annotations
@@ -169,7 +169,7 @@ def main() -> None:
     # 実写があればそこでも検出
     detect_on_real_images(cascade)
 
-    print(f"\n完了。outputs/{fl.MODULE_ID}/01_*.png を確認してください。")
+    print(f"\n完了。lectures/{fl.MODULE_ID}/outputs/01_*.png を確認してください。")
 
 
 if __name__ == "__main__":

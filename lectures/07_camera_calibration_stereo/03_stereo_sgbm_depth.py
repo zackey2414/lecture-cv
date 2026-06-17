@@ -12,7 +12,7 @@
 
 実行:
   uv run python lectures/07_camera_calibration_stereo/03_stereo_sgbm_depth.py
-結果は outputs/07_camera_calibration_stereo/ に保存される（画面表示はしない）。
+結果は lectures/07_camera_calibration_stereo/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -224,7 +224,7 @@ def main() -> None:
     fig.savefig(str(out / "03_stereo_overview.png"), dpi=110)
     plt.close(fig)
     print("\n[6] → 03_stereo_overview.png に一覧を保存")
-    print("\n完了。outputs/07_camera_calibration_stereo/ の 03_*.png を確認してください。")
+    print("\n完了。lectures/07_camera_calibration_stereo/outputs/ の 03_*.png を確認してください。")
 
 
 if __name__ == "__main__":

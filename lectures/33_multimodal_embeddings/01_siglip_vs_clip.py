@@ -12,7 +12,7 @@
 
 実行:
   uv run python lectures/33_multimodal_embeddings/01_siglip_vs_clip.py
-結果は outputs/33_multimodal_embeddings/ に保存される。
+結果は lectures/33_multimodal_embeddings/outputs/ に保存される。
 """
 
 from __future__ import annotations

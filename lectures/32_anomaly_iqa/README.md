@@ -479,7 +479,7 @@ uv run python lectures/32_anomaly_iqa/use_case.py \
 - **data/ の置き方**: `data/32_anomaly_iqa/train/` に**良品（正常）だけ**、
   `data/32_anomaly_iqa/test/` に**検査したい画像**（OK/NG 混在可）を置く（`.png/.jpg/.jpeg/.bmp/.webp`）。
   両方に画像が無ければ合成にフォールバックして必ず `exit 0`。出力は
-  `outputs/32_anomaly_iqa/usecase_overlays/*.png`・`usecase_contact_sheet.png`・`inspection_report.csv/json`。
+  `lectures/32_anomaly_iqa/outputs/usecase_overlays/*.png`・`usecase_contact_sheet.png`・`inspection_report.csv/json`。
 - **拡張アイデア**: ① しきい値較正を分位点 / 中央値+MAD のロバスト統計に変える ②
   PaDiM を PatchCore（`lab.patchcore_fit/score`）へ差し替え位置ずれに強くする ③ 入口に
   撮影品質ゲート（`lab.variance_of_laplacian`）を足しボケ画像を検査前に弾く ④ 欠陥 bbox を
@@ -529,7 +529,7 @@ uv run python lectures/32_anomaly_iqa/exercises.py
 uv run python lectures/32_anomaly_iqa/exercises_solutions.py
 ```
 
-出力（可視化・図・JSON）は `outputs/32_anomaly_iqa/` に保存されます。処理はすべて **CPU・合成データ**で
+出力（可視化・図・JSON）は `lectures/32_anomaly_iqa/outputs/` に保存されます。処理はすべて **CPU・合成データ**で
 完結し、ネットに出るのは **初回の ResNet18 重み DL のみ**です（失敗時はランダム初期化へ自動フォール
 バックします）。また、実画像を `data/32_anomaly_iqa/` に置く拡張も想定した構造にしてあります。
 

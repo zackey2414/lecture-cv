@@ -29,12 +29,12 @@ from PIL import Image, ImageDraw
 # このモジュール（13回）の入出力ディレクトリ。__file__ から絶対パスで解決する。
 MODULE_ID = "13_classification_transfer_learning"
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-OUT_DIR = _REPO_ROOT / "outputs" / MODULE_ID
+OUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 DATA_DIR = _REPO_ROOT / "data" / MODULE_ID
 
 
 def ensure_out_dir() -> pathlib.Path:
-    """outputs/13_.../ を作って返す（既にあっても OK）。"""
+    """lectures/13_classification_transfer_learning/outputs/ を作って返す（既にあっても OK）。"""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     return OUT_DIR
 

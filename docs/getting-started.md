@@ -29,9 +29,9 @@ lecture-cv/
 │       ├── README.md         # 📖 読む：その回の解説・図解（まずここ）
 │       ├── NN_*.py           # ▶️ 動かす：番号順の実行スクリプト（読んで・書き換えて実験）
 │       ├── exercises.py      # ✍️ 書く：TODO を自分で埋める“あなたのファイル”（自己採点つき）
-│       └── exercises_solutions.py  # 🔑 見る：模範解答（先に自分で解いてから開く）
+│       ├── exercises_solutions.py  # 🔑 見る：模範解答（先に自分で解いてから開く）
+│       └── outputs/          # 🆕 自動生成：その回の実行結果の保存先（触らなくてよい）
 ├── data/                     # ⬇️ 置く：自分の入力画像・動画はここ（.gitkeep のみ追跡）
-├── outputs/                  # 🆕 自動生成：実行結果の保存先（<モジュール>/ ごと・触らなくてよい）
 ├── docs/                     # 教材インフラ：ロードマップ等（読む用。編集不要）
 ├── tools/build_site.py       # 教材インフラ：閲覧サイトのビルダー（編集不要）
 ├── site/                     # 教材インフラ：サイト生成物（gitignore・編集不要）
@@ -44,7 +44,7 @@ lecture-cv/
 - **読むのは** `lectures/<id>/README.md`（解説）。**動かすのは** 同じフォルダの番号付き `NN_*.py`。
 - **あなたが書くのは** `lectures/<id>/exercises.py` の **TODO**。ここを埋めるのが学習の中心です。
 - **自分の画像・動画は** `data/` に置く（教材は合成画像でも動くので、無くても始められます）。
-- **実行結果は** `outputs/<モジュール>/` に自動保存（headless 環境でも後から確認できる）。**ここは見るだけ**でOK。
+- **実行結果は** 各回の `lectures/<id>/outputs/` に自動保存（headless 環境でも後から確認できる）。**ここは見るだけ**でOK。
 - `docs/` `tools/` `site/` は**教材の仕組み側**。学習中に編集する必要はありません。
 
 ## 3. 1 つの回をどう進めるか（4 ステップ）
@@ -52,7 +52,7 @@ lecture-cv/
 `lectures/<id>/` を 1 つ開いたら、毎回この順で進めます。
 
 1. **解説を読む** — `README.md`（または各回ページ）の地の文と**図解**で、配列の形・座標系・前処理の流れをつかむ。
-2. **スクリプトを動かす** — 番号順に実行し、`outputs/<id>/` の結果を見る。
+2. **スクリプトを動かす** — 番号順に実行し、`lectures/<id>/outputs/` の結果を見る。
    ```bash
    uv run python lectures/<id>/01_xxx.py
    uv run python lectures/<id>/02_yyy.py
@@ -95,7 +95,7 @@ uv sync --group vector --group metrics    # FAISS + 評価指標
 ## 6. つまずいたら
 
 - **ImportError（依存が無い）**: その回の「依存グループ」を `uv sync --group <name>` で足したか確認。
-- **画面に何も出ない**: 既定は headless。`outputs/<id>/` に保存された画像を見る。`cv2.imshow` を使いたい時だけ `opencv-python-headless` を `opencv-python`（GUI 版）に差し替え（両者は排他）。
+- **画面に何も出ない**: 既定は headless。`lectures/<id>/outputs/` に保存された画像を見る。`cv2.imshow` を使いたい時だけ `opencv-python-headless` を `opencv-python`（GUI 版）に差し替え（両者は排他）。
 - **モデルDLで止まる**: 深層トラックは初回に HuggingFace からモデルを取得。ネットワークと `~/.cache/huggingface` の容量を確認。
 - **遅い**: CPU 前提の設計。中級以降で解像度低減・フレームスキップ・量子化などの **CPU 最適化**を扱います。
 

@@ -26,14 +26,14 @@ import numpy as np
 # =====================================================================
 
 MODULE_ID = "27_depth_pose_flow"
-# このファイルから見て lecture-cv リポジトリのルートを辿り outputs/<module_id>/ を指す。
+# 出力はスクリプト隣の lectures/<module_id>/outputs/ に保存。data は従来どおりリポジトリ直下を参照する。
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-OUTPUT_DIR = _REPO_ROOT / "outputs" / MODULE_ID
+OUTPUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 DATA_DIR = _REPO_ROOT / "data" / MODULE_ID
 
 
 def ensure_output_dir() -> pathlib.Path:
-    """outputs/<module_id>/ を作って返す（既にあってもエラーにしない）。"""
+    """lectures/<module_id>/outputs/ を作って返す（既にあってもエラーにしない）。"""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     return OUTPUT_DIR
 

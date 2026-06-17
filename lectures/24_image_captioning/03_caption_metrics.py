@@ -12,7 +12,7 @@
   4. 参照不要の CLIPScore を併記し、参照ありメトリクスとの違いを見る。
 
 実行: uv run python lectures/24_image_captioning/03_caption_metrics.py
-出力: outputs/24_image_captioning/03_*.png / 03_metrics.json
+出力: lectures/24_image_captioning/outputs/03_*.png / 03_metrics.json
 """
 
 from __future__ import annotations

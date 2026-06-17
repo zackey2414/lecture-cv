@@ -10,8 +10,8 @@
   - .faiss（ベクトル＋ID）と .json（ID→ラベル等のメタ）をセットで永続化する。
 
 出力:
-  outputs/45_sketch_emoji_search/emoji_index.faiss / emoji_meta.json
-  outputs/45_sketch_emoji_search/01_emoji_gallery.png（色 vs グレースケールのギャラリー）
+  lectures/45_sketch_emoji_search/outputs/emoji_index.faiss / emoji_meta.json
+  lectures/45_sketch_emoji_search/outputs/01_emoji_gallery.png（色 vs グレースケールのギャラリー）
 
 実行:
   uv run python lectures/45_sketch_emoji_search/01_build_emoji_index.py
@@ -85,7 +85,7 @@ def main() -> None:
     print("    .faiss（ベクトル＋ID）と .json（ID→ラベル）は『セットで1つの検索DB』。")
 
     print("\n完了。次は 02 で手書きスケッチ、03 で検索を試してください。")
-    print("outputs/45_sketch_emoji_search/ を確認してください。")
+    print("lectures/45_sketch_emoji_search/outputs/ を確認してください。")
 
 
 if __name__ == "__main__":

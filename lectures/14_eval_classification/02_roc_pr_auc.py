@@ -13,7 +13,7 @@
         PR-AUC(AP) は下がる。PR のベースライン（無情報な分類器の AP）は陽性割合そのもの。
 
 実行: uv run python lectures/14_eval_classification/02_roc_pr_auc.py
-結果（ROC/PR 曲線の図・AUC/AP の JSON）は outputs/14_eval_classification/ に保存される。
+結果（ROC/PR 曲線の図・AUC/AP の JSON）は lectures/14_eval_classification/outputs/ に保存される。
 """
 
 from __future__ import annotations

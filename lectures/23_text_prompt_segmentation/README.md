@@ -24,7 +24,7 @@
 
 ## 2. 評価の土台 — 合成シーンと IoU/Dice の定義
 
-参照セグメの良し悪しは「**文が指した領域**を、どれだけ**正確に画素で当てたか**」で測ります。そのためには、まず「正解マスク（GT）」が画素単位で分かっている必要があります。本章では `seg_helpers.build_scene()` が、明るい灰色の背景に**赤い円・青い四角・緑の三角**を重ならない位置で描いた1枚のシーンを作り、同時に**各図形だけを別キャンバスに描いて画素>0 を取る**ことで、厳密な GT マスク（bool 配列）を得ています。図形どうしを重ねないのは、参照セグメが「どの領域か」を一意に指したいタスクだからです（`outputs/23_text_prompt_segmentation/00_scene_and_gt.png` にシーンと GT が並びます）。
+参照セグメの良し悪しは「**文が指した領域**を、どれだけ**正確に画素で当てたか**」で測ります。そのためには、まず「正解マスク（GT）」が画素単位で分かっている必要があります。本章では `seg_helpers.build_scene()` が、明るい灰色の背景に**赤い円・青い四角・緑の三角**を重ならない位置で描いた1枚のシーンを作り、同時に**各図形だけを別キャンバスに描いて画素>0 を取る**ことで、厳密な GT マスク（bool 配列）を得ています。図形どうしを重ねないのは、参照セグメが「どの領域か」を一意に指したいタスクだからです（`lectures/23_text_prompt_segmentation/outputs/00_scene_and_gt.png` にシーンと GT が並びます）。
 
 マスクどうしの一致は、**IoU（Intersection over Union）** と **Dice** で測ります。予測マスク P と正解マスク G について、IoU は**重なり面積を和集合面積で割った値** `|P∩G| / |P∪G|`、Dice は `2|P∩G| / (|P|+|G|)`（F1 スコアと同値）です。どちらも 1.0 が完全一致で、同じ重なりであれば常に **Dice ≥ IoU**（Dice の方が甘く評価する）という関係が成り立ちます。実装は、次のように numpy だけで完結します。なお両者とも、空マスクのときに 0 で割らないよう `1.0`（完全一致扱い）を返すのが実務上のお約束です。
 
@@ -158,7 +158,7 @@ RUN_MASKGEN=1 uv run python lectures/23_text_prompt_segmentation/02_grounded_sam
 
 ## 9. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で構成されており、上から順に読むと「直接型を動かす → 合成型を組む → 数字で評価する」と理解が積み上がります。すべて `outputs/23_text_prompt_segmentation/` に図と json を保存し、画面表示には依存しません。device 判定・合成シーン生成・モデルロード・CLIPSeg 後処理・IoU/Dice・可視化といった共通処理は `seg_helpers.py` にまとめてあり、各スクリプトはそれを import して使います。
+各スクリプトは単一責務で構成されており、上から順に読むと「直接型を動かす → 合成型を組む → 数字で評価する」と理解が積み上がります。すべて `lectures/23_text_prompt_segmentation/outputs/` に図と json を保存し、画面表示には依存しません。device 判定・合成シーン生成・モデルロード・CLIPSeg 後処理・IoU/Dice・可視化といった共通処理は `seg_helpers.py` にまとめてあり、各スクリプトはそれを import して使います。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -181,7 +181,7 @@ RUN_MASKGEN=1 uv run python lectures/23_text_prompt_segmentation/02_grounded_sam
 # 依存グループをインストール（初回のみ）
 uv sync --group dl --group hf
 
-# 各スクリプトを実行（結果は outputs/23_text_prompt_segmentation/ に保存される）
+# 各スクリプトを実行（結果は lectures/23_text_prompt_segmentation/outputs/ に保存される）
 uv run python lectures/23_text_prompt_segmentation/seg_helpers.py          # 道具箱のスモークテスト＋シーン図
 uv run python lectures/23_text_prompt_segmentation/01_clipseg.py
 uv run python lectures/23_text_prompt_segmentation/02_grounded_sam.py
@@ -206,7 +206,7 @@ uv run python lectures/23_text_prompt_segmentation/exercises_solutions.py
 # （任意）SAM 自動マスク生成も見たい: RUN_MASKGEN=1 を付けて 02 を実行
 ```
 
-実行後は、`outputs/23_text_prompt_segmentation/` の図を解説と照らし合わせてください。とくに `01_clipseg_panel.png`（プロンプトごとの確率ヒートマップとマスク）、`03_clipseg_threshold_sweep.png`（IoU の山なりカーブ、ピークが 0.5 でない）、`02_grounded_sam_panel.png`（検出箱と SAM マスク）の3枚を見れば、本章の要点が視覚的に腑に落ちます。なお図中の文字は、CJK フォントの豆腐（□）を避けるため ASCII にしてあります。また色が反転して見える場合は、合成画像を RGB のまま扱っているか（cv2 経由で BGR が混ざっていないか）を確認してください。
+実行後は、`lectures/23_text_prompt_segmentation/outputs/` の図を解説と照らし合わせてください。とくに `01_clipseg_panel.png`（プロンプトごとの確率ヒートマップとマスク）、`03_clipseg_threshold_sweep.png`（IoU の山なりカーブ、ピークが 0.5 でない）、`02_grounded_sam_panel.png`（検出箱と SAM マスク）の3枚を見れば、本章の要点が視覚的に腑に落ちます。なお図中の文字は、CJK フォントの豆腐（□）を避けるため ASCII にしてあります。また色が反転して見える場合は、合成画像を RGB のまま扱っているか（cv2 経由で BGR が混ざっていないか）を確認してください。
 
 ## 11. よくあるエラーと対処（チェックリスト）
 
@@ -247,7 +247,7 @@ uv run python lectures/23_text_prompt_segmentation/exercises_solutions.py
 
 <figure class="lec-fig"><svg viewBox="0 0 640 330" role="img" aria-label="章末ミニプロジェクトの全体フロー 同じ合成シーンを3つの設定で解きIoUで勝敗を出す" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="320" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">ミニプロジェクト — 同じシーンを3設定で競わせ IoU で勝敗</text><rect x="235" y="42" width="170" height="52" rx="7" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/><text x="320" y="68" text-anchor="middle" font-size="14.5" font-weight="700" fill="#3f3f46">同じ合成シーン</text><text x="320" y="86" text-anchor="middle" font-size="11.5" fill="#71717a">GT を画素で保持</text><rect x="18" y="158" width="196" height="66" rx="7" fill="#fff7ed" stroke="#f97316" stroke-width="2"/><rect x="222" y="158" width="196" height="66" rx="7" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/><rect x="426" y="158" width="196" height="66" rx="7" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><text x="116" y="188" text-anchor="middle" font-size="15" font-weight="700" fill="#c2410c">① CLIPSeg @0.5</text><text x="116" y="208" text-anchor="middle" font-size="11.5" fill="#71717a">素朴 / 既定しきい値 0.5</text><text x="320" y="188" text-anchor="middle" font-size="15" font-weight="700" fill="#c2410c">② CLIPSeg @best</text><text x="320" y="208" text-anchor="middle" font-size="11.5" fill="#71717a">改善 / しきい値スイープ</text><text x="524" y="188" text-anchor="middle" font-size="15" font-weight="700" fill="#1d4ed8">③ Grounded-SAM</text><text x="524" y="208" text-anchor="middle" font-size="11.5" fill="#52525b">別アプローチ / 2段</text><rect x="210" y="268" width="220" height="46" rx="7" fill="#fafafa" stroke="#18181b" stroke-width="2"/><text x="320" y="290" text-anchor="middle" font-size="14.5" font-weight="700" fill="#18181b">IoU で比較 → 勝敗</text><text x="320" y="307" text-anchor="middle" font-size="11.5" fill="#52525b">棒グラフ / パネル / JSON</text><line x1="320" y1="94" x2="320" y2="148" stroke="#71717a" stroke-width="2"/><polygon points="320,158 315,148 325,148" fill="#71717a"/><line x1="320" y1="94" x2="126" y2="155" stroke="#71717a" stroke-width="2"/><polygon points="116,158 124,150 127,166" fill="#71717a"/><line x1="320" y1="94" x2="514" y2="155" stroke="#71717a" stroke-width="2"/><polygon points="524,158 513,160 516,150" fill="#71717a"/><line x1="320" y1="224" x2="320" y2="258" stroke="#71717a" stroke-width="2"/><polygon points="320,268 315,258 325,258" fill="#71717a"/><line x1="116" y1="224" x2="278" y2="266" stroke="#71717a" stroke-width="2"/><polygon points="288,268 277,270 280,261" fill="#71717a"/><line x1="524" y1="224" x2="362" y2="266" stroke="#71717a" stroke-width="2"/><polygon points="352,268 360,261 363,270" fill="#71717a"/></svg><figcaption><b>章末ミニプロジェクトの全体像</b>です。入口の <b>1枚の合成シーン</b>(GT を画素で厳密に保持)を、<b>① CLIPSeg @0.5</b>(素朴・既定しきい値)、<b>② CLIPSeg @best</b>(しきい値スイープで改善)、<b>③ Grounded-SAM</b>(2段の別アプローチ)の <b>3設定で同時に解き</b>、最後に <b>IoU で比較して勝敗</b>を <code>mini_project_compare.png</code>・パネル・JSON にまとめます。<b>素朴 → 改善 → 別アプローチ</b> という本章の学びの流れが、そのまま3つの枝になっています。</figcaption></figure>
 
-**成果物**（`outputs/23_text_prompt_segmentation/` に保存）は3つです。`mini_project_compare.png`（オブジェクト×手法の IoU 棒グラフ）、`mini_project_panel.png`（GT／CLIPSeg@best／Grounded-SAM のマスク重ね合わせ）、`mini_project_report.json`（全数値＋**オブジェクト別の勝者**＋**手法別の平均 IoU・勝者数**）。合成シーンでの実測は概ね次のようになります（数値は環境で多少前後します）。
+**成果物**（`lectures/23_text_prompt_segmentation/outputs/` に保存）は3つです。`mini_project_compare.png`（オブジェクト×手法の IoU 棒グラフ）、`mini_project_panel.png`（GT／CLIPSeg@best／Grounded-SAM のマスク重ね合わせ）、`mini_project_report.json`（全数値＋**オブジェクト別の勝者**＋**手法別の平均 IoU・勝者数**）。合成シーンでの実測は概ね次のようになります（数値は環境で多少前後します）。
 
 | オブジェクト | CLIPSeg@0.5 | CLIPSeg@best | Grounded-SAM | 勝者 |
 | --- | --- | --- | --- | --- |
@@ -295,7 +295,7 @@ uv run python lectures/23_text_prompt_segmentation/exercises_solutions.py
 A. それこそが `softmax` の罠です。`softmax` は「候補のどれか1つ」に確率を寄せる**排他的**な正規化で、参照セグメには不向きです。CLIPSeg は**各画素を独立に**「この文に合うか」を判定するので、**`sigmoid`** が正しいのです。だからこそ「シーンに無い概念（`a yellow star`）」を投げても全画素が低いまま＝しきい値で「無い」と判定できます（第3節）。これが `softmax` だと、無理やりどこかが高くなり、不在を表現できません。
 
 **Q2. 全プロンプトで IoU がほぼ 0 です。**
-A. まずは原寸補間を疑ってください。CLIPSeg の生出力は 352×352 固定なので、`F.interpolate` で原寸 `(h, w)` に上げないまま GT と重ねると、画像とマスクの**格子がずれて**重なりが消えます。次に GT 整合（`seg_helpers.build_scene` の GT は RGB のまま作るので、cv2 の `imread/imwrite` を挟んで BGR が混ざっていないか）を確認します。いずれにせよ、`outputs/.../00_scene_and_gt.png` で GT が想定どおりの位置かを目視するのが最短です。
+A. まずは原寸補間を疑ってください。CLIPSeg の生出力は 352×352 固定なので、`F.interpolate` で原寸 `(h, w)` に上げないまま GT と重ねると、画像とマスクの**格子がずれて**重なりが消えます。次に GT 整合（`seg_helpers.build_scene` の GT は RGB のまま作るので、cv2 の `imread/imwrite` を挟んで BGR が混ざっていないか）を確認します。いずれにせよ、`lectures/23_text_prompt_segmentation/outputs/00_scene_and_gt.png` で GT が想定どおりの位置かを目視するのが最短です。
 
 **Q3. Grounding DINO が合成画像で何も検出しません（検出数 0）。**
 A. 合成画像はテクスチャが乏しく、実写を前提とする Grounding DINO では確信度が出にくい**ドメインギャップ**が原因で、これは異常ではありません。本章のスクリプト（`02`・`mini_project`）は**検出ゼロを検知したら GT の外接 box を SAM に渡すフォールバック**に切り替えるので、SAM 単体の品質は必ず確認でき、かつ exit 0 で完走します。実写で試したい場合は、`data/23_text_prompt_segmentation/image.png` を置いてください。あわせて、検出の作法（小文字＋ピリオド区切り、`threshold` を下げる）も見直すとよいでしょう。
@@ -342,7 +342,7 @@ A. CPU では `float16`/`half` が遅い・未対応のことが多いので **`
 <figure class="lec-fig"><svg viewBox="0 0 660 300" role="img" aria-label="use_case.pyの処理フロー 入力をCLIPSegでマスク化しblur remove cutoutの3編集に枝分かれして成果物を出す" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="330" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">use_case.py — 文で選んで「ぼかす / 消す / 抜き出す」</text><rect x="20" y="120" width="110" height="60" rx="7" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/><text x="75" y="146" text-anchor="middle" font-size="14" font-weight="700" fill="#3f3f46">入力 1枚</text><text x="75" y="166" text-anchor="middle" font-size="11" fill="#71717a">合成 or data/</text><rect x="180" y="118" width="140" height="64" rx="7" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><text x="250" y="144" text-anchor="middle" font-size="14" font-weight="700" fill="#1d4ed8">CLIPSeg でマスク</text><text x="250" y="164" text-anchor="middle" font-size="11" fill="#52525b">閾値 + 羽根付きα</text><rect x="400" y="44" width="240" height="58" rx="7" fill="#fff7ed" stroke="#f97316" stroke-width="2"/><rect x="400" y="121" width="240" height="58" rx="7" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/><rect x="400" y="198" width="240" height="58" rx="7" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><text x="416" y="70" font-size="14" font-weight="700" fill="#c2410c">blur — ぼかし</text><text x="416" y="90" font-size="11.5" fill="#52525b">use_case_blur.png</text><text x="416" y="147" font-size="14" font-weight="700" fill="#c2410c">remove — 除去(inpaint)</text><text x="416" y="167" font-size="11.5" fill="#52525b">use_case_removed.png</text><text x="416" y="224" font-size="14" font-weight="700" fill="#1d4ed8">cutout — 透過PNG</text><text x="416" y="244" font-size="11.5" fill="#52525b">use_case_cutout.png</text><text x="155" y="140" text-anchor="middle" font-size="10.5" fill="#3f3f46">文で指定</text><line x1="130" y1="150" x2="174" y2="150" stroke="#71717a" stroke-width="2"/><polygon points="180,150 170,155 170,145" fill="#71717a"/><line x1="320" y1="150" x2="393" y2="80" stroke="#71717a" stroke-width="2"/><polygon points="400,73 396,84 389,76" fill="#71717a"/><line x1="320" y1="150" x2="390" y2="150" stroke="#71717a" stroke-width="2"/><polygon points="400,150 390,155 390,145" fill="#71717a"/><line x1="320" y1="150" x2="393" y2="220" stroke="#71717a" stroke-width="2"/><polygon points="400,227 389,224 396,216" fill="#71717a"/></svg><figcaption><b><code>use_case.py</code> の処理フロー</b>です。<b>入力1枚</b>(合成シーン、または <code>data/</code> の実画像)を <b>CLIPSeg でマスク化</b>(確率を閾値で切り、境界を羽根付きαに)し、そのマスクから <b>3つの編集に枝分かれ</b>します ―― <b>blur</b>(<code>GaussianBlur</code> をα合成してぼかす)、<b>remove</b>(<code>cv2.inpaint</code> で消して背景を埋める)、<b>cutout</b>(αチャンネルへ入れ <b>背景透過 RGBA</b> で抜き出す)。<b>GT も IoU も使わず</b>、文で指した対象を加工した3成果物を一度に出力します。</figcaption></figure>
 
 ```bash
-# 実行（合成シーンなら即動く。結果は outputs/23_text_prompt_segmentation/ に保存）
+# 実行（合成シーンなら即動く。結果は lectures/23_text_prompt_segmentation/outputs/ に保存）
 uv run python lectures/23_text_prompt_segmentation/use_case.py
 
 # 対象プロンプトを変える（既定は prompts.txt の1行目 or 合成シーンの先頭 "a red circle"）

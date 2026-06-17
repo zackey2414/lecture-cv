@@ -92,7 +92,7 @@ class ShapeFolderDataset(Dataset):
 
 **データ拡張（augmentation）**は、学習画像にランダムな変形（反転・拡大切り抜き・色ゆらぎなど）をかけて**実質的にデータを水増し**し、過学習を抑えてモデルの汎化を上げる技術です。たとえば「猫は左右反転しても色味が少し変わっても猫」——この当たり前の不変性をモデルに教え込むのが拡張の役割です。torchvision transforms v2 は分類で最も手軽な選択肢で、`RandomResizedCrop`（ランダムな位置・スケールで切り抜いてリサイズ）、`RandomHorizontalFlip`（確率 p で左右反転）、`ColorJitter`（明るさ・コントラスト・彩度・色相をゆらす）などを `Compose` で連ねます。
 
-`03_augment_v2_albumentations.py` は、同じ1枚の画像に拡張を**8回**かけて格子状に並べます（`outputs/.../03_aug_v2.png`）。下が拡張パイプラインで、**ランダム変換を含むので呼ぶたびに違う結果**になる——これが「水増し」の正体です。可視化のため `Normalize` は付けず `ToDtype(scale=True)` までで `[0,1]` に留めています（正規化すると負値が出て、戻さずに表示すると色が壊れるため）。
+`03_augment_v2_albumentations.py` は、同じ1枚の画像に拡張を**8回**かけて格子状に並べます（`lectures/.../outputs/03_aug_v2.png`）。下が拡張パイプラインで、**ランダム変換を含むので呼ぶたびに違う結果**になる——これが「水増し」の正体です。可視化のため `Normalize` は付けず `ToDtype(scale=True)` までで `[0,1]` に留めています（正規化すると負値が出て、戻さずに表示すると色が壊れるため）。
 
 ```python
 aug = v2.Compose([
@@ -143,7 +143,7 @@ res = joint(image=scene, mask=mask, bboxes=[bbox], labels=[0])
 
 ## 8. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に読めば「テンソル変換 → データ供給 → 拡張」と理解が積み上がるように並べています。01〜03 とミニプロジェクトは結果（図と JSON）を `outputs/12_data_pipeline_augmentation/` に保存し、演習スクリプト（`exercises.py`／`exercises_solutions.py`）は採点結果を画面に表示するだけです。共通の道具（合成データセット生成・正規化統計・逆正規化・格子保存）は `pipeline_helpers.py` にまとめ、各スクリプトはそれを import して使います。
+各スクリプトは単一責務で、上から順に読めば「テンソル変換 → データ供給 → 拡張」と理解が積み上がるように並べています。01〜03 とミニプロジェクトは結果（図と JSON）を `lectures/12_data_pipeline_augmentation/outputs/` に保存し、演習スクリプト（`exercises.py`／`exercises_solutions.py`）は採点結果を画面に表示するだけです。共通の道具（合成データセット生成・正規化統計・逆正規化・格子保存）は `pipeline_helpers.py` にまとめ、各スクリプトはそれを import して使います。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -155,7 +155,7 @@ res = joint(image=scene, mask=mask, bboxes=[bbox], labels=[0])
 | `exercises.py` | TODO 形式の演習10問（易→難・自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答） |
 | `exercises_solutions.py` | 演習の模範解答（実行すると全10問 PASS。答え合わせ・教材検証用） |
 
-`pipeline_helpers.py` だけは「読み物」ではなく「再利用する道具」です。合成データセットは `outputs/.../synthetic_dataset/<class>/*.png` に作られ、**`data/synth_shapes/` に自分の画像フォルダを置けばそちらが自動で優先**されます（実画像で試す導線）。まず helper に目を通してから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。
+`pipeline_helpers.py` だけは「読み物」ではなく「再利用する道具」です。合成データセットは `lectures/.../outputs/synthetic_dataset/<class>/*.png` に作られ、**`data/synth_shapes/` に自分の画像フォルダを置けばそちらが自動で優先**されます（実画像で試す導線）。まず helper に目を通してから 01 へ進むと、各スクリプトが何を import しているかが腑に落ちます。
 
 ## 9. 動かし方
 
@@ -165,7 +165,7 @@ res = joint(image=scene, mask=mask, bboxes=[bbox], labels=[0])
 # 依存グループを追加（初回のみ）。torch/torchvision は CPU ホイールが入る
 uv sync --group dl --group aug
 
-# 各スクリプトを実行（結果は outputs/12_data_pipeline_augmentation/ に保存される）
+# 各スクリプトを実行（結果は lectures/12_data_pipeline_augmentation/outputs/ に保存される）
 uv run python lectures/12_data_pipeline_augmentation/01_tensor_layout_normalize.py
 uv run python lectures/12_data_pipeline_augmentation/02_dataset_dataloader.py
 uv run python lectures/12_data_pipeline_augmentation/03_augment_v2_albumentations.py
@@ -181,7 +181,7 @@ SHOW_SOLUTION=1 uv run python lectures/12_data_pipeline_augmentation/exercises.p
 uv run python lectures/12_data_pipeline_augmentation/exercises_solutions.py
 ```
 
-実行後は `outputs/12_data_pipeline_augmentation/` の図を開いて解説と照らし合わせてください。とくに `01_layout_normalize.png`（並び替え・スケール・正規化の各段を逆正規化して表示）、`03_aug_v2.png` / `03_aug_albumentations.png`（同じ画像から生まれる8通りの拡張）、`03_bbox_mask_joint.png`（反転に bbox/mask が追従）を見比べると、本章の要点が視覚的に腑に落ちます。**自分の画像で試したい**場合は、`data/synth_shapes/<クラス名>/*.png` のようにクラスごとのフォルダを作って画像を置けば、合成画像の代わりにそちらが読まれます。
+実行後は `lectures/12_data_pipeline_augmentation/outputs/` の図を開いて解説と照らし合わせてください。とくに `01_layout_normalize.png`（並び替え・スケール・正規化の各段を逆正規化して表示）、`03_aug_v2.png` / `03_aug_albumentations.png`（同じ画像から生まれる8通りの拡張）、`03_bbox_mask_joint.png`（反転に bbox/mask が追従）を見比べると、本章の要点が視覚的に腑に落ちます。**自分の画像で試したい**場合は、`data/synth_shapes/<クラス名>/*.png` のようにクラスごとのフォルダを作って画像を置けば、合成画像の代わりにそちらが読まれます。
 
 ## 10. よくあるエラーと対処（チェックリスト）
 
@@ -211,7 +211,7 @@ uv run python lectures/12_data_pipeline_augmentation/exercises_solutions.py
 
 ## 🛠 章末ミニプロジェクト — データパイプラインを「データ→Dataset→拡張→バッチ→統計」で一気通貫に組む
 
-ここまで、テンソル変換・自作 Dataset・拡張・DataLoader をバラバラに学んできました。最後にそれらを**1 本のミニ学習前処理パイプライン**へ束ね、本章の技能が「単独で使える」だけでなく「つながって動く」ことを体感します。これは第13回以降の学習ループに**そのまま接続する入力側の雛形**です。実装は `mini_project.py` にあり、実行すると図と総合レポート（JSON）が `outputs/12_data_pipeline_augmentation/` に出ます。
+ここまで、テンソル変換・自作 Dataset・拡張・DataLoader をバラバラに学んできました。最後にそれらを**1 本のミニ学習前処理パイプライン**へ束ね、本章の技能が「単独で使える」だけでなく「つながって動く」ことを体感します。これは第13回以降の学習ループに**そのまま接続する入力側の雛形**です。実装は `mini_project.py` にあり、実行すると図と総合レポート（JSON）が `lectures/12_data_pipeline_augmentation/outputs/` に出ます。
 
 パイプラインは本章の核を順に踏む7段です。**(1) Dataset** ——合成データセット（円/四角/三角）を `ShapeFolderDataset` で『フォルダ＝ラベル』として読む（遅延読み込み）。**(2) 3系統の transform** ——学習用（ランダム拡張あり）・推論用（決定論 Resize+CenterCrop）・統計用（Normalize を外し `[0,1]` で止める）を組み分ける。**(3) DataLoader でバッチ化** ——`(B,C,H,W)` の1バッチに積み、per-channel 平均・標準偏差を確認する。**(4) 拡張の多様性** ——同じ1枚に学習拡張を8回かけ、逆正規化して並べ「水増し」を可視化。**(5) 決定論チェック** ——`train=毎回変わる(False)` / `eval=毎回同じ(True)` を実測。**(6) 自前の正規化統計** ——データセット全体の per-channel mean/std を計算し、ImageNet 統計と**別物**であること（＝自前データには自前統計を使う筋）を確認。**(7) bbox/mask 同時変換** ——albumentations で画像・bbox・mask を一緒に水平反転し、教師データの対応が崩れないことを確認。
 

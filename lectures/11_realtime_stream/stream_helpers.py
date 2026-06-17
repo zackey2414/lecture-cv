@@ -4,7 +4,7 @@
 小さくまとめた道具箱です。01〜04 の各スクリプトはこれを import して使います。
 
 ここに置く責務は次の5つだけに絞っています（過度な抽象化はしない）。
-  1. 出力先 outputs/11_realtime_stream/ の場所を返す
+  1. 出力先 lectures/11_realtime_stream/outputs/ の場所を返す
   2. ネット非依存・カメラ不要で動かすための「合成フレーム生成」
      （静止した背景の上を図形が動く＝背景差分の格好の練習台）
   3. cv2.VideoCapture に似せた合成ソース（カメラ無しでループを学ぶため）
@@ -49,7 +49,7 @@ def output_dir() -> pathlib.Path:
     headless 環境では「画面に出す」代わりに「ファイルに保存して後で見る」のが基本。
     その保存先をここで一元管理する。存在しなければ自動で作成する。
     """
-    d = PROJECT_ROOT / "outputs" / MODULE_ID
+    d = _HERE.parent / "outputs"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

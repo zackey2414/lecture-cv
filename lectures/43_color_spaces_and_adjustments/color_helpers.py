@@ -33,7 +33,8 @@ import numpy as np  # noqa: E402
 # __file__ 基準なので、どのディレクトリから実行しても場所がぶれない。
 _HERE = pathlib.Path(__file__).resolve()
 PROJECT_ROOT = _HERE.parents[2]
-OUTPUT_ROOT = PROJECT_ROOT / "outputs"
+# 出力はスクリプト隣の outputs/（= lectures/43_color_spaces_and_adjustments/outputs/）。
+OUTPUT_ROOT = _HERE.parent / "outputs"
 MODULE_ID = "43_color_spaces_and_adjustments"
 
 
@@ -43,7 +44,7 @@ def output_dir() -> pathlib.Path:
     headless 環境では「画面に出す」代わりに「ファイルに保存して後で見る」のが基本。
     その保存先をここで一元管理する。存在しなければ自動で作成する。
     """
-    d = OUTPUT_ROOT / MODULE_ID
+    d = OUTPUT_ROOT
     d.mkdir(parents=True, exist_ok=True)
     return d
 

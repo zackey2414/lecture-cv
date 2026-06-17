@@ -57,7 +57,7 @@ SD-Turbo の CPU 設定（厳守）
   uv run python lectures/31_generation_editing/use_case.py
   uv run python lectures/31_generation_editing/use_case.py --mode variations --num 4 --prompt "a product photo of a perfume bottle"
   uv run python lectures/31_generation_editing/use_case.py --mode cleanup
-結果: outputs/31_generation_editing/use_case_variations.png / use_case_cleanup.png / use_case_listing.json
+結果: lectures/31_generation_editing/outputs/use_case_variations.png / use_case_cleanup.png / use_case_listing.json
 """
 
 from __future__ import annotations

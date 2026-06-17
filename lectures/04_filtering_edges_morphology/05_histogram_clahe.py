@@ -11,12 +11,13 @@
 
 実行:
   uv run python lectures/04_filtering_edges_morphology/05_histogram_clahe.py
-結果は outputs/04_filtering_edges_morphology/ に保存される（画面表示はしない）。
+結果は lectures/04_filtering_edges_morphology/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
 
 import os
+import pathlib
 
 import cv2
 import numpy as np
@@ -28,7 +29,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 MODULE_ID = "04_filtering_edges_morphology"
-OUT_DIR = os.path.join("outputs", MODULE_ID)
+OUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 
 
 def panel(img: np.ndarray, title: str, size: tuple[int, int] = (360, 270)) -> np.ndarray:
@@ -130,7 +131,7 @@ def main() -> None:
     ]
     cv2.imwrite(os.path.join(OUT_DIR, "05_color_value_channel.png"), grid(c_panels, 2))
 
-    print("\n完了。outputs/04_filtering_edges_morphology/ の 05_*.png を確認してください。")
+    print("\n完了。lectures/04_filtering_edges_morphology/outputs/ の 05_*.png を確認してください。")
 
 
 if __name__ == "__main__":

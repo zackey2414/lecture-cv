@@ -28,7 +28,6 @@ import numpy as np
 #   parents[2] = プロジェクトルート（lecture-cv/）。どこから実行しても場所がぶれない。
 _HERE = pathlib.Path(__file__).resolve()
 PROJECT_ROOT = _HERE.parents[2]
-OUTPUT_ROOT = PROJECT_ROOT / "outputs"
 MODULE_ID = "07_camera_calibration_stereo"
 
 
@@ -36,8 +35,9 @@ def output_dir() -> pathlib.Path:
     """このモジュール専用の出力ディレクトリを作って返す。
 
     headless 環境では「画面に出す」代わりに「ファイルに保存して後で見る」のが基本。
+    出力先はこのスクリプト隣の outputs/（lectures/07_camera_calibration_stereo/outputs/）。
     """
-    d = OUTPUT_ROOT / MODULE_ID
+    d = _HERE.parent / "outputs"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

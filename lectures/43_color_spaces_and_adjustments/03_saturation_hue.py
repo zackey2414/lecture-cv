@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/43_color_spaces_and_adjustments/03_saturation_hue.py
-結果は outputs/43_color_spaces_and_adjustments/ に保存される。
+結果は lectures/43_color_spaces_and_adjustments/outputs/ に保存される。
 """
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ def main() -> None:
     demo_hue(scene, out)
     demo_selective_saturation(scene, out)
 
-    print("\n完了。outputs/43_color_spaces_and_adjustments/ の 03_*.png を確認してください。")
+    print("\n完了。lectures/43_color_spaces_and_adjustments/outputs/ の 03_*.png を確認してください。")
 
 
 if __name__ == "__main__":

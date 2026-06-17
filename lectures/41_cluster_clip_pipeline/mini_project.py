@@ -8,7 +8,7 @@
 
 出力:
   - コンソールに各ステージのサマリ
-  - outputs/41_cluster_clip_pipeline/mini_project_summary.png（検索結果ギャラリー）
+  - lectures/41_cluster_clip_pipeline/outputs/mini_project_summary.png（検索結果ギャラリー）
 
 実行:
     uv run python lectures/41_cluster_clip_pipeline/mini_project.py

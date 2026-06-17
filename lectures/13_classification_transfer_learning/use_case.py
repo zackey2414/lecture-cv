@@ -50,7 +50,7 @@
     uv run python lectures/13_classification_transfer_learning/use_case.py
 
 結果（学習済みモデル .pt・予測パネル・混同行列・指標 JSON）は
-outputs/13_classification_transfer_learning/ に保存されます（画面表示はしません）。
+lectures/13_classification_transfer_learning/outputs/ に保存されます（画面表示はしません）。
 CPU 完結。事前学習 ResNet-18 の重みのみ初回にダウンロードしてキャッシュします。
 """
 
@@ -439,7 +439,7 @@ def main() -> None:
         json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    print("\n  保存物 (outputs/13_classification_transfer_learning/):")
+    print("\n  保存物 (lectures/13_classification_transfer_learning/outputs/):")
     print("    - 学習済みモデル : use_case_classifier.pt")
     print("    - 混同行列       : use_case_confusion.png")
     print("    - 推論パネル     : use_case_predictions.png")

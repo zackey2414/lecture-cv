@@ -48,14 +48,14 @@ docker compose up -d --build
 docker compose exec lecture-cv uv run python lectures/01_image_basics/01_imread_imwrite.py
 ```
 
-> 結果は基本的に `outputs/<モジュール>/` に保存されます（headless 環境でも後から確認できるように）。
+> 結果は基本的に各回の `lectures/<モジュール>/outputs/` に保存されます（headless 環境でも後から確認できるように）。
 > `cv2.imshow` を使いたい場合は、既定の `opencv-python-headless` を `opencv-python`（GUI 版）へ差し替えてください（両者は排他）。
 
 ## ディレクトリ構成
 
 ```
 lecture-cv/
-├── lectures/                 # 教材本体（番号_スネークケースのモジュール）
+├── lectures/                 # 教材本体（各回 = README・*.py・演習。実行結果は各回内の outputs/ に自動生成）
 │   ├── 00_setup/             # 環境構築・device 判定・スモークテスト（check_env.py）
 │   ├── 01_… 〜 04_…/         # 画像の基礎: ndarray・BGR/RGB・I/O・色空間/幾何変換・フィルタ/エッジ/輪郭
 │   ├── 05_… 〜 08_…/         # 古典CV: 特徴点マッチング・ホモグラフィ/パノラマ・キャリブ/ステレオ・古典セグメ
@@ -76,7 +76,6 @@ lecture-cv/
 ├── docs/roadmap.md           # 全 46 モジュールのロードマップ（必読）
 ├── docs/curriculum.json      # 全モジュールのメタ情報（サイト生成・教材作成に使用）
 ├── data/                     # 入力データ（各自で配置。.gitkeep のみ追跡）
-├── outputs/                  # 実行結果の出力先
 ├── pyproject.toml            # uv 依存定義（main + dependency-groups）
 ├── Dockerfile / docker-compose.yaml
 ├── .github/workflows/        # GitHub Pages 自動ビルド＆配信（deploy-pages.yml）

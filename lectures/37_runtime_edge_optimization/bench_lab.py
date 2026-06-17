@@ -51,9 +51,8 @@ InferFn = Callable[[np.ndarray], np.ndarray]
 # 出力先・モデル・合成データ
 # =====================================================================
 def ensure_output_dir() -> Path:
-    """outputs/37_runtime_edge_optimization/ を作って返す(リポ直下基準)。"""
-    root = Path(__file__).resolve().parents[2]
-    out = root / "outputs" / MODULE_ID
+    """lectures/37_runtime_edge_optimization/outputs/ を作って返す(スクリプト隣基準)。"""
+    out = Path(__file__).resolve().parent / "outputs"
     out.mkdir(parents=True, exist_ok=True)
     return out
 

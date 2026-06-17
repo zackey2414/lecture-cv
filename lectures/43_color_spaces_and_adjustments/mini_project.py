@@ -10,7 +10,7 @@
 
 実行:
   uv run python lectures/43_color_spaces_and_adjustments/mini_project.py
-結果は outputs/43_color_spaces_and_adjustments/ に保存される（画面表示はしない）。
+結果は lectures/43_color_spaces_and_adjustments/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -123,7 +123,7 @@ def main() -> None:
     de1 = mean_delta_e(target, restored)
     print(f"\n[summary] 目標との平均ΔE: 劣化={de0:.2f} → 補正後={de1:.2f} "
           f"（{de0 - de1:+.2f} 改善）")
-    print("完了。outputs/43_color_spaces_and_adjustments/ の mini_*.png を確認してください。")
+    print("完了。lectures/43_color_spaces_and_adjustments/outputs/ の mini_*.png を確認してください。")
 
 
 if __name__ == "__main__":

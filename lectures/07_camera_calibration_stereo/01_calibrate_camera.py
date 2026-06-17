@@ -13,7 +13,7 @@
 
 実行:
   uv run python lectures/07_camera_calibration_stereo/01_calibrate_camera.py
-結果は outputs/07_camera_calibration_stereo/ に保存される（画面表示はしない）。
+結果は lectures/07_camera_calibration_stereo/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -139,7 +139,7 @@ def main() -> None:
     objpoints, imgpoints = collect_corners(out)
     run_calibration(out, objpoints, imgpoints)
     show_k3_instability(out, objpoints, imgpoints)
-    print("\n完了。outputs/07_camera_calibration_stereo/ の 01_*.png と calib.npz を確認してください。")
+    print("\n完了。lectures/07_camera_calibration_stereo/outputs/ の 01_*.png と calib.npz を確認してください。")
 
 
 if __name__ == "__main__":

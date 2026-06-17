@@ -15,8 +15,8 @@
 実行:
   uv run python lectures/32_anomaly_iqa/03_iqa_metrics.py
 出力:
-  outputs/32_anomaly_iqa/03_degradations.png … 劣化画像と各指標
-  outputs/32_anomaly_iqa/03_iqa_table.json    … 指標表（向き付き）
+  lectures/32_anomaly_iqa/outputs/03_degradations.png … 劣化画像と各指標
+  lectures/32_anomaly_iqa/outputs/03_iqa_table.json    … 指標表（向き付き）
 """
 
 from __future__ import annotations

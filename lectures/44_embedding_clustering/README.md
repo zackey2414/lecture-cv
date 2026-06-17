@@ -141,7 +141,7 @@ xy_tsne = TSNE(n_components=2, perplexity=10, init="pca", learning_rate="auto").
 
 <figure class="lec-fig"><svg viewBox="0 0 660 330" role="img" aria-label="本章の骨格は埋め込みからL2正規化、クラスタリング、k選択、評価、可視化の6ステップで、どんな埋め込みにも再利用できる一般形" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="330" y="32" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">本章の骨格 — どんな埋め込みにも効く一般形</text><rect x="24" y="64" width="180" height="64" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/><rect x="240" y="64" width="180" height="64" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/><rect x="456" y="64" width="180" height="64" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/><rect x="456" y="214" width="180" height="64" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/><rect x="240" y="214" width="180" height="64" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/><rect x="24" y="214" width="180" height="64" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><text x="114" y="92" text-anchor="middle" font-size="15" font-weight="700" fill="#c2410c">① 埋め込み</text><text x="114" y="112" text-anchor="middle" font-size="11" fill="#71717a">CLIP 512次元</text><text x="330" y="92" text-anchor="middle" font-size="15" font-weight="700" fill="#c2410c">② L2 正規化</text><text x="330" y="112" text-anchor="middle" font-size="11" fill="#71717a">長さ1にそろえる</text><text x="546" y="92" text-anchor="middle" font-size="15" font-weight="700" fill="#c2410c">③ クラスタリング</text><text x="546" y="112" text-anchor="middle" font-size="11" fill="#71717a">k-means / 凝集 / DBSCAN</text><text x="546" y="242" text-anchor="middle" font-size="15" font-weight="700" fill="#c2410c">④ k 選択</text><text x="546" y="262" text-anchor="middle" font-size="11" fill="#71717a">エルボー / シルエット</text><text x="330" y="242" text-anchor="middle" font-size="15" font-weight="700" fill="#c2410c">⑤ 評価</text><text x="330" y="262" text-anchor="middle" font-size="11" fill="#71717a">silhouette / NMI</text><text x="114" y="242" text-anchor="middle" font-size="15" font-weight="700" fill="#1d4ed8">⑥ 可視化</text><text x="114" y="262" text-anchor="middle" font-size="11" fill="#71717a">PCA / t-SNE</text><line x1="206" y1="96" x2="234" y2="96" stroke="#71717a" stroke-width="2"/><polygon points="240,96 230,91 230,101" fill="#71717a"/><line x1="422" y1="96" x2="450" y2="96" stroke="#71717a" stroke-width="2"/><polygon points="456,96 446,91 446,101" fill="#71717a"/><line x1="546" y1="130" x2="546" y2="208" stroke="#71717a" stroke-width="2"/><polygon points="546,214 541,204 551,204" fill="#71717a"/><line x1="454" y1="246" x2="426" y2="246" stroke="#71717a" stroke-width="2"/><polygon points="420,246 430,241 430,251" fill="#71717a"/><line x1="238" y1="246" x2="210" y2="246" stroke="#71717a" stroke-width="2"/><polygon points="204,246 214,241 214,251" fill="#71717a"/></svg><figcaption><b>本章の骨格</b>は、<b>① 埋め込み → ② L2 正規化 → ③ クラスタリング → ④ k 選択 → ⑤ 評価 → ⑥ 可視化</b> の6ステップです。入力が画像でもテキストでも顔でも、この流れ自体は変わりません。だから本章で身につけた骨格は、商品画像・文書・音声など<b>あらゆる埋め込みにそのまま再利用できる一般形</b>になります（橙＝共通処理、青＝最後の可視化ステップ）。</figcaption></figure>
 
-各スクリプトは単一責務で、上から順に読むと「束ねる → k を選ぶ → k なしで束ねる → 別モダリティ → 可視化」と、理解が自然に積み上がるよう並べてあります。いずれも結果を `outputs/44_embedding_clustering/` に図と json で保存し、画面表示には依存しません（matplotlib は Agg、cv2.imshow は使いません）。また、device 判定・合成データ生成・CLIP 埋め込み・評価・可視化といった共通処理は `cluster_lab.py` にまとめてあり、各スクリプトはそれを `import cluster_lab as cl` で呼び出します。
+各スクリプトは単一責務で、上から順に読むと「束ねる → k を選ぶ → k なしで束ねる → 別モダリティ → 可視化」と、理解が自然に積み上がるよう並べてあります。いずれも結果を `lectures/44_embedding_clustering/outputs/` に図と json で保存し、画面表示には依存しません（matplotlib は Agg、cv2.imshow は使いません）。また、device 判定・合成データ生成・CLIP 埋め込み・評価・可視化といった共通処理は `cluster_lab.py` にまとめてあり、各スクリプトはそれを `import cluster_lab as cl` で呼び出します。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -160,7 +160,7 @@ xy_tsne = TSNE(n_components=2, perplexity=10, init="pca", learning_rate="auto").
 
 ## 🛠 章末ミニプロジェクト — 埋め込みクラスタリング一気通貫ツール
 
-ここまでの学び（埋め込み→正規化→k選択→クラスタリング→評価→可視化）を**1本に統合**したのが `mini_project.py` です。画像コレクション（6グループ）とテキスト集合（4トピック）に対し、実運用さながらの「ラベル無しデータを自動で束ねて中身を把握する」流れを通しで実行し、`outputs/44_embedding_clustering/mini_project_summary.png`（6パネル要約）と `mini_project_report.json`（全数値）を出力します。所要は CPU で数十秒、ネット接続が必要なのも初回の CLIP 重みダウンロードのときだけです。
+ここまでの学び（埋め込み→正規化→k選択→クラスタリング→評価→可視化）を**1本に統合**したのが `mini_project.py` です。画像コレクション（6グループ）とテキスト集合（4トピック）に対し、実運用さながらの「ラベル無しデータを自動で束ねて中身を把握する」流れを通しで実行し、`lectures/44_embedding_clustering/outputs/mini_project_summary.png`（6パネル要約）と `mini_project_report.json`（全数値）を出力します。所要は CPU で数十秒、ネット接続が必要なのも初回の CLIP 重みダウンロードのときだけです。
 
 - **Stage A: 画像 — k 自動選択 → k-means**（§3/§4）。`silhouette` を `k=2..10` で掃引し、最大の **k=6** を自動選択して k-means。**silhouette=0.759・NMI=1.000・purity=1.000・homogeneity=1.000**。
 - **Stage B: 画像 — Agglomerative（k 不要）**（§5）。同じデータに `distance_threshold=0.06` を当て、**clusters=6・NMI=1.000・purity=1.000**。k を決めずとも k-means と同等以上に決まることを確認。
@@ -171,7 +171,7 @@ xy_tsne = TSNE(n_components=2, perplexity=10, init="pca", learning_rate="auto").
 
 ```bash
 uv run python lectures/44_embedding_clustering/mini_project.py
-# → outputs/44_embedding_clustering/mini_project_summary.png, mini_project_report.json
+# → lectures/44_embedding_clustering/outputs/mini_project_summary.png, mini_project_report.json
 ```
 
 このミニプロジェクトを自分の手で読み解き、4つの数字（自動選択した k・画像 NMI・k 不要手法の NMI・テキスト NMI）が**それぞれ何を測っており、なぜ画像とテキストで差が出るのか**を説明できれば、本章のゴールに到達したと言えます。
@@ -249,8 +249,8 @@ uv run python lectures/44_embedding_clustering/use_case.py
 #   （jpg/png/webp ... 何枚でも。サブフォルダに分かれていてもOK）
 uv run python lectures/44_embedding_clustering/use_case.py --k 8     # サブフォルダ数を固定
 uv run python lectures/44_embedding_clustering/use_case.py --apply   # 提案どおり実コピー
-# → outputs/44_embedding_clustering/use_case_organizer.png / use_case_organizer_plan.json
-#   （--apply 時のみ outputs/.../organized/<folder>/ に実ファイルをコピー）
+# → lectures/44_embedding_clustering/outputs/use_case_organizer.png / use_case_organizer_plan.json
+#   （--apply 時のみ lectures/.../outputs/organized/<folder>/ に実ファイルをコピー）
 ```
 
 `data/44_embedding_clustering/` に画像が**無ければ合成データ（色×形6グループ）で必ず完走**し、画像を置けばそのまま実運用に切り替わります。**練習（拡張）アイデア**: ①`PHOTO_VOCAB` を旅行/料理/家族など自分のカテゴリへ書き換える、②k-means を `AgglomerativeClustering(distance_threshold=...)` に差し替えて「k を決めずに」整理する、③同一クラスタ内でコサイン類似が極端に高いペアを**重複（ニアデュープ）候補**として別出力する、④DBSCAN にして「どの束にも入らない外れ写真」を `noise/` に隔離する。
@@ -267,7 +267,7 @@ uv run python lectures/44_embedding_clustering/use_case.py --apply   # 提案ど
 - **作り方の要点**: 埋め込み→k-means（k＝欲しい枚数の目安）→**各クラスタ中心に最も近い1枚**を代表として採用すれば、空間を覆う代表集合が得られます。逆に「各クラスタから1枚だけ残す」だけでニアデュープ除去になります。中心に近い順＝**典型度ランキング**としても使えます。
 - **注意**: k を大きくしすぎると「ほぼ全部採用」になり間引きになりません（silhouette/件数で適正 k を点検）。**正規化必須**（§2）——忘れるとノルムの大きい1枚が中心を乗っ取ります。決定論性が要るなら `random_state` を固定（k-means のラベル番号は実行ごとに入れ替わる点も §発展 参照）。
 
-> 共通の作法: いずれも **CPU・headless（matplotlib=Agg、`cv2.imshow` 不使用）** で動き、結果は `outputs/44_embedding_clustering/` に PNG/JSON で保存します。実データは `data/44_embedding_clustering/` に置けば自動で使われ、無ければ合成データでデモが完走します。**破壊的なファイル操作はオプトイン（`--apply`）**にし、既定はドライラン（提案のみ）にするのが安全な小ツールの設計です。
+> 共通の作法: いずれも **CPU・headless（matplotlib=Agg、`cv2.imshow` 不使用）** で動き、結果は `lectures/44_embedding_clustering/outputs/` に PNG/JSON で保存します。実データは `data/44_embedding_clustering/` に置けば自動で使われ、無ければ合成データでデモが完走します。**破壊的なファイル操作はオプトイン（`--apply`）**にし、既定はドライラン（提案のみ）にするのが安全な小ツールの設計です。
 
 ## ▶ 動かし方
 
@@ -280,7 +280,7 @@ uv sync --group dl --group hf --group metrics
 # 道具箱のスモークテスト（合成データ生成→埋め込み→k-means が一通り動く）
 uv run python lectures/44_embedding_clustering/cluster_lab.py
 
-# 各スクリプトを順に実行（結果は outputs/44_embedding_clustering/ に保存される）
+# 各スクリプトを順に実行（結果は lectures/44_embedding_clustering/outputs/ に保存される）
 uv run python lectures/44_embedding_clustering/01_kmeans_image_embeddings.py
 uv run python lectures/44_embedding_clustering/02_choosing_k.py
 uv run python lectures/44_embedding_clustering/03_dbscan_agglomerative.py
@@ -298,7 +298,7 @@ uv run python lectures/44_embedding_clustering/exercises.py
 uv run python lectures/44_embedding_clustering/exercises_solutions.py   # 全問 PASS の確認
 ```
 
-実行後は、`outputs/44_embedding_clustering/` の図を本文の解説と照らし合わせてください。とくに `02_choosing_k.png`（シルエットが k=6 でピーク）、`03_album_agglomerative.png`（クラスタ別アルバム）、`04_modality_gap.png`（画像と文が2島に分かれる）、`mini_project_summary.png`（6パネル統合）を見れば、本章のテーマ（k選択・k不要手法・モダリティギャップ・可視化）が視覚的に腑に落ちるはずです。なお、図中の文字は CJK フォントの豆腐（□）を避けるため ASCII にしてあります。また、色が反転して見える場合は、合成画像を RGB のまま扱っているか（cv2 経由で BGR が混ざっていないか）を確認してください。
+実行後は、`lectures/44_embedding_clustering/outputs/` の図を本文の解説と照らし合わせてください。とくに `02_choosing_k.png`（シルエットが k=6 でピーク）、`03_album_agglomerative.png`（クラスタ別アルバム）、`04_modality_gap.png`（画像と文が2島に分かれる）、`mini_project_summary.png`（6パネル統合）を見れば、本章のテーマ（k選択・k不要手法・モダリティギャップ・可視化）が視覚的に腑に落ちるはずです。なお、図中の文字は CJK フォントの豆腐（□）を避けるため ASCII にしてあります。また、色が反転して見える場合は、合成画像を RGB のまま扱っているか（cv2 経由で BGR が混ざっていないか）を確認してください。
 
 ---
 

@@ -31,7 +31,7 @@
   - 信頼度の低い行（TrOCR の繰り返し・空など）を検出して「要確認」フラグを立てる。
 
 実行: uv run python lectures/26_ocr_document/use_case.py
-出力: outputs/26_ocr_document/use_case_receipt.png（行検出の可視化）/ use_case_receipt.json（構造化レコード）
+出力: lectures/26_ocr_document/outputs/use_case_receipt.png（行検出の可視化）/ use_case_receipt.json（構造化レコード）
 """
 
 from __future__ import annotations

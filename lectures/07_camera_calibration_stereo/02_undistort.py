@@ -13,7 +13,7 @@ calib.npz があれば読み込み、無ければ cv_helpers の真値を使う�
 
 実行:
   uv run python lectures/07_camera_calibration_stereo/02_undistort.py
-結果は outputs/07_camera_calibration_stereo/ に保存される（画面表示はしない）。
+結果は lectures/07_camera_calibration_stereo/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -130,7 +130,7 @@ def main() -> None:
     fig.savefig(str(out / "02_undistort_compare.png"), dpi=110)
     plt.close(fig)
     print("\n[6] → 02_undistort_compare.png に 4 枚並べて保存")
-    print("\n完了。outputs/07_camera_calibration_stereo/ の 02_*.png を確認してください。")
+    print("\n完了。lectures/07_camera_calibration_stereo/outputs/ の 02_*.png を確認してください。")
 
 
 if __name__ == "__main__":

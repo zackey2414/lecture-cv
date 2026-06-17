@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/17_faiss_image_search/01_flat_ip_cosine.py
-結果は outputs/17_faiss_image_search/ に保存される。
+結果は lectures/17_faiss_image_search/outputs/ に保存される。
 """
 
 from __future__ import annotations
@@ -96,7 +96,7 @@ def main() -> None:
     # === 6. 図に保存（距離スコアの並び方を可視化） =======================
     _save_score_figure(out, Dr[0], Dc[0], D[0])
 
-    print("\n完了。outputs/17_faiss_image_search/ を確認してください。")
+    print("\n完了。lectures/17_faiss_image_search/outputs/ を確認してください。")
 
 
 def _save_score_figure(out: pathlib.Path, ip_raw, cos, l2) -> None:

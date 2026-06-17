@@ -32,7 +32,7 @@
   # 外部画像をクエリにする例:
   # QUERY_IMAGE=/path/to/photo.jpg uv run python lectures/17_faiss_image_search/use_case.py
 
-CPU・headless で動き、結果は outputs/17_faiss_image_search/ に
+CPU・headless で動き、結果は lectures/17_faiss_image_search/outputs/ に
 use_case_reverse_search.png / use_case_report.json として保存されます。
 初回は CLIP の重みダウンロードが走ります（ネット不通時は色記述子へ自動フォールバック）。
 """
@@ -202,7 +202,7 @@ def main() -> None:
     report_path = out / "use_case_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"[5] 保存: {report_path.name}, use_case_reverse_search.png")
-    print("\n完了。outputs/17_faiss_image_search/ を確認してください。")
+    print("\n完了。lectures/17_faiss_image_search/outputs/ を確認してください。")
 
 
 # --- 図のラベルは ASCII 化（matplotlib 既定フォントに日本語が無く文字化けするため） ----

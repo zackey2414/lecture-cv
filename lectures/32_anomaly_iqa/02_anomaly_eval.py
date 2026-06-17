@@ -14,8 +14,8 @@
 実行:
   uv run python lectures/32_anomaly_iqa/02_anomaly_eval.py
 出力:
-  outputs/32_anomaly_iqa/02_roc_pr.png   … image-level の ROC 曲線と PR 曲線
-  outputs/32_anomaly_iqa/02_summary.json … 両手法の各指標
+  lectures/32_anomaly_iqa/outputs/02_roc_pr.png   … image-level の ROC 曲線と PR 曲線
+  lectures/32_anomaly_iqa/outputs/02_summary.json … 両手法の各指標
 """
 
 from __future__ import annotations

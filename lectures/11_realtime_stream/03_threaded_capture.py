@@ -165,7 +165,7 @@ def main() -> None:
     else:
         print("\n[mp] CV_MP=1 を付けると multiprocessing 版（GIL回避）も実演します。")
 
-    print("\n完了。outputs/11_realtime_stream/ にレイテンシ比較を保存しました。")
+    print("\n完了。lectures/11_realtime_stream/outputs/ にレイテンシ比較を保存しました。")
 
 
 # =====================================================================

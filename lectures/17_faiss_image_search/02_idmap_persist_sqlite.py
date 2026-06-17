@@ -148,7 +148,7 @@ def main() -> None:
 
     _save_query_figure(out, images, labels, query_idx, I[0], names)
 
-    print("\n完了。outputs/17_faiss_image_search/ を確認してください。")
+    print("\n完了。lectures/17_faiss_image_search/outputs/ を確認してください。")
 
 
 # 図のタイトルは matplotlib 既定フォントに日本語が無く文字化け警告が出るため、
