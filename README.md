@@ -33,8 +33,20 @@ uv run --group site python tools/build_site.py
 
 ## クイックスタート
 
+> 🐳 **迷ったら Docker。** 母艦が **Intel Mac・Apple Silicon Mac・Windows・Linux のどれでも**、コンテナは Linux なので **全 46 回が確実に動きます**。とくに深層トラック（12 以降）は PyTorch を使い、**Intel Mac ではネイティブに torch を入れられない**（PyTorch が torch 2.3 以降の Intel Mac 向け配布を終了）ため、Docker が唯一確実な道です。手早く基礎だけ触るなら uv のネイティブ実行が軽量です。
+
+### A) Docker（推奨 — どのデバイスでも全回が動く）
+
 ```bash
-# --- ローカル（uv） ---
+docker compose up -d --build              # CPU 既定。GPU は docker-compose.yaml のコメント参照
+docker compose exec lecture-cv uv run python lectures/00_setup/check_env.py        # 環境スモークテスト
+docker compose exec lecture-cv uv run python lectures/01_image_basics/01_imread_imwrite.py
+# 深層トラックの依存（dl/hf/vector/metrics/aug）はイメージビルド時に導入済み。12 以降もそのまま実行できる。
+```
+
+### B) ローカル（uv — 軽量に基礎から始めたい人向け）
+
+```bash
 uv sync                                   # 画像基礎〜古典CV〜古典動画(00〜11): numpy/opencv/pillow/matplotlib
 uv run python lectures/00_setup/check_env.py          # 環境スモークテスト
 uv run python lectures/01_image_basics/01_imread_imwrite.py
@@ -42,11 +54,9 @@ uv run python lectures/01_image_basics/01_imread_imwrite.py
 # 深層・各タスクのトラックに進むとき、必要なグループだけ足す
 uv sync --group dl --group hf             # PyTorch + HuggingFace
 uv sync --group vector --group metrics    # FAISS + 評価指標
-
-# --- Docker（CPU 既定。GPU は docker-compose.yaml のコメント参照） ---
-docker compose up -d --build
-docker compose exec lecture-cv uv run python lectures/01_image_basics/01_imread_imwrite.py
 ```
+
+> ⚠️ **Intel Mac（x86_64）はローカルの深層トラックが動きません。** `uv sync --group dl` が「torch … doesn't have … wheel for … macosx … x86_64」で失敗します（PyTorch が torch 2.3 以降の Intel Mac 向け wheel を廃止したため。pyproject では作れない外部制約）。→ **深層トラックは上の A) Docker を使ってください**（Apple Silicon Mac はネイティブで動きます）。詳しい切り分けは [はじめ方ガイドの「つまずいたら」](docs/getting-started.md) を参照。
 
 > 結果は基本的に各回の `lectures/<モジュール>/outputs/` に保存されます（headless 環境でも後から確認できるように）。
 > `cv2.imshow` を使いたい場合は、既定の `opencv-python-headless` を `opencv-python`（GUI 版）へ差し替えてください（両者は排他）。
