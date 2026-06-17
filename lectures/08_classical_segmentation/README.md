@@ -18,7 +18,7 @@
 
 古典と深層の最大の違いは、**「事前知識をどこから持ってくるか」**にあります。深層モデルは大量の学習データから「前景らしさ」を獲得しますが、古典手法ではそれを人間が**その場で**与えます。たとえば Watershed なら「物体の芯はここ（マーカ）」、GrabCut なら「だいたいこの矩形の中」、inpaint なら「この領域が欠損（マスク）」という具合です。つまり古典セグメンテーションを学ぶことは、「セグメンテーションという問題に、どんな事前知識を、どう与えれば解けるのか」という問題の骨格そのものを学ぶことに等しいのです。
 
-本章のスクリプトはすべて、結果を画面に出さず `outputs/08_classical_segmentation/` に保存します。というのも `cv2.imshow` は GUI バックエンドを必要とし、Docker・SSH・CI などディスプレイの無い環境ではプロセスごと落ちることがあるため、headless 前提の本講座では使わないからです。代わりに各スクリプトが工程を1枚のグリッド画像にまとめて保存するので、実行後にそれを開いて解説と照らし合わせてください。なお、連続値の可視化（距離マップ・スコアの棒グラフ）だけは matplotlib（Agg バックエンド）を併用します。
+本章のスクリプトはすべて、結果を画面に出さず `lectures/08_classical_segmentation/outputs/` に保存します。というのも `cv2.imshow` は GUI バックエンドを必要とし、Docker・SSH・CI などディスプレイの無い環境ではプロセスごと落ちることがあるため、headless 前提の本講座では使わないからです。代わりに各スクリプトが工程を1枚のグリッド画像にまとめて保存するので、実行後にそれを開いて解説と照らし合わせてください。なお、連続値の可視化（距離マップ・スコアの棒グラフ）だけは matplotlib（Agg バックエンド）を併用します。
 
 ## 2. 距離変換とマーカ制御 Watershed で接触物体を分離する（`01_watershed.py`）
 
@@ -137,7 +137,7 @@ ns    = cv2.inpaint(broken, mask, inpaintRadius=3, flags=cv2.INPAINT_NS)
 
 ## 9. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に読めば「接触物体の分離 → 矩形指定の前景抽出と評価 → 復元」と理解が積み上がるように並べてあります。いずれも結果を `outputs/08_classical_segmentation/` に保存し、画面表示には依存しません。また、サンプル画像は各スクリプト内で `numpy`/`cv2` により合成生成するため、`data/` に何も無くても動きます（外部モジュールからの import もありません＝自己完結）。
+各スクリプトは単一責務で、上から順に読めば「接触物体の分離 → 矩形指定の前景抽出と評価 → 復元」と理解が積み上がるように並べてあります。いずれも結果を `lectures/08_classical_segmentation/outputs/` に保存し、画面表示には依存しません。また、サンプル画像は各スクリプト内で `numpy`/`cv2` により合成生成するため、`data/` に何も無くても動きます（外部モジュールからの import もありません＝自己完結）。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -149,7 +149,7 @@ ns    = cv2.inpaint(broken, mask, inpaintRadius=3, flags=cv2.INPAINT_NS)
 | `exercises.py` | TODO 形式の演習9問（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答に差し替え）|
 | `exercises_solutions.py` | 演習9問の完全な模範解答（実行すると全 PASS を assert で保証。採点ロジックは exercises 側を再利用）|
 
-表の通り、`02_grabcut.py` が deliverable の中核（矩形指定の切り出しツール＋IoU/Dice 評価）であり、`01` が接触物体分離、`03` が復元と評価に対応します。そして `mini_project.py` が、この 3 つを 1 本のシーンへ束ねた統合課題です。まずは 01 から順に動かし、各 `outputs/08_*.png` を開きながら本文を読み返すと、理解が定着します。
+表の通り、`02_grabcut.py` が deliverable の中核（矩形指定の切り出しツール＋IoU/Dice 評価）であり、`01` が接触物体分離、`03` が復元と評価に対応します。そして `mini_project.py` が、この 3 つを 1 本のシーンへ束ねた統合課題です。まずは 01 から順に動かし、各 `lectures/08_classical_segmentation/outputs/*.png` を開きながら本文を読み返すと、理解が定着します。
 
 ## 10. 動かし方
 
@@ -159,7 +159,7 @@ ns    = cv2.inpaint(broken, mask, inpaintRadius=3, flags=cv2.INPAINT_NS)
 # 依存をインストール（初回のみ）
 uv sync
 
-# 各スクリプトを実行（結果は outputs/08_classical_segmentation/ に保存される）
+# 各スクリプトを実行（結果は lectures/08_classical_segmentation/outputs/ に保存される）
 uv run python lectures/08_classical_segmentation/01_watershed.py
 uv run python lectures/08_classical_segmentation/02_grabcut.py
 uv run python lectures/08_classical_segmentation/03_inpaint_classic.py
@@ -180,7 +180,7 @@ SHOW_SOLUTION=1 uv run python lectures/08_classical_segmentation/exercises.py
 uv run python lectures/08_classical_segmentation/exercises_solutions.py
 ```
 
-実行後は `outputs/08_classical_segmentation/` に生成された PNG を画像ビューアで開いてください。とくに `01_watershed_pipeline.png`（接触物体の分離6工程）、`01_distance_transform.png`（距離マップの芯ピーク）、`02_grabcut_pipeline.png`（矩形3通りの結果）、`02_grabcut_scores.png`（IoU/Dice 比較）、`03_inpaint_pipeline.png`（傷消しと大穴）、`03_inpaint_psnr.png`（PSNR 比較）を解説と照らし合わせると、各手法の役割と限界が腑に落ちます。
+実行後は `lectures/08_classical_segmentation/outputs/` に生成された PNG を画像ビューアで開いてください。とくに `01_watershed_pipeline.png`（接触物体の分離6工程）、`01_distance_transform.png`（距離マップの芯ピーク）、`02_grabcut_pipeline.png`（矩形3通りの結果）、`02_grabcut_scores.png`（IoU/Dice 比較）、`03_inpaint_pipeline.png`（傷消しと大穴）、`03_inpaint_psnr.png`（PSNR 比較）を解説と照らし合わせると、各手法の役割と限界が腑に落ちます。
 
 ## 11. よくあるエラーと対処（チェックリスト）
 
@@ -213,7 +213,7 @@ uv run python lectures/08_classical_segmentation/exercises_solutions.py
 
 ここまでの 3 手法（Watershed / GrabCut / 古典 inpaint）と 2 系統の評価指標（IoU・Dice と PSNR・SSIM）を、**1 つの合成シーンに対する 1 本のワークフロー**へ統合する総合課題です。`mini_project.py` を実行すると、「机の上に触れ合った硬貨の山と不要なシミが写ったシーン」を題材に、次の 3 段が一気に走ります。
 
-<figure class="lec-fig"><svg viewBox="0 0 660 250" role="img" aria-label="ミニプロジェクトの全体像。1つの合成シーンに対しGrabCut前景抽出 Watershed計数 inpaint清掃の3段を順に流し各段を指標で評価する流れ図" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="330" y="32" text-anchor="middle" font-size="14" fill="#3f3f46">mini_project.py — 1 シーンを 切り出し → 数え → 清掃</text><rect x="14" y="92" width="92" height="52" rx="6" fill="#f4f4f5" stroke="#d4d4d8" stroke-width="1.5"/><text x="60" y="115" text-anchor="middle" font-size="13" fill="#3f3f46">合成シーン</text><text x="60" y="133" text-anchor="middle" font-size="11" fill="#71717a">硬貨＋シミ</text><line x1="108" y1="118" x2="118" y2="118" stroke="#71717a" stroke-width="2"/><polygon points="128,118 118,113 118,123" fill="#71717a"/><rect x="128" y="78" width="150" height="80" rx="8" fill="#ffedd5" stroke="#c2410c" stroke-width="2"/><text x="203" y="106" text-anchor="middle" font-size="16" font-weight="700" fill="#c2410c">① 前景抽出</text><text x="203" y="128" text-anchor="middle" font-size="12.5" fill="#52525b">GrabCut</text><text x="203" y="147" text-anchor="middle" font-size="12.5" font-weight="700" fill="#c2410c">IoU・Dice</text><line x1="280" y1="118" x2="290" y2="118" stroke="#71717a" stroke-width="2"/><polygon points="300,118 290,113 290,123" fill="#71717a"/><rect x="300" y="78" width="150" height="80" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><text x="375" y="106" text-anchor="middle" font-size="16" font-weight="700" fill="#1d4ed8">② 計数</text><text x="375" y="128" text-anchor="middle" font-size="12.5" fill="#52525b">Watershed</text><text x="375" y="147" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1d4ed8">6 枚に分離</text><line x1="452" y1="118" x2="462" y2="118" stroke="#71717a" stroke-width="2"/><polygon points="472,118 462,113 462,123" fill="#71717a"/><rect x="472" y="78" width="150" height="80" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="2"/><text x="547" y="106" text-anchor="middle" font-size="16" font-weight="700" fill="#15803d">③ 清掃</text><text x="547" y="128" text-anchor="middle" font-size="12.5" fill="#52525b">inpaint</text><text x="547" y="147" text-anchor="middle" font-size="12.5" font-weight="700" fill="#15803d">PSNR・SSIM</text><text x="330" y="196" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">各段を それぞれの指標 で評価 → 総合判定 all_ok = True</text><text x="330" y="222" text-anchor="middle" font-size="12" fill="#52525b">出力は outputs/08_classical_segmentation/ に保存</text></svg><figcaption><b>章末ミニプロジェクト</b>の全体像です。1 つの合成シーン（硬貨＋シミ）に対し、<b>① 前景抽出（GrabCut）</b>→<b>② 計数（Watershed）</b>→<b>③ 清掃（古典 inpaint）</b>の 3 段を 1 本のワークフローとして順に流し、各段を <code>IoU・Dice</code>／枚数／<code>PSNR・SSIM</code> でそれぞれ評価します。最後に全段の結果から総合判定 <code>all_ok</code> を出します。</figcaption></figure>
+<figure class="lec-fig"><svg viewBox="0 0 660 250" role="img" aria-label="ミニプロジェクトの全体像。1つの合成シーンに対しGrabCut前景抽出 Watershed計数 inpaint清掃の3段を順に流し各段を指標で評価する流れ図" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="330" y="32" text-anchor="middle" font-size="14" fill="#3f3f46">mini_project.py — 1 シーンを 切り出し → 数え → 清掃</text><rect x="14" y="92" width="92" height="52" rx="6" fill="#f4f4f5" stroke="#d4d4d8" stroke-width="1.5"/><text x="60" y="115" text-anchor="middle" font-size="13" fill="#3f3f46">合成シーン</text><text x="60" y="133" text-anchor="middle" font-size="11" fill="#71717a">硬貨＋シミ</text><line x1="108" y1="118" x2="118" y2="118" stroke="#71717a" stroke-width="2"/><polygon points="128,118 118,113 118,123" fill="#71717a"/><rect x="128" y="78" width="150" height="80" rx="8" fill="#ffedd5" stroke="#c2410c" stroke-width="2"/><text x="203" y="106" text-anchor="middle" font-size="16" font-weight="700" fill="#c2410c">① 前景抽出</text><text x="203" y="128" text-anchor="middle" font-size="12.5" fill="#52525b">GrabCut</text><text x="203" y="147" text-anchor="middle" font-size="12.5" font-weight="700" fill="#c2410c">IoU・Dice</text><line x1="280" y1="118" x2="290" y2="118" stroke="#71717a" stroke-width="2"/><polygon points="300,118 290,113 290,123" fill="#71717a"/><rect x="300" y="78" width="150" height="80" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><text x="375" y="106" text-anchor="middle" font-size="16" font-weight="700" fill="#1d4ed8">② 計数</text><text x="375" y="128" text-anchor="middle" font-size="12.5" fill="#52525b">Watershed</text><text x="375" y="147" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1d4ed8">6 枚に分離</text><line x1="452" y1="118" x2="462" y2="118" stroke="#71717a" stroke-width="2"/><polygon points="472,118 462,113 462,123" fill="#71717a"/><rect x="472" y="78" width="150" height="80" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="2"/><text x="547" y="106" text-anchor="middle" font-size="16" font-weight="700" fill="#15803d">③ 清掃</text><text x="547" y="128" text-anchor="middle" font-size="12.5" fill="#52525b">inpaint</text><text x="547" y="147" text-anchor="middle" font-size="12.5" font-weight="700" fill="#15803d">PSNR・SSIM</text><text x="330" y="196" text-anchor="middle" font-size="13" font-weight="700" fill="#18181b">各段を それぞれの指標 で評価 → 総合判定 all_ok = True</text><text x="330" y="222" text-anchor="middle" font-size="12" fill="#52525b">出力は lectures/08_classical_segmentation/outputs/ に保存</text></svg><figcaption><b>章末ミニプロジェクト</b>の全体像です。1 つの合成シーン（硬貨＋シミ）に対し、<b>① 前景抽出（GrabCut）</b>→<b>② 計数（Watershed）</b>→<b>③ 清掃（古典 inpaint）</b>の 3 段を 1 本のワークフローとして順に流し、各段を <code>IoU・Dice</code>／枚数／<code>PSNR・SSIM</code> でそれぞれ評価します。最後に全段の結果から総合判定 <code>all_ok</code> を出します。</figcaption></figure>
 
 1. **① 前景抽出（GrabCut）**: 硬貨群を囲む矩形を与えて `grabCut(GC_INIT_WITH_RECT)` で前景を切り出し、硬貨領域の真マスクとの **IoU / Dice**（混同行列から自作）で精度を測る。
 2. **② 計数（Watershed）**: Otsu 二値化 → `distanceTransform` → マーカ制御 `watershed` で接触した硬貨を 1 枚ずつに分離して数え、**単純連結成分（融合して少なく出る）と対比**する。
@@ -221,7 +221,7 @@ uv run python lectures/08_classical_segmentation/exercises_solutions.py
 
 この課題は「撮影画像から対象を切り出し・個数を数え・汚れを修復する」という、製造ラインの部品検査や顕微鏡画像の細胞計数の最小核にあたります。だから硬貨を実物の部品/細胞に、シミを実写の汚れに差し替えれば、そのまま検査・修復の雛形になります。なお `digit` 始まりの 01〜03 は import できないため、PSNR/SSIM やパネル合成などはミニプロジェクト内に**自己完結**で書いてあります（外部データ・ネット・GPU 不要）。
 
-**到達の目安**: 付属パラメータでは GrabCut の IoU≒1.00（背景が硬貨と色分離しているので隙間を拾わない）、Watershed が真値どおり **6 枚**へ分離（単純連結成分は 4）、inpaint がシミ除去で PSNR を大きく回復し、総合判定 `all_ok=True` になります。出力は `outputs/08_classical_segmentation/` に保存されます。
+**到達の目安**: 付属パラメータでは GrabCut の IoU≒1.00（背景が硬貨と色分離しているので隙間を拾わない）、Watershed が真値どおり **6 枚**へ分離（単純連結成分は 4）、inpaint がシミ除去で PSNR を大きく回復し、総合判定 `all_ok=True` になります。出力は `lectures/08_classical_segmentation/outputs/` に保存されます。
 
 | 生成物 | 内容 |
 | --- | --- |
@@ -233,7 +233,7 @@ uv run python lectures/08_classical_segmentation/exercises_solutions.py
 
 ```bash
 uv run python lectures/08_classical_segmentation/mini_project.py
-cat outputs/08_classical_segmentation/mini_project_metrics.json
+cat lectures/08_classical_segmentation/outputs/mini_project_metrics.json
 ```
 
 発展課題として、(a) シミを硬貨の上に重ねると inpaint の PSNR がどう落ちるか、(b) GrabCut の矩形を画面いっぱいに広げると IoU がどう崩れるか、(c) 距離変換のしきい値係数（既定 0.5）を 0.3／0.7 に変えると計数がどう変わるか、を自分で試して数値の動きを観察してみてください。「敏感さ」を自分の手で再現できることが、この課題の真のゴールです。
@@ -322,7 +322,7 @@ uv run python lectures/08_classical_segmentation/use_case.py
 USE_CASE_INTERACTIVE=1 uv run python lectures/08_classical_segmentation/use_case.py
 ```
 
-出力は `outputs/08_classical_segmentation/use_case_cutout.png`（背景透過 RGBA）、`use_case_panel.png`（入力＋矩形／アルファ／切り抜き／新背景の一覧）、`use_case_white_bg.png`・`use_case_bokeh.png`、`use_case_bg_removal.json`（前景占有率などのログ）です。**拡張アイデア**: ① Canny＋輪郭で「一番大きい物体の外接矩形」を自動検出して矩形を不要にする、② なすり書きで対話修正を足す、③ 切り抜きにドロップシャドウを合成して出品用の影付き画像にする、④ `data/` を総なめするバッチ CLI 化、⑤ 矩形プロンプト部分を深層 SAM（第20・22回）に差し替えて切り抜き品質を比較する。
+出力は `lectures/08_classical_segmentation/outputs/use_case_cutout.png`（背景透過 RGBA）、`use_case_panel.png`（入力＋矩形／アルファ／切り抜き／新背景の一覧）、`use_case_white_bg.png`・`use_case_bokeh.png`、`use_case_bg_removal.json`（前景占有率などのログ）です。**拡張アイデア**: ① Canny＋輪郭で「一番大きい物体の外接矩形」を自動検出して矩形を不要にする、② なすり書きで対話修正を足す、③ 切り抜きにドロップシャドウを合成して出品用の影付き画像にする、④ `data/` を総なめするバッチ CLI 化、⑤ 矩形プロンプト部分を深層 SAM（第20・22回）に差し替えて切り抜き品質を比較する。
 
 ### 2. スキャン書類・名刺の傷／透かし消し（古典 inpaint）
 
@@ -340,5 +340,5 @@ USE_CASE_INTERACTIVE=1 uv run python lectures/08_classical_segmentation/use_case
 
 > 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
 > Python 3.12 ／ numpy 2.4（2.4.6）／ opencv-python-headless 4.13（`cv2` 4.13.0.92）／ Pillow 12.2（12.2.0）／ matplotlib 3.10（3.10.9）。
-> すべて CPU のみ・ネット非依存で動作します（`cv2.imshow` は使わず、結果は `outputs/08_classical_segmentation/` に保存）。
+> すべて CPU のみ・ネット非依存で動作します（`cv2.imshow` は使わず、結果は `lectures/08_classical_segmentation/outputs/` に保存）。
 > 版表記: opencv-python-headless 4.13 / Pillow 12.2 / numpy 2.4 / matplotlib 3.10（2026-06）。

@@ -15,7 +15,7 @@ digit 始まりのスクリプトは import できないため、必要処理は
 共通の道具箱 clip_helpers だけを借用する。
 
 実行: uv run python lectures/16_clip_zeroshot_retrieval/mini_project.py
-出力: outputs/16_clip_zeroshot_retrieval/mini_project_*.png / mini_project_report.json
+出力: lectures/16_clip_zeroshot_retrieval/outputs/mini_project_*.png / mini_project_report.json
 """
 
 from __future__ import annotations

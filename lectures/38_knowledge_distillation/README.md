@@ -210,7 +210,7 @@ uv run python lectures/38_knowledge_distillation/exercises.py
 uv run python lectures/38_knowledge_distillation/exercises_solutions.py
 ```
 
-成果物（図・JSON）は `outputs/38_knowledge_distillation/` に保存されます。実行は CPU 前提で、`model.eval()` + `torch.inference_mode()` を用い、headless（`imshow` は呼ばず matplotlib=Agg で保存）で動きます。また teacher は必ず `freeze_module()`（eval + requires_grad=False）で凍結します。
+成果物（図・JSON）は `lectures/38_knowledge_distillation/outputs/` に保存されます。実行は CPU 前提で、`model.eval()` + `torch.inference_mode()` を用い、headless（`imshow` は呼ばず matplotlib=Agg で保存）で動きます。また teacher は必ず `freeze_module()`（eval + requires_grad=False）で凍結します。
 
 ---
 

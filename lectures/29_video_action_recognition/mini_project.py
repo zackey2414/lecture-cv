@@ -167,10 +167,10 @@ def main() -> None:
         H.OUT_DIR / "mini_report.json",
     )
     print("\n完了。保存物:")
-    print("  outputs/29_video_action_recognition/mini_summary.png         （サンプリング掃引）")
-    print("  outputs/29_video_action_recognition/mini_confusion_cliplen2.png（粗サンプリングの崩れ）")
-    print("  outputs/29_video_action_recognition/mini_report.json          （総合レポート）")
-    print("  outputs/29_video_action_recognition/mini_clip_XX.mp4          （各クリップの動画）")
+    print("  lectures/29_video_action_recognition/outputs/mini_summary.png         （サンプリング掃引）")
+    print("  lectures/29_video_action_recognition/outputs/mini_confusion_cliplen2.png（粗サンプリングの崩れ）")
+    print("  lectures/29_video_action_recognition/outputs/mini_report.json          （総合レポート）")
+    print("  lectures/29_video_action_recognition/outputs/mini_clip_XX.mp4          （各クリップの動画）")
 
 
 def _save_summary(by_clip_len, by_rate, path) -> None:

@@ -18,7 +18,7 @@
 実行:
   uv run python lectures/15_image_embeddings_metric_learning/01_vit_resnet_embeddings.py
 初回はモデル重みを HuggingFace / timm からダウンロードする（以後はキャッシュ）。
-結果は outputs/15_image_embeddings_metric_learning/ に保存（画面表示はしない）。
+結果は lectures/15_image_embeddings_metric_learning/outputs/ に保存（画面表示はしない）。
 """
 
 from __future__ import annotations

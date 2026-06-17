@@ -15,7 +15,7 @@
   - ウィンドウを閉じても保存される
 
 出力:
-  outputs/45_sketch_emoji_search/02_sketch.png
+  lectures/45_sketch_emoji_search/outputs/02_sketch.png
   data/45_sketch_emoji_search/sketch.png（03 が既定で読みに行く場所）
 
 実行:

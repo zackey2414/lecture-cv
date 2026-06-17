@@ -52,7 +52,7 @@ mini_project.py との違い（ここが大事）
   - 切り抜きを別背景に合成（透過 PNG → 任意背景へ貼り付け）して合成写真を作る。
 
 実行: uv run python lectures/22_instance_panoptic_sam/use_case.py
-出力: outputs/22_instance_panoptic_sam/
+出力: lectures/22_instance_panoptic_sam/outputs/
         use_case_cutout_01.png ...   切り抜き本体（透明背景 RGBA・物体ごとに1枚）
         use_case_preview.png         入力＋クリック点／マスク／透明合成プレビュー
         use_case_cutouts.json        生成した切り抜きのメタ情報（座標・面積・bbox 等）

@@ -13,7 +13,7 @@
   - MOG2 と KNN を並べて比較する
 
 入力はカメラ不要の合成フレーム（静止背景の上を円が動く）。結果はすべて
-outputs/11_realtime_stream/ に保存する（headless でも後から確認できる）。
+lectures/11_realtime_stream/outputs/ に保存する（headless でも後から確認できる）。
 
 実行:
   uv run python lectures/11_realtime_stream/01_background_subtraction.py
@@ -158,7 +158,7 @@ def main() -> None:
     plt.close(fig)
     print("[warm-up] 前景率の推移 -> 01_warmup_ratio.png")
 
-    print("\n完了。outputs/11_realtime_stream/ に背景差分の結果を保存しました。")
+    print("\n完了。lectures/11_realtime_stream/outputs/ に背景差分の結果を保存しました。")
 
 
 if __name__ == "__main__":

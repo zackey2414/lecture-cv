@@ -37,7 +37,7 @@ mini_project.py との違い（役割分担）
 
   # 入力フォルダ・出力先・比率テストしきい値を指定
   uv run python lectures/06_homography_panorama/use_case.py \
-      --input data/06_homography_panorama --output outputs/06_homography_panorama/my_pano.png \
+      --input data/06_homography_panorama --output lectures/06_homography_panorama/outputs/my_pano.png \
       --ratio 0.8 --max-width 1280
 
   # 手作りが苦しい難しめの写真は、最初から cv2.Stitcher（自動）で
@@ -315,7 +315,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     p.add_argument("--input", type=str, default=None,
                    help="入力画像フォルダ（既定: data/06_homography_panorama/）")
     p.add_argument("--output", type=str, default=None,
-                   help="出力パノラマPNG（既定: outputs/06_homography_panorama/use_case_panorama.png）")
+                   help="出力パノラマPNG（既定: lectures/06_homography_panorama/outputs/use_case_panorama.png）")
     p.add_argument("--ratio", type=float, default=0.75,
                    help="Lowe 比率テストのしきい値（緩めると対応が増える。既定 0.75）")
     p.add_argument("--max-width", type=int, default=1280,
@@ -376,7 +376,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.show:
         preview_with_tkinter(pano)
 
-    print("完了。outputs/06_homography_panorama/ を確認してください。")
+    print("完了。lectures/06_homography_panorama/outputs/ を確認してください。")
     return 0
 
 

@@ -33,8 +33,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-# 出力先（図・json はすべてここへ）。プロジェクト直下の outputs/<module_id>/ に統一。
-OUT_DIR = Path(__file__).resolve().parents[2] / "outputs" / "29_video_action_recognition"
+# 出力先（図・json はすべてここへ）。スクリプト隣の outputs/ に統一。
+OUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # r3d_18(Kinetics-400) の専用正規化定数。torchvision の R3D_18_Weights.transforms() と同値。
@@ -461,7 +461,7 @@ def _self_check() -> None:
     cm = confusion_matrix(gt, logits.argmax(1), num_classes=3)
     print(f"混同行列(ダミー)\n{cm}")
 
-    print("\n自己点検 OK。図は outputs/29_video_action_recognition/ を参照。")
+    print("\n自己点検 OK。図は lectures/29_video_action_recognition/outputs/ を参照。")
 
 
 if __name__ == "__main__":

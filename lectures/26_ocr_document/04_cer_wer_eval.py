@@ -12,7 +12,7 @@ WER（Word Error Rate）   = 編集距離(単語) / 参照単語数。いずれ�
   4. jiwer があれば jiwer.cer とも一致を確認（無ければ案内のみ）。
 
 実行: uv run python lectures/26_ocr_document/04_cer_wer_eval.py
-出力: outputs/26_ocr_document/04_*.png / 04_eval.json
+出力: lectures/26_ocr_document/outputs/04_*.png / 04_eval.json
 """
 
 from __future__ import annotations

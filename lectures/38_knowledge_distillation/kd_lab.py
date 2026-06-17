@@ -13,7 +13,7 @@
       * soften_logits / kd_kl_loss(T^2 スケール) / response_kd_loss(soft+hard の alpha 結合)
   - 特徴量蒸留（FitNets 系）: forward hook で中間特徴を取り、射影層 + 正規化 + MSE で寄せる
   - 評価の道具: accuracy / パラメータ数(圧縮率) / レイテンシ(p50/p99)
-  - 図/JSON の保存先 outputs/38_knowledge_distillation/
+  - 図/JSON の保存先 lectures/38_knowledge_distillation/outputs/
 
 設計方針:
   - すべて CPU 前提・小データ・少エポックで「数秒〜数十秒」に収める。
@@ -58,9 +58,8 @@ def set_seed(seed: int = 0) -> None:
 
 
 def ensure_output_dir() -> Path:
-    """結果(図・JSON)の保存先 outputs/38_knowledge_distillation/ を作って返す。"""
-    root = Path(__file__).resolve().parents[2]
-    out = root / "outputs" / MODULE_ID
+    """結果(図・JSON)の保存先 lectures/38_knowledge_distillation/outputs/ を作って返す。"""
+    out = Path(__file__).resolve().parent / "outputs"
     out.mkdir(parents=True, exist_ok=True)
     return out
 

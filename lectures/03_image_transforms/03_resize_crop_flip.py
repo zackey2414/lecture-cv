@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/03_image_transforms/03_resize_crop_flip.py
-結果は outputs/03_image_transforms/ に保存される（画面表示はしない）。
+結果は lectures/03_image_transforms/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -98,7 +98,7 @@ def main() -> None:
     print("  resize_to_square(256)        → shape:", square_pad.shape, "（余白で正方形・全体が残る）")
     print("  center_crop_square()         → shape:", square_crop.shape, "（端を捨てて正方形）")
 
-    print("\n完了。outputs/03_image_transforms/ を確認してください。")
+    print("\n完了。lectures/03_image_transforms/outputs/ を確認してください。")
 
 
 if __name__ == "__main__":

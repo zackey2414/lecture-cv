@@ -103,7 +103,7 @@ except Exception as e:                            # C++ ツールチェーン/Py
 
 ## 4. 実装を1つずつ — スクリプトで段階的に組む
 
-各スクリプトは独立に動き、**ネット不要** です（resnet18 は `weights=None`、入力は合成）。結果は `outputs/34_inference_profiling/` に保存されます。共通部品は `profiling_lab.py` にまとめてあります（device 判定・同期・`benchmark()`・`profile_ops()`・`make_compiled_runner()`・表/図ユーティリティ・純関数群）。
+各スクリプトは独立に動き、**ネット不要** です（resnet18 は `weights=None`、入力は合成）。結果は `lectures/34_inference_profiling/outputs/` に保存されます。共通部品は `profiling_lab.py` にまとめてあります（device 判定・同期・`benchmark()`・`profile_ops()`・`make_compiled_runner()`・表/図ユーティリティ・純関数群）。
 
 - **`01_benchmark_basics.py` — 正しいベンチの全部**。ウォームアップ有無で同じ処理の p99/mean が変わること、mean vs p50/p99、バッチサイズ↑でレイテンシは伸びるがスループットは上がること、`torch.set_num_threads` で CPU 速度が激変すること、`torch.utils.benchmark.Timer` での答え合わせ（**Timer は既定 num_threads=1** なので揃えて比較）。図 `01_throughput_vs_batch.png`。
 - **`02_eval_inference_mode.py` — 正しさと速さの両面**。Dropout を持つ小ネットで train/eval の決定性の差を見せ、`requires_grad` で勾配グラフの有無を確認し、resnet18 で grad / no_grad / inference_mode のレイテンシを比較。図 `02_eval_inference_mode.png`。
@@ -229,7 +229,7 @@ uv run python lectures/34_inference_profiling/exercises.py
 uv run python lectures/34_inference_profiling/exercises_solutions.py
 ```
 
-成果物（図・JSON・chrome trace・profiler テーブル）は `outputs/34_inference_profiling/` に保存される。
+成果物（図・JSON・chrome trace・profiler テーブル）は `lectures/34_inference_profiling/outputs/` に保存される。
 
 > **補足（torch.compile を有効化したい場合）**: Inductor の CPU バックエンドには C++ コンパイラと Python 開発ヘッダが要る。Debian/Ubuntu 系なら `apt-get install build-essential python3-dev`（本講座の Python 3.12 なら `python3.12-dev`）。これらが無い環境では `05`/`mini_project` は自動で eager に退避する（落ちない）。
 

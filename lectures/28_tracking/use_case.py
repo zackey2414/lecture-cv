@@ -39,7 +39,7 @@ mini_project.py との違い（役割分担）
 実行:
     uv run python lectures/28_tracking/use_case.py
 
-出力（outputs/28_tracking/ に保存）:
+出力（lectures/28_tracking/outputs/ に保存）:
     use_case_line_counter.png  : ライン・ID 枠・軌跡・累計カウントを描いたモンタージュ
     use_case_count_timeline.png: 累計通過数の時系列グラフ（matplotlib, Agg）
     use_case_counts.json       : 方向別/ID 別の通過数と交差ログ（機械可読）

@@ -11,7 +11,7 @@ OCR は本来「テキスト検出（どこに文字があるか＝box）」と�
   - 導入済みなら、合成テキスト行に対して実際に推論し、単語 box と conf を可視化・保存する。
 
 実行: uv run python lectures/26_ocr_document/01_tesseract_easyocr.py
-出力: outputs/26_ocr_document/01_*.png / 01_engines.json
+出力: lectures/26_ocr_document/outputs/01_*.png / 01_engines.json
 """
 
 from __future__ import annotations

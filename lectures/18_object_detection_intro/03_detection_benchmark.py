@@ -17,7 +17,7 @@
 注: Ultralytics YOLO は概念のみ（後述）。理由は実行経路に入れない方針のため。
 
 実行: uv run python lectures/18_object_detection_intro/03_detection_benchmark.py
-出力: outputs/18_object_detection_intro/03_*.png / 03_benchmark.json
+出力: lectures/18_object_detection_intro/outputs/03_*.png / 03_benchmark.json
 """
 
 from __future__ import annotations

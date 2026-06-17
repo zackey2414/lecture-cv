@@ -15,7 +15,7 @@ OWL-ViT/OWLv2 が『候補ラベルのリスト』を受け取るのに対し、
 包み、ダメなら『概念紹介のみ』にフォールバックして必ず exit 0 にする。
 
 実行: uv run python lectures/20_open_vocabulary_detection/02_grounding_dino.py
-出力: outputs/20_open_vocabulary_detection/02_*.png / 02_gdino_results.json
+出力: lectures/20_open_vocabulary_detection/outputs/02_*.png / 02_gdino_results.json
 """
 
 from __future__ import annotations

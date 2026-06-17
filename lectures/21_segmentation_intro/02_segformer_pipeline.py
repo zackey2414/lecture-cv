@@ -17,7 +17,7 @@ SegFormer-b0（ADE20K の 150 クラスで学習）を使う。クラス体系�
 それを画素一致率で確認する。
 
 実行: uv run python lectures/21_segmentation_intro/02_segformer_pipeline.py
-出力: outputs/21_segmentation_intro/02_*.png / 02_segformer_pipeline.json
+出力: lectures/21_segmentation_intro/outputs/02_*.png / 02_segformer_pipeline.json
 """
 
 from __future__ import annotations

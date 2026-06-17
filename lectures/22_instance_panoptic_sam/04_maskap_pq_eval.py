@@ -21,7 +21,7 @@
 
 合成 GT/予測を完全に制御して使うので、ネット接続もモデルも不要（評価は CPU で完結）。
 実行: uv run python lectures/22_instance_panoptic_sam/04_maskap_pq_eval.py
-出力: outputs/22_instance_panoptic_sam/04_eval_metrics.json
+出力: lectures/22_instance_panoptic_sam/outputs/04_eval_metrics.json
 """
 
 from __future__ import annotations

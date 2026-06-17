@@ -17,7 +17,7 @@
 実画像で試したい場合は data/sample.jpg を置けば自動でそちらが使われる。
 
 実行: uv run python lectures/03_image_transforms/mini_project.py
-出力: outputs/03_image_transforms/ に mini_*.png と mini_report.json
+出力: lectures/03_image_transforms/outputs/ に mini_*.png と mini_report.json
 """
 
 from __future__ import annotations
@@ -263,7 +263,7 @@ def main() -> None:
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
 
-    print(f"\n完了。outputs/03_image_transforms/ を確認してください。")
+    print(f"\n完了。lectures/03_image_transforms/outputs/ を確認してください。")
     print(f"  - mini_detections.png : 色検出＋ラベルの可視化")
     print(f"  - mini_summary.png    : 入力→検出→前処理の総合パネル")
     print(f"  - mini_exif_naive.png / mini_exif_fixed.png : EXIF 向きの違い")

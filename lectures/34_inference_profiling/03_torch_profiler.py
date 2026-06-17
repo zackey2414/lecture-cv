@@ -11,7 +11,7 @@
 
 実行:
   uv run python lectures/34_inference_profiling/03_torch_profiler.py
-結果（表テキスト・chrome trace・図）は outputs/34_inference_profiling/ に保存される。
+結果（表テキスト・chrome trace・図）は lectures/34_inference_profiling/outputs/ に保存される。
 """
 
 from __future__ import annotations

@@ -125,7 +125,7 @@ def main() -> None:
     # 最後に、任意のGUI表示（既定ではスキップ）。
     maybe_imshow(bgr)
 
-    print("\n完了。headless でも outputs/01_image_basics/ に結果が残ります。")
+    print("\n完了。headless でも lectures/01_image_basics/outputs/ に結果が残ります。")
 
 
 if __name__ == "__main__":

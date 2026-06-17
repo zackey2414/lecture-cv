@@ -12,7 +12,7 @@
   4) シーンに『無いラベル』(a dog / a traffic light) がほぼ検出されない＝幻覚しにくいことを確認。
 
 実行: uv run python lectures/20_open_vocabulary_detection/01_owlvit_owlv2.py
-出力: outputs/20_open_vocabulary_detection/01_*.png / 01_owl_results.json
+出力: lectures/20_open_vocabulary_detection/outputs/01_*.png / 01_owl_results.json
 """
 
 from __future__ import annotations

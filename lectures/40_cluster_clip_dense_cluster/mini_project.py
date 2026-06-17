@@ -13,7 +13,7 @@
              （stream/pipeline.py 相当）
 
 出力:
-  outputs/40_cluster_clip_dense_cluster/mini_project/ に
+  lectures/40_cluster_clip_dense_cluster/outputs/mini_project/ に
     frames/ ・ build/(local_index.faiss, local_metadata.db, vectors/, cluster_maps/)
     ・ search/ ・ mini_project_search.png
 

@@ -18,13 +18,14 @@ import できないため、必要な処理（PSNR/SSIM・パネル合成など�
 
 実行:
     uv run python lectures/08_classical_segmentation/mini_project.py
-結果（画像・JSON）は outputs/08_classical_segmentation/ に保存される（画面表示はしない）。
+結果（画像・JSON）は lectures/08_classical_segmentation/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
 
 import json
 import os
+import pathlib
 
 import cv2
 import numpy as np
@@ -36,7 +37,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 MODULE_ID = "08_classical_segmentation"
-OUT_DIR = os.path.join("outputs", MODULE_ID)
+OUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 
 
 # =====================================================================

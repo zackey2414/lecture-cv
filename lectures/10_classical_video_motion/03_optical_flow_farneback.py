@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/10_classical_video_motion/03_optical_flow_farneback.py
-結果は outputs/10_classical_video_motion/ に保存される（画面表示はしない）。
+結果は lectures/10_classical_video_motion/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -128,7 +128,7 @@ def main() -> None:
     demo_dense_on_scene(frames, out)
     demo_epe_on_known_shift(out)
     demo_color_wheel(out)
-    print("\n完了。outputs/10_classical_video_motion/ の 03_*.png を確認してください。")
+    print("\n完了。lectures/10_classical_video_motion/outputs/ の 03_*.png を確認してください。")
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ bbox/mask 同時変換——を、1本の「ミニ学習前処理パイプライ
 合成データで完走し、CPU のみ・ネット不要。どこかで例外が出ても exit 0 を守る。
 
 実行: uv run python lectures/12_data_pipeline_augmentation/mini_project.py
-出力: outputs/12_data_pipeline_augmentation/ に mini_*.png と mini_report.json
+出力: lectures/12_data_pipeline_augmentation/outputs/ に mini_*.png と mini_report.json
 """
 
 from __future__ import annotations
@@ -343,7 +343,7 @@ def main() -> None:
     (out / "mini_report.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2)
     )
-    print(f"\n完了。outputs/12_data_pipeline_augmentation/ を確認してください。")
+    print(f"\n完了。lectures/12_data_pipeline_augmentation/outputs/ を確認してください。")
     print("  - mini_pipeline_overview.png : 原画像→決定論eval→学習拡張の概観")
     print("  - mini_aug_grid.png          : 同一画像からの拡張8通り(水増し)")
     print("  - mini_joint_transform.png   : bbox/mask が反転に追従")

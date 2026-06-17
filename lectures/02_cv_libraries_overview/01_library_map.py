@@ -12,7 +12,7 @@
 
 実行:
   uv run python lectures/02_cv_libraries_overview/01_library_map.py
-結果は outputs/02_cv_libraries_overview/ に保存される（画面表示はしない）。
+結果は lectures/02_cv_libraries_overview/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -260,7 +260,7 @@ def main() -> None:
     print("\n=== 図を保存 ===")
     save_table_figure(out)
     save_quadrant_map(out)
-    print("\n完了。outputs/02_cv_libraries_overview/ の早見表と地図を確認してください。")
+    print("\n完了。lectures/02_cv_libraries_overview/outputs/ の早見表と地図を確認してください。")
 
 
 if __name__ == "__main__":

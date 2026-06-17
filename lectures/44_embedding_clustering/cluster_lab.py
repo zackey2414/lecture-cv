@@ -40,7 +40,7 @@ matplotlib.use("Agg")  # headless（GUI なし）でも図を保存できるバ�
 import matplotlib.pyplot as plt  # noqa: E402
 
 MODULE_ID = "44_embedding_clustering"
-OUT_DIR = pathlib.Path("outputs") / MODULE_ID
+OUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 
 # CPU でも現実的な「最速の定番」。patch16 や large は CPU では重い。
 CLIP_MODEL_ID = "openai/clip-vit-base-patch32"
@@ -106,7 +106,7 @@ def get_device() -> torch.device:
 
 
 def ensure_out_dir() -> pathlib.Path:
-    """outputs/<module_id>/ を作って返す（既にあってもエラーにしない）。"""
+    """lectures/<module_id>/outputs/ を作って返す（既にあってもエラーにしない）。"""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     return OUT_DIR
 

@@ -16,7 +16,7 @@
 
 実行:
   uv run python lectures/35_quantization_pruning/mini_project.py
-結果は outputs/35_quantization_pruning/ に保存される。
+結果は lectures/35_quantization_pruning/outputs/ に保存される。
 """
 
 from __future__ import annotations

@@ -36,7 +36,7 @@ mini_project.py との違い:
     - 第23回の CLIPSeg を使えば「文（the sky）」でターゲット領域を指定できる。
 
 実行:   uv run python lectures/21_segmentation_intro/use_case.py
-出力:   outputs/21_segmentation_intro/use_case_*.png / use_case_sky_replace.json
+出力:   lectures/21_segmentation_intro/outputs/use_case_*.png / use_case_sky_replace.json
 """
 
 from __future__ import annotations

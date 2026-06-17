@@ -13,8 +13,8 @@
   - ウォームアップを省いた“誤計測”との差を併記して、計測手順の重要性も示す。
   - torch.profiler で B 条件の律速演算子トップを出す。
 出力:
-  - outputs/34_inference_profiling/mini_benchmark.png（条件別 p50/p99 横棒）
-  - outputs/34_inference_profiling/mini_report.json（全数値・環境情報）
+  - lectures/34_inference_profiling/outputs/mini_benchmark.png（条件別 p50/p99 横棒）
+  - lectures/34_inference_profiling/outputs/mini_report.json（全数値・環境情報）
 
 実行:
   uv run python lectures/34_inference_profiling/mini_project.py

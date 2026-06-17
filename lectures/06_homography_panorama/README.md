@@ -224,7 +224,7 @@ score = ssim(gray_ref_masked, gray_aligned_masked)   # 1 に近いほど一致
 
 ```bash
 uv run python lectures/06_homography_panorama/mini_project.py
-# → outputs/06_homography_panorama/ に mp_*.png と mp_report.json が出る
+# → lectures/06_homography_panorama/outputs/ に mp_*.png と mp_report.json が出る
 ```
 
 ## ✅ 到達チェックリスト
@@ -312,7 +312,7 @@ A. OpenCV は BGR、matplotlib は RGB です。`cv2.cvtColor(img, cv2.COLOR_BGR
   uv run python lectures/06_homography_panorama/use_case.py --show
   ```
 
-  出力は `outputs/06_homography_panorama/use_case_panorama.png`（完成パノラマ）と `use_case_overview.png`（入力サムネ＋完成図）。
+  出力は `lectures/06_homography_panorama/outputs/use_case_panorama.png`（完成パノラマ）と `use_case_overview.png`（入力サムネ＋完成図）。
 
 - **`mini_project.py` との違い**: ミニプロジェクトは学びを採点・検証する**合成データ専用の総合課題**（4枚パノラマ＋平面物体のまっすぐ化＋SSIM＋JSON レポート）。`use_case.py` は**自分の実データを 1 つの成果物に変える現実の小ツール**で、入力フォルダ・比率テストしきい値・縮小幅などを引数で運用できます。
 - **拡張アイデア**: 総当たりで隣接ペアのインライア数を測って「フォルダに入れる順番を気にしない自動順序推定」へ / 重なり領域の平均輝度を合わせる露出補正 / 合成後の黒余白を `boundingRect` で自動トリミング / `Stitcher_PANORAMA`（円筒・球面投影）に寄せて広角・360 度に対応。
@@ -331,7 +331,7 @@ A. OpenCV は BGR、matplotlib は RGB です。`cv2.cvtColor(img, cv2.COLOR_BGR
 
 ## 動かし方
 
-本章のスクリプトは、すべて CPUのみ・ネット非依存・追加依存なしで動きます（サンプル画像は各スクリプトが `numpy`/`cv2` で合成生成します）。結果はすべて `outputs/06_homography_panorama/` に画像・JSON として保存され、画面表示はしません（headless 安全）。
+本章のスクリプトは、すべて CPUのみ・ネット非依存・追加依存なしで動きます（サンプル画像は各スクリプトが `numpy`/`cv2` で合成生成します）。結果はすべて `lectures/06_homography_panorama/outputs/` に画像・JSON として保存され、画面表示はしません（headless 安全）。
 
 ### 📂 スクリプト一覧
 
@@ -369,7 +369,7 @@ uv run python lectures/06_homography_panorama/exercises.py
 uv run python lectures/06_homography_panorama/exercises_solutions.py
 ```
 
-実行後は、`outputs/06_homography_panorama/` の画像を順に開いて、本文の確認ポイントと照らし合わせてください。特に `01_matches_all.png`→`01_matches_inliers.png`（RANSAC で間引かれる様子）、`01_object_detected.png`（傾いた物体に張り付く緑枠）、`02_pano_naive.png`↔`02_pano_feather.png`（シームの有無）、`03_compare.png`（手作り版と Stitcher 版の投影モデルの違い）、`mp_summary.png`（統合課題のまとめ）を見比べると、各節の内容が一気に腑に落ちます。また `cv_helpers.py` 単体を実行すると、合成 2 視点と真のホモグラフィを生成するスモークテストになります。
+実行後は、`lectures/06_homography_panorama/outputs/` の画像を順に開いて、本文の確認ポイントと照らし合わせてください。特に `01_matches_all.png`→`01_matches_inliers.png`（RANSAC で間引かれる様子）、`01_object_detected.png`（傾いた物体に張り付く緑枠）、`02_pano_naive.png`↔`02_pano_feather.png`（シームの有無）、`03_compare.png`（手作り版と Stitcher 版の投影モデルの違い）、`mp_summary.png`（統合課題のまとめ）を見比べると、各節の内容が一気に腑に落ちます。また `cv_helpers.py` 単体を実行すると、合成 2 視点と真のホモグラフィを生成するスモークテストになります。
 
 ## まとめ
 

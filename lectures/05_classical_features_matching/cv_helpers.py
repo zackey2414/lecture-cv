@@ -6,7 +6,7 @@
 置いて使い回します（他モジュールからは import しない＝この回だけで自己完結）。
 
 ここに置く責務は次の 4 つだけに絞っています（賢すぎる抽象化はしない方針）。
-  1. 出力先 outputs/05_classical_features_matching/ の場所を返す
+  1. 出力先 lectures/05_classical_features_matching/outputs/ の場所を返す
   2. 特徴量マッチング用の「特徴に富んだシーン画像」を作る（make_scene_bgr）
   3. その画像を既知のホモグラフィで歪ませた「別視点の画像」を作る（warp_to_view）
   4. テンプレートマッチング用 / Hough 用の合成画像を作る
@@ -27,7 +27,7 @@ import numpy as np
 #   parents[2] がプロジェクトルート（lecture-cv/）。__file__ 基準なので実行場所に依存しない。
 _HERE = pathlib.Path(__file__).resolve()
 PROJECT_ROOT = _HERE.parents[2]
-OUTPUT_ROOT = PROJECT_ROOT / "outputs"
+OUTPUT_ROOT = _HERE.parent / "outputs"
 MODULE_ID = "05_classical_features_matching"
 
 
@@ -37,7 +37,7 @@ def output_dir() -> pathlib.Path:
     headless 環境では「画面に出す」代わりに「ファイルに保存して後で見る」のが基本。
     その保存先をここで一元管理する。存在しなければ自動で作成する。
     """
-    d = OUTPUT_ROOT / MODULE_ID
+    d = OUTPUT_ROOT
     d.mkdir(parents=True, exist_ok=True)
     return d
 

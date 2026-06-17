@@ -221,7 +221,7 @@ VQA/VLM は「動いたのに答えが変」というハマり方をしやすい
 $ uv run python lectures/25_vqa_vlm/mini_project.py
 === (A) VQA 採点 ===   -> mean VQAv2=0.667  mean exact-match=0.667  (source=ViLT)
 === (B) グラウンディング採点 === -> mean IoU=1.000  point accuracy=1.000
-saved: outputs/25_vqa_vlm/mini_report_card.png, .../mini_report_card.json
+saved: lectures/25_vqa_vlm/outputs/mini_report_card.png, .../mini_report_card.json
 ```
 
 VQA は満点にならず（数え問題で落ちる）、一方でグラウンディングは満点になる。このように**能力ごとの強弱がレポートで一目で分かる**のが特徴だ。これこそが「モデルを多面的に測る」ということである。
@@ -322,7 +322,7 @@ VQA/VLM は、研究のためのベンチだけでなく、**「画像に質問�
 ```bash
 uv run python lectures/25_vqa_vlm/use_case.py
 # → 合成シーン or data/25_vqa_vlm/ の実画像に複数質問を投げ、
-#   画像ごとの Q&A パネルと回答 JSON を outputs/25_vqa_vlm/ に保存
+#   画像ごとの Q&A パネルと回答 JSON を lectures/25_vqa_vlm/outputs/ に保存
 ```
 
 - **data 配置**: `data/25_vqa_vlm/` に**画像**（`*.png` / `*.jpg` / `*.jpeg` / `*.bmp` / `*.webp`）を
@@ -383,7 +383,7 @@ uv run python lectures/25_vqa_vlm/exercises.py
 uv run python lectures/25_vqa_vlm/exercises_solutions.py
 ```
 
-出力はすべて `outputs/25_vqa_vlm/`（PNG 図 / JSON）に保存される。画像は既定ではネット不要の合成シーンを使い、`data/25_vqa_vlm/` に画像を置けばそちらを優先する。ネットに出るのは**モデル重みのDLのみ**だ。
+出力はすべて `lectures/25_vqa_vlm/outputs/`（PNG 図 / JSON）に保存される。画像は既定ではネット不要の合成シーンを使い、`data/25_vqa_vlm/` に画像を置けばそちらを優先する。ネットに出るのは**モデル重みのDLのみ**だ。
 
 ---
 

@@ -16,7 +16,7 @@ torchvision の正準フロー（分類とほぼ同じだが、出力が dict �
 nn.functional.interpolate で元の解像度に戻す（次の節）。
 
 実行: uv run python lectures/21_segmentation_intro/01_torchvision_semseg.py
-出力: outputs/21_segmentation_intro/01_*.png / 01_torchvision_semseg.json
+出力: lectures/21_segmentation_intro/outputs/01_*.png / 01_torchvision_semseg.json
 """
 
 from __future__ import annotations

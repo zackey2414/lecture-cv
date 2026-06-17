@@ -19,12 +19,12 @@ CLASS_NAMES = ["cat", "dog", "bird", "car"]
 
 
 def output_dir() -> pathlib.Path:
-    """結果の保存先 outputs/14_eval_classification/ を返す（無ければ作る）。
+    """結果の保存先 lectures/14_eval_classification/outputs/ を返す（無ければ作る）。
 
     __file__ は lectures/14_eval_classification/eval_helpers.py。
-    parents[2] がプロジェクトルートなので、その下の outputs/ に保存する。
+    .parent がこのモジュールのディレクトリなので、その直下の outputs/ に保存する。
     """
-    base = pathlib.Path(__file__).resolve().parents[2] / "outputs" / "14_eval_classification"
+    base = pathlib.Path(__file__).resolve().parent / "outputs"
     base.mkdir(parents=True, exist_ok=True)  # exist_ok=True で二重作成エラーを防ぐ
     return base
 

@@ -12,7 +12,7 @@
      （まずは自力で！）
 
 ヒント: サンプル画像は cv_helpers.get_sample_bgr() で得られる（BGR uint8）。
-出力の保存先は cv_helpers.output_dir() を使うと outputs/01_image_basics/ になる。
+出力の保存先は cv_helpers.output_dir() を使うと lectures/01_image_basics/outputs/ になる。
 
 10問（易→難）:
   ex1 : 画像の素性（shape / dtype / min / max）        … 配列としての画像

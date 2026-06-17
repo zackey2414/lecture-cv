@@ -10,7 +10,7 @@
 
 実行:
   uv run python lectures/42_multimodal_vector_search/01_shared_space_clip.py
-結果は outputs/42_multimodal_vector_search/ に保存される。
+結果は lectures/42_multimodal_vector_search/outputs/ に保存される。
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ def main() -> None:
 
     # === 6. 類似度行列をヒートマップに保存 ==============================
     _save_heatmap(out, sim, captions, img_metas)
-    print("\n完了。outputs/42_multimodal_vector_search/ を確認してください。")
+    print("\n完了。lectures/42_multimodal_vector_search/outputs/ を確認してください。")
 
 
 def _save_heatmap(out: pathlib.Path, sim: np.ndarray, captions, img_metas) -> None:

@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/44_embedding_clustering/01_kmeans_image_embeddings.py
-結果（アルバム・2D 散布図・json）は outputs/44_embedding_clustering/ に保存。
+結果（アルバム・2D 散布図・json）は lectures/44_embedding_clustering/outputs/ に保存。
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def main() -> None:
     print("  - アルバムの各行が 1 クラスタ。1 行が 1 グループで揃えば自動グルーピング成功。")
     print("  - 散布図で同じ色（予測クラスタ）がまとまり、別の形（真グループ）が分かれていれば理想。")
     print("  - ここでは k=6 を与えたが、実務では k は未知。次の 02 で k の選び方を学ぶ。")
-    print(f"\n完了。outputs/{cl.MODULE_ID}/01_*.png と 01_kmeans_report.json を確認してください。")
+    print(f"\n完了。lectures/{cl.MODULE_ID}/outputs/01_*.png と 01_kmeans_report.json を確認してください。")
 
 
 if __name__ == "__main__":

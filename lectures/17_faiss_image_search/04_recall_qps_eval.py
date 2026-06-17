@@ -135,7 +135,7 @@ def main() -> None:
     print(f"\n[6] 数値を保存: {json_path.name}")
 
     _save_curve(out, report["ivf"], report["hnsw"])
-    print("\n完了。outputs/17_faiss_image_search/ を確認してください。")
+    print("\n完了。lectures/17_faiss_image_search/outputs/ を確認してください。")
 
 
 def _save_curve(out: pathlib.Path, ivf_rows, hnsw_rows) -> None:

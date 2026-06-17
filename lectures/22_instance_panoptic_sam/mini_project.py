@@ -17,7 +17,7 @@
   - パノプティック合成（stuff+things を全画素に1つ）と PQ=SQ×RQ の自作＝torchmetrics 照合。
 
 実行: uv run python lectures/22_instance_panoptic_sam/mini_project.py
-出力: outputs/22_instance_panoptic_sam/mini_project.png / mini_project_report.json
+出力: lectures/22_instance_panoptic_sam/outputs/mini_project.png / mini_project_report.json
 
 注: SAM 重みの DL（初回のみ・数百MB）以外はネット不要。ネット不通やロード失敗時は
     GT を少し揺らした疑似予測へ自動フォールバックし、評価パイプラインは必ず完走する

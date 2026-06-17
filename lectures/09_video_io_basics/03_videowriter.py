@@ -11,7 +11,7 @@
 
 実行:
   uv run python lectures/09_video_io_basics/03_videowriter.py
-結果は outputs/09_video_io_basics/ に保存される（cv2.imshow は呼ばない）。
+結果は lectures/09_video_io_basics/outputs/ に保存される（cv2.imshow は呼ばない）。
 """
 
 from __future__ import annotations
@@ -163,7 +163,7 @@ def main() -> None:
     process_and_rewrite(source, src_fps=fps, out=out, skip=5, scale=0.5)
     verify_rewritten(out)
 
-    print("\n完了。outputs/09_video_io_basics/ の 03_*.png / 03_processed.* を確認してください。")
+    print("\n完了。lectures/09_video_io_basics/outputs/ の 03_*.png / 03_processed.* を確認してください。")
 
 
 if __name__ == "__main__":

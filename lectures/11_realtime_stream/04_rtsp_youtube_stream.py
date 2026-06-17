@@ -238,7 +238,7 @@ def main() -> None:
     print(f"  再接続回数       : {stats['reconnects']}")
     print(f"  処理FPS(EMA)     : {stats['fps']:.1f}")
     print("  → 切断が起きても落ちずに復旧して処理を継続できた（本番ストリームの必須要件）。")
-    print("\n完了。outputs/11_realtime_stream/ に 04_stream_sample.png を保存しました。")
+    print("\n完了。lectures/11_realtime_stream/outputs/ に 04_stream_sample.png を保存しました。")
 
 
 if __name__ == "__main__":

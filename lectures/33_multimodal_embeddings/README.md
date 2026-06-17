@@ -82,7 +82,7 @@ FAISS への接続も最小です。正規化したベクトルを `faiss.IndexF
 
 ## 4. 実装を1つずつ — スクリプトで段階的に組む
 
-各スクリプトは独立に動き、初回のみ HuggingFace から重みを DL（以後キャッシュ）。結果は `outputs/33_multimodal_embeddings/` に保存されます。共通部品は `siglip_lab.py`（device 判定・合成データ・`MMEncoder`・FAISS 小道具・評価指標・トイ三モーダル空間）。
+各スクリプトは独立に動き、初回のみ HuggingFace から重みを DL（以後キャッシュ）。結果は `lectures/33_multimodal_embeddings/outputs/` に保存されます。共通部品は `siglip_lab.py`（device 判定・合成データ・`MMEncoder`・FAISS 小道具・評価指標・トイ三モーダル空間）。
 
 - **`01_siglip_vs_clip.py` — sigmoid vs softmax の核心**。赤い円1枚を、紛らわしいラベル群で CLIP と SigLIP に分類させ、softmax（和=1, 相互排他）と sigmoid（各ラベル独立）の確率の付き方を並べて表示。さらに「取り違えると解釈が壊れる」例も示す。図 `01_sigmoid_vs_softmax.png`。
 - **`02_siglip_retrieval.py` — 埋め込みと検索の土台**。SigLIP で 36 枚の画像と 12 本の文を埋め込み、`get_*_features` が**未正規化**であることを確認 → L2 正規化 → `IndexFlatIP` で **text→image / image→text** 検索。図 `02_text_to_image.png`。
@@ -214,7 +214,7 @@ uv run python lectures/33_multimodal_embeddings/exercises.py
 uv run python lectures/33_multimodal_embeddings/exercises_solutions.py
 ```
 
-成果物（図・wav・JSON）は `outputs/33_multimodal_embeddings/` に保存される。
+成果物（図・wav・JSON）は `lectures/33_multimodal_embeddings/outputs/` に保存される。
 `data/33_multimodal_embeddings/` に実画像（`.png/.jpg`）を置くと、合成より優先して使われる。
 
 ---

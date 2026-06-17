@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/10_classical_video_motion/01_frame_diff_bgsub.py
-結果は outputs/10_classical_video_motion/ に保存される（画面表示はしない＝headless 安全）。
+結果は lectures/10_classical_video_motion/outputs/ に保存される（画面表示はしない＝headless 安全）。
 """
 
 from __future__ import annotations
@@ -133,7 +133,7 @@ def main() -> None:
     demo_frame_diff(frames, out)
     demo_static_bg_diff(frames, out)
     demo_background_subtractors(frames, out)
-    print("\n完了。outputs/10_classical_video_motion/ の 01_*.png を見比べてください。")
+    print("\n完了。lectures/10_classical_video_motion/outputs/ の 01_*.png を見比べてください。")
     print("  framediff（縁だけ）→ bgdiff（中身も）→ MOG2/KNN（頑健）の順に賢くなります。")
 
 

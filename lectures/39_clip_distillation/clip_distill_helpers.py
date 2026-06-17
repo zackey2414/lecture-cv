@@ -60,8 +60,8 @@ def repo_root() -> Path:
 
 
 def out_dir() -> Path:
-    """このモジュールの成果物保存先 outputs/39_clip_distillation を作って返す。"""
-    d = repo_root() / "outputs" / "39_clip_distillation"
+    """このモジュールの成果物保存先 lectures/39_clip_distillation/outputs を作って返す。"""
+    d = Path(__file__).resolve().parent / "outputs"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

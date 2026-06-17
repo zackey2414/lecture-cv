@@ -16,7 +16,7 @@ data/sample.jpg を置けば get_sample_bgr() が自動でそちらを使う。
 実行:
   uv run python lectures/01_image_basics/mini_project.py
 出力:
-  outputs/01_image_basics/mini_panel.png / mini_report.json / mini_report.txt
+  lectures/01_image_basics/outputs/mini_panel.png / mini_report.json / mini_report.txt
   （加えて検証で使った中間ファイル mini_* も同じフォルダに残す）
 """
 
@@ -261,7 +261,7 @@ def main() -> None:
     print(f"\nsaved: {panel_path}")
     print(f"       {out / 'mini_report.json'}")
     print(f"       {out / 'mini_report.txt'}")
-    print("\n完了。outputs/01_image_basics/mini_panel.png を開いて目で確認してください。")
+    print("\n完了。lectures/01_image_basics/outputs/mini_panel.png を開いて目で確認してください。")
 
 
 if __name__ == "__main__":

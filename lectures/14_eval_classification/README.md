@@ -151,7 +151,7 @@ device の扱いも実務的なポイントです。評価指標はすべて CPU
 
 ## 9. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に読めば「混同行列 → しきい値非依存の曲線 → ライブラリ連携」と理解が積み上がります。すべて `outputs/14_eval_classification/` に図と JSON を保存し、画面表示には依存しません。題材データ（合成した予測スコアと正解ラベル）の生成と出力先管理は `eval_helpers.py` にまとめ、各スクリプトはそれを import します。
+各スクリプトは単一責務で、上から順に読めば「混同行列 → しきい値非依存の曲線 → ライブラリ連携」と理解が積み上がります。すべて `lectures/14_eval_classification/outputs/` に図と JSON を保存し、画面表示には依存しません。題材データ（合成した予測スコアと正解ラベル）の生成と出力先管理は `eval_helpers.py` にまとめ、各スクリプトはそれを import します。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -181,7 +181,7 @@ device の扱いも実務的なポイントです。評価指標はすべて CPU
 uv run python lectures/14_eval_classification/mini_project.py
 ```
 
-出力は `outputs/14_eval_classification/mini_project_dashboard.png`（混同行列・クラス別 F1・ROC・PR・しきい値 vs F1・ブートストラップ分布の 6 枚）と `mini_project_report.json`（全指標・選定結果・最適しきい値・信頼区間）です。コンソールには上の3要素の要約が表示されます。**到達目標は「このレポートを自分で再現でき、各数値が何を意味し、なぜその指標で結論を出したかを説明できる」こと**です。
+出力は `lectures/14_eval_classification/outputs/mini_project_dashboard.png`（混同行列・クラス別 F1・ROC・PR・しきい値 vs F1・ブートストラップ分布の 6 枚）と `mini_project_report.json`（全指標・選定結果・最適しきい値・信頼区間）です。コンソールには上の3要素の要約が表示されます。**到達目標は「このレポートを自分で再現でき、各数値が何を意味し、なぜその指標で結論を出したかを説明できる」こと**です。
 
 ## ✅ 到達チェックリスト
 
@@ -253,7 +253,7 @@ uv run python lectures/14_eval_classification/mini_project.py
 # 依存グループを用意（初回のみ）。dl=torch, metrics=scikit-learn/torchmetrics
 uv sync --group dl --group metrics
 
-# 各スクリプトを実行（結果は outputs/14_eval_classification/ に保存される）
+# 各スクリプトを実行（結果は lectures/14_eval_classification/outputs/ に保存される）
 uv run python lectures/14_eval_classification/01_confusion_matrix_prf.py
 uv run python lectures/14_eval_classification/02_roc_pr_auc.py
 uv run python lectures/14_eval_classification/03_torchmetrics_vs_manual.py
@@ -269,7 +269,7 @@ uv run python lectures/14_eval_classification/exercises_solutions.py
 SHOW_SOLUTION=1 uv run python lectures/14_eval_classification/exercises.py
 ```
 
-実行後は `outputs/14_eval_classification/` に生成された画像と JSON を確認してください。`01_confusion_matrix.png`（対角が濃いほど良い）、`02_roc_curve.png` と `02_pr_curve.png`（不均衡 vs 均衡の曲線。PR にはベースラインの点線）、`03_multiclass_compare.png`（torchmetrics と sklearn の棒が重なる＝一致）、`mini_project_dashboard.png`（評価レポートの 6 パネル）を、本文の解説と照らし合わせると理解が定着します。各 JSON には自作とライブラリ双方の数値が記録されているので、値の一致を自分の目でも確かめられます。
+実行後は `lectures/14_eval_classification/outputs/` に生成された画像と JSON を確認してください。`01_confusion_matrix.png`（対角が濃いほど良い）、`02_roc_curve.png` と `02_pr_curve.png`（不均衡 vs 均衡の曲線。PR にはベースラインの点線）、`03_multiclass_compare.png`（torchmetrics と sklearn の棒が重なる＝一致）、`mini_project_dashboard.png`（評価レポートの 6 パネル）を、本文の解説と照らし合わせると理解が定着します。各 JSON には自作とライブラリ双方の数値が記録されているので、値の一致を自分の目でも確かめられます。
 
 ## 11. よくある落とし穴（チェックリスト）
 

@@ -21,7 +21,7 @@ VQA・説明・要約・比較などを1つのモデルで何でもこなせる�
   有効化: uv add num2words
 
 実行: uv run python lectures/25_vqa_vlm/02_vlm_chat.py
-出力: outputs/25_vqa_vlm/02_*.png / 02_vlm_chat.json
+出力: lectures/25_vqa_vlm/outputs/02_*.png / 02_vlm_chat.json
 """
 
 from __future__ import annotations

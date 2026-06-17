@@ -37,9 +37,9 @@ import matplotlib  # noqa: E402
 matplotlib.use("Agg")  # headless（GUI なし）でも図を保存できるバックエンド
 import matplotlib.pyplot as plt  # noqa: E402
 
-# プロジェクト規約: 結果は outputs/<module_id>/ に集約する。
+# プロジェクト規約: 結果は lectures/<module_id>/outputs/ に集約する。
 MODULE_ID = "23_text_prompt_segmentation"
-OUTPUT_DIR = pathlib.Path("outputs") / MODULE_ID
+OUTPUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 
 # 使用モデル（いずれも CPU で現実的な小型）。
 CLIPSEG_MODEL_ID = "CIDAS/clipseg-rd64-refined"  # テキスト条件付きセグメ（軽量）
@@ -70,7 +70,7 @@ def pick_device() -> torch.device:
 
 
 def ensure_output_dir() -> pathlib.Path:
-    """outputs/<module_id>/ を作って返す（既にあってもエラーにしない）。"""
+    """lectures/<module_id>/outputs/ を作って返す（既にあってもエラーにしない）。"""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     return OUTPUT_DIR
 

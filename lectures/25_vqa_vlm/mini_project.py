@@ -16,7 +16,7 @@ trust_remote_code も要るため、ここでは色マスクの簡易ローカ�
 このスクリプトはモデルが無い環境でも採点ロジックが動くよう設計してあり、常に exit 0。
 
 実行: uv run python lectures/25_vqa_vlm/mini_project.py
-出力: outputs/25_vqa_vlm/mini_*.png / mini_report_card.json
+出力: lectures/25_vqa_vlm/outputs/mini_*.png / mini_report_card.json
 """
 
 from __future__ import annotations

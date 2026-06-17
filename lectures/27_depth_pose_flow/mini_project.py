@@ -12,7 +12,7 @@
 （必ず exit 0）。
 
 実行: uv run python lectures/27_depth_pose_flow/mini_project.py
-出力: outputs/27_depth_pose_flow/mini_montage.png / mini_report.json
+出力: lectures/27_depth_pose_flow/outputs/mini_montage.png / mini_report.json
 """
 
 from __future__ import annotations

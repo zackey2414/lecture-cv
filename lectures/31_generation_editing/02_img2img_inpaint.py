@@ -11,7 +11,7 @@
 実行:
   uv run python lectures/31_generation_editing/02_img2img_inpaint.py
 モデルが無くても古典インペイントは必ず動き、**exit 0** で終わります。
-結果は outputs/31_generation_editing/ に保存（headless）。
+結果は lectures/31_generation_editing/outputs/ に保存（headless）。
 """
 
 from __future__ import annotations
@@ -172,7 +172,7 @@ def main() -> None:
     # (C) 任意: 拡散インペイント（既定スキップ）
     try_diffusion_inpaint(clean)
 
-    print("\n完了。outputs/31_generation_editing/02_*.png を確認してください。")
+    print("\n完了。lectures/31_generation_editing/outputs/02_*.png を確認してください。")
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ target_sizes は (height, width) 順（PIL の image.size は (W,H) なので [:
 実写を data/22_instance_panoptic_sam/ に置けば本物のパノプティック結果になる。
 
 実行: uv run python lectures/22_instance_panoptic_sam/02_mask2former_panoptic.py
-出力: outputs/22_instance_panoptic_sam/02_mask2former_panoptic.png / 02_panoptic.json
+出力: lectures/22_instance_panoptic_sam/outputs/02_mask2former_panoptic.png / 02_panoptic.json
 """
 
 from __future__ import annotations

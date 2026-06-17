@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/01_image_basics/01_imread_imwrite.py
-結果は outputs/01_image_basics/ に保存される（画面表示はしない）。
+結果は lectures/01_image_basics/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ def main() -> None:
     cv2.imwrite(str(rgba_path), bgra)             # PNG ならアルファごと保存できる
     print("\n[6] アルファPNG を保存:", rgba_path.name, "shape:", bgra.shape)
 
-    print("\n完了。outputs/01_image_basics/ を確認してください。")
+    print("\n完了。lectures/01_image_basics/outputs/ を確認してください。")
 
 
 if __name__ == "__main__":

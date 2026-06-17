@@ -109,7 +109,7 @@ def main() -> None:
     # ここでは「同じデータに対し IVF / HNSW を作り、Flat と同じ結果が出るか」を確認する。
     _compare_indexes(d, xb, q, k=5)
 
-    print("\n完了。outputs/42_multimodal_vector_search/ を確認してください。")
+    print("\n完了。lectures/42_multimodal_vector_search/outputs/ を確認してください。")
 
 
 def _compare_indexes(d: int, xb: np.ndarray, q: np.ndarray, k: int) -> None:

@@ -208,7 +208,7 @@ plt.imsave("out2.png", rgb)    # 方法B: matplotlib で保存（RGB に変換�
 
 ## 11. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に読めば理解が積み上がるように並べています。すべて `outputs/01_image_basics/` に結果を保存し、画面表示には依存しません。共通処理（合成画像生成・日本語パス対応 I/O・出力先管理）は `cv_helpers.py` にまとめ、各スクリプトはそれを import して使います。
+各スクリプトは単一責務で、上から順に読めば理解が積み上がるように並べています。すべて `lectures/01_image_basics/outputs/` に結果を保存し、画面表示には依存しません。共通処理（合成画像生成・日本語パス対応 I/O・出力先管理）は `cv_helpers.py` にまとめ、各スクリプトはそれを import して使います。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -249,7 +249,7 @@ plt.imsave("out2.png", rgb)    # 方法B: matplotlib で保存（RGB に変換�
   全検証パス: True
 ```
 
-ねらいは「**この章の地雷（色順・次元・型）をすべて自動で踏み抜いて、踏まずに済む書き方を1つのツールに固める**」こと。出力は `outputs/01_image_basics/mini_panel.png` ／ `mini_report.json` ／ `mini_report.txt` に保存されます。`mini_panel.png` を開いて、「正しい色 / 赤青が入れ替わった失敗例 / グレー / オーバーフロー / 飽和 / R チャンネル」を目で見比べてください。
+ねらいは「**この章の地雷（色順・次元・型）をすべて自動で踏み抜いて、踏まずに済む書き方を1つのツールに固める**」こと。出力は `lectures/01_image_basics/outputs/mini_panel.png` ／ `mini_report.json` ／ `mini_report.txt` に保存されます。`mini_panel.png` を開いて、「正しい色 / 赤青が入れ替わった失敗例 / グレー / オーバーフロー / 飽和 / R チャンネル」を目で見比べてください。
 
 ---
 
@@ -346,7 +346,7 @@ A. JPEG は非可逆圧縮なので、開く→保存を繰り返すと劣化が
 # 依存をインストール（初回のみ）
 uv sync
 
-# 各スクリプトを実行（結果は outputs/01_image_basics/ に保存される）
+# 各スクリプトを実行（結果は lectures/01_image_basics/outputs/ に保存される）
 uv run python lectures/01_image_basics/01_imread_imwrite.py
 uv run python lectures/01_image_basics/02_bgr_rgb_pitfall.py
 uv run python lectures/01_image_basics/03_pillow_numpy_interop.py
@@ -365,7 +365,7 @@ uv run python lectures/01_image_basics/exercises_solutions.py
 CV_SHOW=1 uv run python lectures/01_image_basics/04_display_headless.py
 ```
 
-実行後は `outputs/01_image_basics/` に生成された PNG/JPEG を画像ビューアで開き、解説と照らし合わせてください。特に `02_pil_wrong_swapped.png`（赤青が入れ替わった失敗例）と `02_pil_correct.png`（正しい色）、`02_matplotlib_compare.png`（左右比較）を見比べると、BGR/RGB の食い違いが一目で腑に落ちます。`02_overflow_numpy_plus.png` と `02_overflow_cv2_add.png` の違いからは、オーバーフローと飽和の差を視覚的に確認できます。仕上げに `mini_panel.png` を開けば、この章の要点が1枚に集約されています。
+実行後は `lectures/01_image_basics/outputs/` に生成された PNG/JPEG を画像ビューアで開き、解説と照らし合わせてください。特に `02_pil_wrong_swapped.png`（赤青が入れ替わった失敗例）と `02_pil_correct.png`（正しい色）、`02_matplotlib_compare.png`（左右比較）を見比べると、BGR/RGB の食い違いが一目で腑に落ちます。`02_overflow_numpy_plus.png` と `02_overflow_cv2_add.png` の違いからは、オーバーフローと飽和の差を視覚的に確認できます。仕上げに `mini_panel.png` を開けば、この章の要点が1枚に集約されています。
 
 ## 13. まとめ
 
@@ -377,4 +377,4 @@ CV_SHOW=1 uv run python lectures/01_image_basics/04_display_headless.py
 
 > 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
 > Python 3.12 ／ numpy 2.4（2.4.6）／ opencv-python-headless 4.13（`cv2` 4.13.0）／ Pillow 12.2（12.2.0）／ matplotlib 3.10（3.10.9）。
-> 本章は torch を使いません（torch を使う回は 2.12+cpu を前提）。すべて CPUのみ・合成データ・ネット不要で動作し、結果は `outputs/01_image_basics/` に保存します（画面表示には依存しません）。
+> 本章は torch を使いません（torch を使う回は 2.12+cpu を前提）。すべて CPUのみ・合成データ・ネット不要で動作し、結果は `lectures/01_image_basics/outputs/` に保存します（画面表示には依存しません）。

@@ -20,7 +20,7 @@ digit 始まりの 01〜03 スクリプトは import できないので、必要
 
 実行:
     uv run python lectures/07_camera_calibration_stereo/mini_project.py
-結果（画像・JSON）は outputs/07_camera_calibration_stereo/ に保存される（画面表示はしない）。
+結果（画像・JSON）は lectures/07_camera_calibration_stereo/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations

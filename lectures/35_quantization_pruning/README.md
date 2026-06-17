@@ -81,7 +81,7 @@ QAT は `prepare_qat` 系を使い、**fuse を QAT 用の `fuse_modules_qat`**�
 
 ## 4. 実装を1つずつ — スクリプトで段階的に確かめる
 
-各スクリプトは独立に動き、モデルは合成データで**その場で軽く学習**（CPU で 1〜2 秒・決定的）します。共通部品は `quant_lab.py` にまとめてあり（合成タスク・`TinyMLP`/`TinyConvNet`・学習・三角評価の道具・量子化/枝刈りヘルパ）、結果は `outputs/35_quantization_pruning/` に保存されます。
+各スクリプトは独立に動き、モデルは合成データで**その場で軽く学習**（CPU で 1〜2 秒・決定的）します。共通部品は `quant_lab.py` にまとめてあり（合成タスク・`TinyMLP`/`TinyConvNet`・学習・三角評価の道具・量子化/枝刈りヘルパ）、結果は `lectures/35_quantization_pruning/outputs/` に保存されます。
 
 - **`01_quant_theory.py` — 量子化の正体**。`scale`/`zero_point` を手計算し、対称 vs 非対称の MAE 差、ビット幅(8/4/2)と誤差、per-tensor vs per-channel（チャネル振幅が桁違いの重みで per-channel が約3倍改善）を数字と図で確認。図 `01_quantization_levels.png`。
 - **`02_dynamic_ptq.py` — 動的PTQ**。Linear 主体の `TinyMLP` で**サイズ約3.9倍縮小・精度維持**を確認。さらに Conv 主体の `TinyConvNet` では**約1.02倍しか縮まない**（Linear ヘッドだけ int8、Conv は fp32 のまま）ことを示し、「動的は CNN に効かない」を体感。バッチ1では int8 が fp32 より遅い**速度の逆転**も観察。図 `02_dynamic_quant.png`。
@@ -217,7 +217,7 @@ uv run python lectures/35_quantization_pruning/exercises.py
 uv run python lectures/35_quantization_pruning/exercises_solutions.py
 ```
 
-成果物（図・JSON）は `outputs/35_quantization_pruning/` に保存されます。CPU 前提・`model.eval()` + `torch.inference_mode()`・headless（`imshow` は呼ばず matplotlib=Agg で保存）。量子化バックエンドは x86 を既定にし、Apple Silicon/ARM では `qnnpack` に切り替えてください。
+成果物（図・JSON）は `lectures/35_quantization_pruning/outputs/` に保存されます。CPU 前提・`model.eval()` + `torch.inference_mode()`・headless（`imshow` は呼ばず matplotlib=Agg で保存）。量子化バックエンドは x86 を既定にし、Apple Silicon/ARM では `qnnpack` に切り替えてください。
 
 ---
 

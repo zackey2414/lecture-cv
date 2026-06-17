@@ -446,7 +446,7 @@ uv run python lectures/30_face_detection_recognition/mini_project.py
 ```bash
 uv run python lectures/30_face_detection_recognition/use_case.py
 # → 合成 or data/30_face_detection_recognition/ の写真の顔を自動でぼかし、
-#   Before/After モンタージュ・方式比較図・レポート JSON を outputs/30_.../ に保存
+#   Before/After モンタージュ・方式比較図・レポート JSON を lectures/30_.../outputs/ に保存
 ```
 
 - **data 配置**: `data/30_face_detection_recognition/` に**画像**（`*.jpg` / `*.jpeg` / `*.png`
@@ -504,7 +504,7 @@ uv run python lectures/30_face_detection_recognition/exercises.py
 uv run python lectures/30_face_detection_recognition/exercises_solutions.py
 ```
 
-出力（可視化・図・JSON）は `outputs/30_face_detection_recognition/` に保存されます。すべて
+出力（可視化・図・JSON）は `lectures/30_face_detection_recognition/outputs/` に保存されます。すべて
 **CPU・合成顔**で完結し、ネットに出るのは **初回の ResNet18 重み DL のみ**（失敗時は classical
 特徴へ自動フォールバック）。実写を `data/30_face_detection_recognition/` に置けば、検出と
 パイプラインはそちらでも動きます。

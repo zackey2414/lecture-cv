@@ -23,7 +23,6 @@ import torch
 from torch import nn
 
 MODULE_ID = "36_onnx_runtime"
-ROOT = pathlib.Path(__file__).resolve().parents[2]  # リポジトリ直下
 OPSET = 18  # onnxruntime 1.26 が安定に読める opset。上げ過ぎ/下げ過ぎは未対応エラーの元。
 
 
@@ -32,8 +31,8 @@ OPSET = 18  # onnxruntime 1.26 が安定に読める opset。上げ過ぎ/下げ
 # =====================================================================
 
 def ensure_output_dir() -> pathlib.Path:
-    """outputs/36_onnx_runtime/ を作って返す（無ければ作成）。"""
-    out = ROOT / "outputs" / MODULE_ID
+    """lectures/36_onnx_runtime/outputs/ を作って返す（無ければ作成）。"""
+    out = pathlib.Path(__file__).resolve().parent / "outputs"
     out.mkdir(parents=True, exist_ok=True)
     return out
 

@@ -11,7 +11,7 @@
 
 実行:
   uv run python lectures/05_classical_features_matching/01_sift_orb_match.py
-結果は outputs/05_classical_features_matching/ に保存される（画面表示はしない）。
+結果は lectures/05_classical_features_matching/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -197,7 +197,7 @@ def main() -> None:
           "SIFT は少数精鋭、ORB は点数で押す戦略。")
     print(f"  - インライア率: SIFT={sift_r['inlier_ratio']:.2f} / ORB={orb_r['inlier_ratio']:.2f}。"
           "どちらも比率テスト＋RANSAC で高純度の対応が得られている。")
-    print("\n完了。outputs/05_classical_features_matching/ の *_keypoints.png / *_matches.png を確認。")
+    print("\n完了。lectures/05_classical_features_matching/outputs/ の *_keypoints.png / *_matches.png を確認。")
 
 
 if __name__ == "__main__":

@@ -38,9 +38,9 @@ import matplotlib  # noqa: E402
 matplotlib.use("Agg")  # headless（GUI なし）でも図を保存できるバックエンド
 import matplotlib.pyplot as plt  # noqa: E402
 
-# 結果は outputs/<module_id>/ に集約する（プロジェクト規約）。
+# 結果は lectures/<module_id>/outputs/ に集約する（プロジェクト規約）。
 MODULE_ID = "24_image_captioning"
-OUTPUT_DIR = pathlib.Path("outputs") / MODULE_ID
+OUTPUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 
 # --- CPU で現実的な小型キャプションモデル（既定） ---------------------------------
 # kind="combined": AutoProcessor が画像＋テキストをまとめて処理できる（BLIP / GIT）
@@ -68,7 +68,7 @@ def pick_device() -> torch.device:
 
 
 def ensure_output_dir() -> pathlib.Path:
-    """outputs/<module_id>/ を作って返す（既にあってもエラーにしない）。"""
+    """lectures/<module_id>/outputs/ を作って返す（既にあってもエラーにしない）。"""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     return OUTPUT_DIR
 

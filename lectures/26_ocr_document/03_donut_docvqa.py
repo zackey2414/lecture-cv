@@ -11,7 +11,7 @@ Donut（Document understanding transformer）は『Swin（画像）エンコー�
   3. 高レベル API pipeline('document-question-answering') でも同じ答えが出ることを確認。
 
 実行: uv run python lectures/26_ocr_document/03_donut_docvqa.py
-出力: outputs/26_ocr_document/03_*.png / 03_docvqa.json
+出力: lectures/26_ocr_document/outputs/03_*.png / 03_docvqa.json
 """
 
 from __future__ import annotations

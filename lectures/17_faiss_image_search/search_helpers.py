@@ -28,10 +28,9 @@ MODULE_ID = "17_faiss_image_search"
 
 
 def output_dir() -> pathlib.Path:
-    """outputs/17_faiss_image_search/ を作って返す（無ければ作成）。"""
-    # このファイルから見てリポジトリルートは3つ上(lectures/17_.../search_helpers.py)。
-    root = pathlib.Path(__file__).resolve().parents[2]
-    out = root / "outputs" / MODULE_ID
+    """lectures/17_faiss_image_search/outputs/ を作って返す（無ければ作成）。"""
+    # 出力はスクリプト隣の outputs/ に置く(CWD非依存・__file__基準)。
+    out = pathlib.Path(__file__).resolve().parent / "outputs"
     out.mkdir(parents=True, exist_ok=True)
     return out
 

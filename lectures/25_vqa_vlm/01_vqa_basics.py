@@ -16,7 +16,7 @@ VQA（Visual Question Answering）= 画像 + 自然言語の質問 → 回答 �
 pipeline("visual-question-answering") は廃止されたので、専用クラスを直接使う。
 
 実行: uv run python lectures/25_vqa_vlm/01_vqa_basics.py
-出力: outputs/25_vqa_vlm/01_*.png / 01_vqa_basics.json
+出力: lectures/25_vqa_vlm/outputs/01_*.png / 01_vqa_basics.json
 """
 
 from __future__ import annotations

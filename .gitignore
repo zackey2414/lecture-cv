@@ -13,11 +13,12 @@ wheels/
 # ===== Jupyter =====
 .ipynb_checkpoints/
 
-# ===== データ / 出力（大容量・各自で配置。.gitkeep だけ追跡） =====
+# ===== 入力データ（大容量・各自で配置。.gitkeep だけ追跡） =====
 /data/*
 !/data/.gitkeep
-/outputs/*
-!/outputs/.gitkeep
+
+# ===== 実行結果（各回 lectures/<id>/outputs/ に生成。コミットしない） =====
+/lectures/*/outputs/
 
 # ===== モデル重み・キャッシュ（大容量） =====
 *.pt

@@ -10,7 +10,7 @@
 ゴール。実データ（data/24_image_captioning/）があればそれを優先的に使う。
 
 実行: uv run python lectures/24_image_captioning/mini_project.py
-出力: outputs/24_image_captioning/mini_*.png / mini_leaderboard.json / mini_report.txt
+出力: lectures/24_image_captioning/outputs/mini_*.png / mini_leaderboard.json / mini_report.txt
 """
 
 from __future__ import annotations

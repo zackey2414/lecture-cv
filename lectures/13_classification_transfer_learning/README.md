@@ -160,7 +160,7 @@ top1, top5, mf1, conf = acc1(logits, y), acc5(logits, y), f1(logits, y), cm(logi
 
 ## 9. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に「最短で動かす → 中身を分解する → 転移学習で仕上げる」と、理解が積み上がるように並んでいます。`01`〜`03`・`mini_project.py`・`use_case.py` はいずれも `outputs/13_classification_transfer_learning/` に図と JSON を保存し、画面表示には依存しません（一方 `exercises.py`/`exercises_solutions.py` は出力ファイルを保存せず、採点結果をコンソールに表示する演習スクリプトです）。また共通部品（device 判定・合成データ生成・保存）は `dl_helpers.py` にまとめてあり、各スクリプトはこれを import して使います。深層CVトラックの最初の回なので、`dl_helpers.get_device()` の device 判定ロジックは、以降の回でもそのまま再利用できます。
+各スクリプトは単一責務で、上から順に「最短で動かす → 中身を分解する → 転移学習で仕上げる」と、理解が積み上がるように並んでいます。`01`〜`03`・`mini_project.py`・`use_case.py` はいずれも `lectures/13_classification_transfer_learning/outputs/` に図と JSON を保存し、画面表示には依存しません（一方 `exercises.py`/`exercises_solutions.py` は出力ファイルを保存せず、採点結果をコンソールに表示する演習スクリプトです）。また共通部品（device 判定・合成データ生成・保存）は `dl_helpers.py` にまとめてあり、各スクリプトはこれを import して使います。深層CVトラックの最初の回なので、`dl_helpers.get_device()` の device 判定ロジックは、以降の回でもそのまま再利用できます。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -183,7 +183,7 @@ top1, top5, mf1, conf = acc1(logits, y), acc5(logits, y), f1(logits, y), cm(logi
 # 依存をインストール（初回のみ）。本章は dl / hf / metrics グループが必要。
 uv sync --group dl --group hf --group metrics
 
-# 各スクリプトを実行（結果は outputs/13_classification_transfer_learning/ に保存される）
+# 各スクリプトを実行（結果は lectures/13_classification_transfer_learning/outputs/ に保存される）
 uv run python lectures/13_classification_transfer_learning/01_pipeline_classify.py
 uv run python lectures/13_classification_transfer_learning/02_resnet_vit_manual.py
 uv run python lectures/13_classification_transfer_learning/03_transfer_finetune.py
@@ -204,7 +204,7 @@ uv run python lectures/13_classification_transfer_learning/exercises_solutions.p
 # （任意）実写真で試す: data/13_classification_transfer_learning/ に *.jpg/*.png を置いて 01/02 を再実行
 ```
 
-実行を終えたら、`outputs/13_classification_transfer_learning/` の画像を解説と照らし合わせてください。特に `02_embedding_cosine.png`（同クラスは類似度が高い）と `03_confusion_matrix.png`（学習後は完全な対角）を見ると、本章の2大テーマ（**埋め込みの意味**と**転移学習の威力**）が視覚的に腑に落ちます。なお、初回にダウンロードしたモデルは `~/.cache/huggingface`（HF）と `~/.cache/torch/hub`（torchvision）にキャッシュされ、2回目以降はオフラインで即起動します。Docker で使う場合は、このキャッシュをボリュームマウントすると毎回の再DLを防げます。
+実行を終えたら、`lectures/13_classification_transfer_learning/outputs/` の画像を解説と照らし合わせてください。特に `02_embedding_cosine.png`（同クラスは類似度が高い）と `03_confusion_matrix.png`（学習後は完全な対角）を見ると、本章の2大テーマ（**埋め込みの意味**と**転移学習の威力**）が視覚的に腑に落ちます。なお、初回にダウンロードしたモデルは `~/.cache/huggingface`（HF）と `~/.cache/torch/hub`（torchvision）にキャッシュされ、2回目以降はオフラインで即起動します。Docker で使う場合は、このキャッシュをボリュームマウントすると毎回の再DLを防げます。
 
 ## 11. よくあるエラーと対処（チェックリスト）
 
@@ -246,7 +246,7 @@ uv run python lectures/13_classification_transfer_learning/exercises_solutions.p
 
 <figure class="lec-fig"><svg viewBox="0 0 600 300" role="img" aria-label="ミニプロジェクトの流れ: 凍結特徴を前計算し、線形プローブ・重心分類・近傍検索の3つに分岐して指標をまとめ3バックボーンを比較する" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><rect x="16" y="120" width="120" height="60" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/><text x="76" y="145" text-anchor="middle" font-size="13" font-weight="700" fill="#1d4ed8">凍結特徴を前計算</text><text x="76" y="165" text-anchor="middle" font-size="11.5" fill="#3f3f46">no_grad で抽出</text><line x1="136" y1="150" x2="160" y2="150" stroke="#71717a" stroke-width="2"/><line x1="160" y1="76" x2="160" y2="224" stroke="#71717a" stroke-width="2"/><line x1="160" y1="76" x2="184" y2="76" stroke="#71717a" stroke-width="2"/><polygon points="192,76 184,71 184,81" fill="#71717a"/><line x1="160" y1="150" x2="184" y2="150" stroke="#71717a" stroke-width="2"/><polygon points="192,150 184,145 184,155" fill="#71717a"/><line x1="160" y1="224" x2="184" y2="224" stroke="#71717a" stroke-width="2"/><polygon points="192,224 184,219 184,229" fill="#71717a"/><rect x="192" y="52" width="150" height="48" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/><text x="267" y="73" text-anchor="middle" font-size="13" font-weight="700" fill="#1d4ed8">線形プローブ学習</text><text x="267" y="91" text-anchor="middle" font-size="11" fill="#3f3f46">Linear だけ学習</text><rect x="192" y="126" width="150" height="48" rx="8" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/><text x="267" y="147" text-anchor="middle" font-size="13" font-weight="700" fill="#3f3f46">重心分類</text><text x="267" y="165" text-anchor="middle" font-size="11" fill="#52525b">学習不要・cos 最近傍</text><rect x="192" y="200" width="150" height="48" rx="8" fill="#f4f4f5" stroke="#71717a" stroke-width="2"/><text x="267" y="221" text-anchor="middle" font-size="13" font-weight="700" fill="#3f3f46">近傍検索</text><text x="267" y="239" text-anchor="middle" font-size="11" fill="#52525b">cos 類似 上位3件</text><line x1="342" y1="76" x2="388" y2="76" stroke="#71717a" stroke-width="2"/><line x1="342" y1="150" x2="388" y2="150" stroke="#71717a" stroke-width="2"/><line x1="342" y1="224" x2="388" y2="224" stroke="#71717a" stroke-width="2"/><line x1="388" y1="76" x2="388" y2="224" stroke="#71717a" stroke-width="2"/><line x1="388" y1="150" x2="412" y2="150" stroke="#71717a" stroke-width="2"/><polygon points="420,150 412,145 412,155" fill="#71717a"/><rect x="420" y="116" width="164" height="68" rx="10" fill="#ffedd5" stroke="#ea580c" stroke-width="2.5"/><text x="502" y="142" text-anchor="middle" font-size="13" font-weight="700" fill="#c2410c">評価・指標まとめ</text><text x="502" y="162" text-anchor="middle" font-size="11" fill="#18181b">top-1 / macro-F1</text><text x="502" y="178" text-anchor="middle" font-size="10.5" fill="#52525b">＋ 検索 precision@1</text></svg><figcaption><b>章末ミニプロジェクト</b>の処理の流れです。各バックボーンで<b>凍結特徴を前計算</b>（<code>no_grad</code>）し、そこから<b>線形プローブ学習</b>・<b>重心分類（学習不要）</b>・<b>近傍検索（cos 上位3件）</b>の3つに分岐させ、最後に <b>top-1 / macro-F1 / 検索 precision@1</b> を1つにまとめて<b>3つのバックボーンを横並び比較</b>します。</figcaption></figure>
 
-実行すると、**線形プローブはどのバックボーンもクリーンでほぼ満点**になる一方、**強ノイズ下では差が開き**、また**学習ゼロの重心分類でも高い精度が出る**（＝凍結特徴がそのままクラスを分離している）という、本章の主張が数値で立ち上がります。出力は `outputs/13_classification_transfer_learning/` に保存されます。
+実行すると、**線形プローブはどのバックボーンもクリーンでほぼ満点**になる一方、**強ノイズ下では差が開き**、また**学習ゼロの重心分類でも高い精度が出る**（＝凍結特徴がそのままクラスを分離している）という、本章の主張が数値で立ち上がります。出力は `lectures/13_classification_transfer_learning/outputs/` に保存されます。
 
 | 生成物 | 内容 |
 | --- | --- |
@@ -257,7 +257,7 @@ uv run python lectures/13_classification_transfer_learning/exercises_solutions.p
 
 ```bash
 uv run python lectures/13_classification_transfer_learning/mini_project.py
-cat outputs/13_classification_transfer_learning/mini_project_metrics.json
+cat lectures/13_classification_transfer_learning/outputs/mini_project_metrics.json
 ```
 
 **発展のヒント**: バックボーンを増やす（`mobilenetv3_small_100` などの極小モデルを timm から追加）／`HARD_NOISE` を上げて頑健性の差を強調する／`data/13_classification_transfer_learning/` に実写真を置いて「自分のデータでの少データ分類」に置き換える。これらはどれも数行の変更で試せます。
@@ -340,7 +340,7 @@ uv run python lectures/13_classification_transfer_learning/use_case.py
 #     ├── dog/ ...
 #     └── _inbox/ unknown1.jpg ...     ← (任意) ラベル無しの「分類したい画像」置き場
 uv run python lectures/13_classification_transfer_learning/use_case.py
-cat outputs/13_classification_transfer_learning/use_case_metrics.json
+cat lectures/13_classification_transfer_learning/outputs/use_case_metrics.json
 ```
 
 **拡張アイデア**: ①クラスを増やす＝フォルダを足すだけ（コード変更不要）／②`BACKBONE` を timm の `mobilenetv3_small_100` などに差し替えて速度・精度を比較／③学習画像に `torchvision.transforms.v2` の回転・色ジッタを足して頑健化／④`softmax` 信頼度が低い入力は `"unknown"` を返す「オープンセット」化／⑤保存した `.pt` を読み込み新クラスを足して線形層だけ再学習する増分学習／⑥`load_classifier()` + `predict()` を FastAPI から呼んで分類 API 化。

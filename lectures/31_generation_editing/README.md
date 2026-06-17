@@ -239,7 +239,7 @@ SSIM が小数第 3 位だけずれることがある、と明示）。
 
 ```bash
 uv run python lectures/31_generation_editing/mini_project.py
-# → outputs/31_generation_editing/mini_project_montage.png / mini_project_report.json
+# → lectures/31_generation_editing/outputs/mini_project_montage.png / mini_project_report.json
 ```
 
 発展課題（任意）: (a) 生成プロンプトを変えて CLIPScore の変化を観察、(b) 劣化にノイズを足して Swin2SR が
@@ -338,7 +338,7 @@ uv run python lectures/31_generation_editing/mini_project.py
   uv run python lectures/31_generation_editing/use_case.py --mode variations --num 4 \
       --prompt "a product photo of a perfume bottle"                        # バリエーションのみ
   uv run python lectures/31_generation_editing/use_case.py --mode cleanup   # 不要物除去のみ
-  # → outputs/31_generation_editing/use_case_variations.png / use_case_cleanup.png / use_case_listing.json
+  # → lectures/31_generation_editing/outputs/use_case_variations.png / use_case_cleanup.png / use_case_listing.json
   ```
 - **`data/31_generation_editing/` の置き方**: `<任意名>.png`（最初の 1 枚をベース商品として優先読込）、
   `*mask*.png`（白=255 が「消したい領域」。あれば合成シールの代わりに採用）。両方無ければ合成ボトル＋
@@ -385,7 +385,7 @@ uv run python lectures/31_generation_editing/exercises.py
 uv run python lectures/31_generation_editing/exercises_solutions.py      # 模範解答（全 PASS）
 ```
 
-- 出力は `outputs/31_generation_editing/` に保存（headless・`imshow` は呼ばない）。
+- 出力は `lectures/31_generation_editing/outputs/` に保存（headless・`imshow` は呼ばない）。
 - 入力は合成生成。実画像で試すなら `data/31_generation_editing/` に画像を置くと自動で優先読込。
 
 ---

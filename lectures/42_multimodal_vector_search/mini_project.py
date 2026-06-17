@@ -13,7 +13,7 @@
 
 実行:
   uv run python lectures/42_multimodal_vector_search/mini_project.py
-成果物は outputs/42_multimodal_vector_search/ に出力される。
+成果物は lectures/42_multimodal_vector_search/outputs/ に出力される。
 """
 
 from __future__ import annotations
@@ -170,7 +170,7 @@ def main() -> None:
     report_path = out / "mini_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n成果物: {report_path.name} / mini_text_to_image.png / mini_engine.faiss(+meta.json)")
-    print("完了。outputs/42_multimodal_vector_search/ を確認してください。")
+    print("完了。lectures/42_multimodal_vector_search/outputs/ を確認してください。")
 
 
 if __name__ == "__main__":

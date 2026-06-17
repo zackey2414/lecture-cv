@@ -18,7 +18,7 @@
   PIL→[0,1] float テンソルへ変換するだけで、自分で mean/std 正規化を重ねてはいけない。
 
 実行: uv run python lectures/18_object_detection_intro/01_torchvision_detection.py
-出力: outputs/18_object_detection_intro/01_*.png / 01_torchvision_results.json
+出力: lectures/18_object_detection_intro/outputs/01_*.png / 01_torchvision_results.json
 """
 
 from __future__ import annotations

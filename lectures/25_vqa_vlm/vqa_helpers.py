@@ -38,9 +38,9 @@ import matplotlib  # noqa: E402
 matplotlib.use("Agg")  # GUI の無い環境（Docker/CI）でも図を保存できるバックエンド
 import matplotlib.pyplot as plt  # noqa: E402
 
-# 出力は規約どおり outputs/<module_id>/ に集約する。
+# 出力は規約どおり lectures/<module_id>/outputs/ に集約する。
 MODULE_ID = "25_vqa_vlm"
-OUTPUT_DIR = pathlib.Path("outputs") / MODULE_ID
+OUTPUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 DATA_DIR = pathlib.Path("data") / MODULE_ID
 
 # --- CPU で現実的な VQA / VLM モデル（衝突する重い依存を増やさない選択） ---
@@ -78,7 +78,7 @@ def pick_device() -> torch.device:
 
 
 def ensure_output_dir() -> pathlib.Path:
-    """outputs/<module_id>/ を作って返す（既にあってもエラーにしない）。"""
+    """lectures/<module_id>/outputs/ を作って返す（既にあってもエラーにしない）。"""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     return OUTPUT_DIR
 

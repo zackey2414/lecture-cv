@@ -40,15 +40,15 @@ mini_project.py との違い（ここが大事）
   5. --margin / --keep-dims をフォルダごとにチューニングして過検出・見逃しを調整する。
 
 制約: CPU・headless（imshow 不使用, matplotlib=Agg）・図タイトルは ASCII・出力は
-outputs/32_anomaly_iqa/。ネットに出るのは resnet18 重み DL のみ（失敗時はランダム初期化へ
+lectures/32_anomaly_iqa/outputs/。ネットに出るのは resnet18 重み DL のみ（失敗時はランダム初期化へ
 フォールバックして完走）。重い依存（anomalib/pyiqa）は使わず lab の自前 PaDiM を借用。
 
 実行（引数なしでも合成データで完走）:
   uv run python lectures/32_anomaly_iqa/use_case.py
 出力:
-  outputs/32_anomaly_iqa/usecase_overlays/*.png … 製品ごとの 入力+ヒートマップ+欠陥枠
-  outputs/32_anomaly_iqa/usecase_contact_sheet.png … 検査結果の一覧（OK=緑枠 / NG=赤枠）
-  outputs/32_anomaly_iqa/inspection_report.csv / .json … 1 行=1 製品の判定レポート
+  lectures/32_anomaly_iqa/outputs/usecase_overlays/*.png … 製品ごとの 入力+ヒートマップ+欠陥枠
+  lectures/32_anomaly_iqa/outputs/usecase_contact_sheet.png … 検査結果の一覧（OK=緑枠 / NG=赤枠）
+  lectures/32_anomaly_iqa/outputs/inspection_report.csv / .json … 1 行=1 製品の判定レポート
 """
 
 from __future__ import annotations

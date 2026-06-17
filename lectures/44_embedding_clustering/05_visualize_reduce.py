@@ -120,7 +120,7 @@ def main() -> None:
     print("  - PCA は速く決定的。explained_variance で“どれだけ見えているか”を必ず確認する。")
     print("  - t-SNE は島の分離を見せるのが得意だが、島間距離・島の大きさを読みすぎない。")
     print("  - 可視化はクラスタリングの“検証の目”。2D 座標の上で clustering をやり直さないこと。")
-    print(f"\n完了。outputs/{cl.MODULE_ID}/05_pca_vs_tsne.png を確認してください。")
+    print(f"\n完了。lectures/{cl.MODULE_ID}/outputs/05_pca_vs_tsne.png を確認してください。")
 
 
 if __name__ == "__main__":

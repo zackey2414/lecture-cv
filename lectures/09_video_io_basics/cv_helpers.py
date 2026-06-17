@@ -6,7 +6,7 @@
    ネット・GPU・Webカメラ・サンプル動画が無くても、ここで全部を numpy/cv2 で合成生成します。）
 
 ここに置く責務は次の3つだけに絞っています。
-  1. 出力先 outputs/09_video_io_basics/ の管理（headless では「保存して後で見る」が基本）。
+  1. 出力先 lectures/09_video_io_basics/outputs/ の管理（headless では「保存して後で見る」が基本）。
   2. 「動く図形＋フレーム番号テキスト」の合成フレーム列を作る（シークの確認がしやすい）。
   3. その合成フレーム列を動画ファイルとして書き出す（mp4v→MJPG→連番PNG の順にフォールバック）。
 
@@ -28,7 +28,7 @@ import numpy as np
 MODULE_ID = "09_video_io_basics"
 _HERE = pathlib.Path(__file__).resolve()
 PROJECT_ROOT = _HERE.parents[2]
-OUTPUT_ROOT = PROJECT_ROOT / "outputs"
+OUTPUT_ROOT = _HERE.parent / "outputs"
 
 
 def output_dir() -> pathlib.Path:
@@ -37,7 +37,7 @@ def output_dir() -> pathlib.Path:
     headless 環境では「画面に出す（cv2.imshow）」代わりに「ファイルに保存して後で見る」
     のが基本。存在しなければ親ごと自動で作成する。
     """
-    d = OUTPUT_ROOT / MODULE_ID
+    d = OUTPUT_ROOT
     d.mkdir(parents=True, exist_ok=True)
     return d
 

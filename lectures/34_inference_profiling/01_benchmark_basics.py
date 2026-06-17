@@ -13,7 +13,7 @@
 
 実行:
   uv run python lectures/34_inference_profiling/01_benchmark_basics.py
-結果は outputs/34_inference_profiling/ に保存される。
+結果は lectures/34_inference_profiling/outputs/ に保存される。
 """
 
 from __future__ import annotations

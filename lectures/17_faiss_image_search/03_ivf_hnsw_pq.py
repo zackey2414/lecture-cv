@@ -130,7 +130,7 @@ def main() -> None:
     )
 
     _save_tradeoff_figure(out, results)
-    print("\n完了。outputs/17_faiss_image_search/ を確認してください。")
+    print("\n完了。lectures/17_faiss_image_search/outputs/ を確認してください。")
 
 
 def _save_tradeoff_figure(out: pathlib.Path, results) -> None:

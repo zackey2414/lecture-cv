@@ -124,7 +124,7 @@ OpenCV の Python パッケージには 2 種類あり、**同じ `cv2` 名前�
 
 ## 8. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に読めば理解が積み上がります。すべて CPUのみ・合成データ・ネット不要で完走し、図/JSON は `outputs/00_setup/` に保存します。
+各スクリプトは単一責務で、上から順に読めば理解が積み上がります。すべて CPUのみ・合成データ・ネット不要で完走し、図/JSON は `lectures/00_setup/outputs/` に保存します。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -142,7 +142,7 @@ OpenCV の Python パッケージには 2 種類あり、**同じ `cv2` 名前�
 
 ## 🛠 章末ミニプロジェクト — 環境まるごと検証
 
-この回の要素を 1 本に統合する総合課題が `mini_project.py` です。**「本講座を走らせる環境が整っているか」を自動で総点検**し、各項目を PASS/FAIL 判定して、JSON レポートとサマリ図を `outputs/00_setup/` に出力します。
+この回の要素を 1 本に統合する総合課題が `mini_project.py` です。**「本講座を走らせる環境が整っているか」を自動で総点検**し、各項目を PASS/FAIL 判定して、JSON レポートとサマリ図を `lectures/00_setup/outputs/` に出力します。
 
 検証する 6 項目：
 1. **必須ライブラリ**の導入と版（numpy/cv2/PIL/matplotlib）
@@ -158,7 +158,7 @@ OpenCV の Python パッケージには 2 種類あり、**同じ `cv2` 名前�
 uv run python lectures/00_setup/mini_project.py
 ```
 
-`device.py`（device/スレッド/HF）と、後の 01 回で深掘りする BGR/RGB 往復、headless 保存を**ひとつのワークフローに束ねる**ことで、「環境が整う」とは具体的に何が動くことなのかを体で理解します。成果物は `outputs/00_setup/mini_project_report.json`（各チェックの結果＋環境サマリ）と `mini_project.png`（PASS/FAIL の一覧図）。
+`device.py`（device/スレッド/HF）と、後の 01 回で深掘りする BGR/RGB 往復、headless 保存を**ひとつのワークフローに束ねる**ことで、「環境が整う」とは具体的に何が動くことなのかを体で理解します。成果物は `lectures/00_setup/outputs/mini_project_report.json`（各チェックの結果＋環境サマリ）と `mini_project.png`（PASS/FAIL の一覧図）。
 
 ---
 
@@ -253,7 +253,7 @@ uv run python lectures/00_setup/01_device_util.py         # device 自動判定�
 uv run python lectures/00_setup/02_threads_and_cache.py   # スレッド実測 + HF キャッシュ
 uv run python lectures/00_setup/03_dependency_groups.py   # 依存グループ + opencv 排他
 
-# 章末ミニプロジェクト（環境まるごと検証 → JSON/図を outputs/00_setup/ に出力）
+# 章末ミニプロジェクト（環境まるごと検証 → JSON/図を lectures/00_setup/outputs/ に出力）
 uv run python lectures/00_setup/mini_project.py
 
 # 演習（自己採点。未実装でも exit 0）と模範解答（全 PASS）
@@ -261,7 +261,7 @@ uv run python lectures/00_setup/exercises.py
 uv run python lectures/00_setup/exercises_solutions.py
 ```
 
-成果物（図・JSON）は `outputs/00_setup/` に保存されます（matplotlib=Agg、OpenCV は headless）。`mini_project_report.json` を開いて、自分の環境のデバイス・スレッド数・各チェック結果を確認してください。
+成果物（図・JSON）は `lectures/00_setup/outputs/` に保存されます（matplotlib=Agg、OpenCV は headless）。`mini_project_report.json` を開いて、自分の環境のデバイス・スレッド数・各チェック結果を確認してください。
 
 ---
 

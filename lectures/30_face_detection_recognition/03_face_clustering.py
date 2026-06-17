@@ -12,7 +12,7 @@
 
 実行:
   uv run python lectures/30_face_detection_recognition/03_face_clustering.py
-結果（アルバム・2D 散布図）は outputs/30_.../ に保存。
+結果（アルバム・2D 散布図）は lectures/30_.../outputs/ に保存。
 """
 
 from __future__ import annotations
@@ -149,7 +149,7 @@ def main() -> None:
     print("  - DBSCAN は eps を大きくし過ぎると別人が混ざり、小さ過ぎるとノイズ(-1)だらけになる。")
     print("  - Agglomerative は distance_threshold が同じ役割。04 でしきい値掃引して最適点を探す。")
     print(
-        f"\n完了。outputs/{fl.MODULE_ID}/03_album_*.png と 03_pca_scatter.png を確認してください。"
+        f"\n完了。lectures/{fl.MODULE_ID}/outputs/03_album_*.png と 03_pca_scatter.png を確認してください。"
     )
 
 

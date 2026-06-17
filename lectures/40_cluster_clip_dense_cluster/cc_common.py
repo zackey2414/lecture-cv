@@ -39,10 +39,9 @@ CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
 # 出力先 / デバイス
 # =====================================================================
 def output_dir() -> pathlib.Path:
-    """outputs/40_cluster_clip_dense_cluster/ を作って返す（無ければ作成）。"""
-    # lectures/40_.../cc_common.py から見てリポジトリルートは 2 つ上。
-    root = pathlib.Path(__file__).resolve().parents[2]
-    out = root / "outputs" / MODULE_ID
+    """lectures/40_cluster_clip_dense_cluster/outputs/ を作って返す（無ければ作成）。"""
+    # このファイル（cc_common.py）と同じ階層の outputs/ に出す（CWD 非依存）。
+    out = pathlib.Path(__file__).resolve().parent / "outputs"
     out.mkdir(parents=True, exist_ok=True)
     return out
 

@@ -35,7 +35,7 @@
   # モデルを変えて試す（blip / git / vitgpt2 のいずれか）
   uv run python lectures/24_image_captioning/use_case.py git
 
-【出力（すべて outputs/24_image_captioning/ に保存）】
+【出力（すべて lectures/24_image_captioning/outputs/ に保存）】
   use_case_alt_text.json   画像ごとの {file, caption, alt_text, clip_score, flags}
   use_case_gallery.html    画像を base64 で埋め込んだ自己完結 HTML（ブラウザ/スクリーンリーダーで確認可）
   use_case_preview.png     画像＋alt-text＋CLIPScore のプレビューグリッド

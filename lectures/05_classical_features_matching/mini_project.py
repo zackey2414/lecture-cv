@@ -17,7 +17,7 @@
 
 実行:
     uv run python lectures/05_classical_features_matching/mini_project.py
-結果（画像・JSON）は outputs/05_classical_features_matching/ に保存される（画面表示はしない）。
+結果（画像・JSON）は lectures/05_classical_features_matching/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations

@@ -15,8 +15,8 @@
 実行:
   uv run python lectures/32_anomaly_iqa/mini_project.py
 出力:
-  outputs/32_anomaly_iqa/mini_inspection.png … 検出結果（合否・異常マップ）
-  outputs/32_anomaly_iqa/mini_summary.json    … 品質ゲート結果と全評価指標
+  lectures/32_anomaly_iqa/outputs/mini_inspection.png … 検出結果（合否・異常マップ）
+  lectures/32_anomaly_iqa/outputs/mini_summary.json    … 品質ゲート結果と全評価指標
 """
 
 from __future__ import annotations

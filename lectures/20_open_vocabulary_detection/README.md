@@ -181,7 +181,7 @@ results = processor.post_process_grounded_object_detection(
 
 ## 11. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に読むと「動かす → 比較する → 評価する」と理解が積み上がる構成です。いずれも結果を `outputs/20_open_vocabulary_detection/` に図と json で保存し、画面表示には依存しません（matplotlib は Agg）。device 判定・合成シーン生成・モデルロード・検出ラッパ・IoU/マッチング/PRF・描画といった共通処理は `ovd_helpers.py` にまとめてあり、各スクリプトはそれを import します。
+各スクリプトは単一責務で、上から順に読むと「動かす → 比較する → 評価する」と理解が積み上がる構成です。いずれも結果を `lectures/20_open_vocabulary_detection/outputs/` に図と json で保存し、画面表示には依存しません（matplotlib は Agg）。device 判定・合成シーン生成・モデルロード・検出ラッパ・IoU/マッチング/PRF・描画といった共通処理は `ovd_helpers.py` にまとめてあり、各スクリプトはそれを import します。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -198,7 +198,7 @@ results = processor.post_process_grounded_object_detection(
 
 ## 🛠 章末ミニプロジェクト — 2検出器の厳密比較レポート
 
-`mini_project.py` は、この章の学び（OWL でのテキスト検出・`target_sizes=(H,W)` の後処理・IoU/貪欲マッチング・P/R/F1 の閾値スイープ）を1本に統合した総合課題です。01 が OWL-ViT と OWLv2 を「スコアの高さ」で**目視**比較しただけだったのに対し、ここでは**自作の検出メトリクスで定量的に比較**し、評価レポート（4枚パネルのダッシュボード＋JSON）を `outputs/20_open_vocabulary_detection/` へ出力します。マスターすべき要素は3つです。
+`mini_project.py` は、この章の学び（OWL でのテキスト検出・`target_sizes=(H,W)` の後処理・IoU/貪欲マッチング・P/R/F1 の閾値スイープ）を1本に統合した総合課題です。01 が OWL-ViT と OWLv2 を「スコアの高さ」で**目視**比較しただけだったのに対し、ここでは**自作の検出メトリクスで定量的に比較**し、評価レポート（4枚パネルのダッシュボード＋JSON）を `lectures/20_open_vocabulary_detection/outputs/` へ出力します。マスターすべき要素は3つです。
 
 - **(1) 2検出器の厳密比較**: OWL-ViT と OWLv2 を AP@0.5・mAP@[.5:.95]・F1 最大運用点で並べる。AP@0.5 は**両者そろって 1.0 に飽和**して見分けがつかない一方、mAP@[.5:.95] は **OWL-ViT 0.93 < OWLv2 1.00** と差が出ます。
 - **(2) COCO 流 mAP の自作**: 第19回の自作 mAP を実モデルへ適用。スコア降順マッチング→**全点補間**で AP@0.5 を出し、IoU を 0.50:0.05:0.95 で動かして mAP@[.5:.95] を計算。OWL-ViT は **IoU=0.95 で AP が 0.33 まで落ちる**（＝箱が緩く局在が甘い）ことが可視化され、「**AP@0.5 では隠れる局在精度の差**」を体感できます。
@@ -283,7 +283,7 @@ OVD_MODEL=owlvit uv run python lectures/20_open_vocabulary_detection/use_case.py
 OVD_THRESHOLD=0.15 uv run python lectures/20_open_vocabulary_detection/use_case.py "a person"
 ```
 
-**`data/` の置き方（実用化のキモ）**: `data/20_open_vocabulary_detection/` に `.png/.jpg` を1枚以上置くと、その先頭画像が検出対象になります（合成シーンは使われなくなります）。合成シーンは色・形の語にはよく反応しますが、`umbrella`/`person` のような実世界の語には当然ヒットしません（=「見つからない」を体験するためのものです）。逆に、**実写を置けば、自由文で本物の物体を探す実用ツールとして動きます**。結果は `outputs/20_open_vocabulary_detection/use_case_finder.png`（注釈画像）と `use_case_finder.json`（クエリ別の発見数・最高スコア・box）に保存されます。
+**`data/` の置き方（実用化のキモ）**: `data/20_open_vocabulary_detection/` に `.png/.jpg` を1枚以上置くと、その先頭画像が検出対象になります（合成シーンは使われなくなります）。合成シーンは色・形の語にはよく反応しますが、`umbrella`/`person` のような実世界の語には当然ヒットしません（=「見つからない」を体験するためのものです）。逆に、**実写を置けば、自由文で本物の物体を探す実用ツールとして動きます**。結果は `lectures/20_open_vocabulary_detection/outputs/use_case_finder.png`（注釈画像）と `use_case_finder.json`（クエリ別の発見数・最高スコア・box）に保存されます。
 
 **拡張アイデア（練習）**: 画像フォルダを総当りして「指定物が写っている画像」を探す画像検索へ／検出 box を SAM に渡して領域マスク化（Grounded-SAM・第23回）／同ラベルの box 数を数えて在庫・人数カウント／動画フレームに回し、指定物が現れたフレームだけ通知するアラート化。**注意**: しきい値には固定の正解がありません（§8）。実運用では自分のデータで F1 最大点を測って決め、合成シーンの結果をそのまま実写に当てはめないようにしてください。
 
@@ -306,7 +306,7 @@ uv sync --group dl --group hf
 # まず道具箱のスモークテスト（モデル DL 不要・合成シーン描画＋IoU/PRF 確認）
 uv run python lectures/20_open_vocabulary_detection/ovd_helpers.py
 
-# 各スクリプトを実行（結果は outputs/20_open_vocabulary_detection/ に保存される）
+# 各スクリプトを実行（結果は lectures/20_open_vocabulary_detection/outputs/ に保存される）
 uv run python lectures/20_open_vocabulary_detection/01_owlvit_owlv2.py
 uv run python lectures/20_open_vocabulary_detection/02_grounding_dino.py
 uv run python lectures/20_open_vocabulary_detection/03_threshold_sweep_eval.py
@@ -330,7 +330,7 @@ SHOW_SOLUTION=1 uv run python lectures/20_open_vocabulary_detection/exercises.py
 #  → 01/02 は実写を検出。03 の評価は GT が無いため合成シーンに自動で切り替わる。
 ```
 
-実行後は、`outputs/20_open_vocabulary_detection/` の図を解説と照らし合わせてください。とくに `02_gdino_loose.png`（過検出だらけ）と `02_gdino_strict.png`（4つに収束）、`03_sweep_owlv2.png`（P/R/F1 の山）と `03_pr_curve.png`（PR 曲線）を見ると、本章の2大テーマ（**閾値で過検出/取りこぼしが決まる・F1 最大点で閾値を選ぶ**）が視覚的に腑に落ちます。なお、図中の文字は CJK フォントの豆腐（□）を避けるため ASCII にしてあります。また、合成画像なのに色がおかしい場合は、cv2 の BGR を RGB へ変換し忘れていないかを確認してください（本章は `build_scene` で変換済みです）。
+実行後は、`lectures/20_open_vocabulary_detection/outputs/` の図を解説と照らし合わせてください。とくに `02_gdino_loose.png`（過検出だらけ）と `02_gdino_strict.png`（4つに収束）、`03_sweep_owlv2.png`（P/R/F1 の山）と `03_pr_curve.png`（PR 曲線）を見ると、本章の2大テーマ（**閾値で過検出/取りこぼしが決まる・F1 最大点で閾値を選ぶ**）が視覚的に腑に落ちます。なお、図中の文字は CJK フォントの豆腐（□）を避けるため ASCII にしてあります。また、合成画像なのに色がおかしい場合は、cv2 の BGR を RGB へ変換し忘れていないかを確認してください（本章は `build_scene` で変換済みです）。
 
 ## 13. よくあるエラーと対処（チェックリスト）
 

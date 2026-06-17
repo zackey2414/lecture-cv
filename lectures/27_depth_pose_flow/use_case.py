@@ -33,7 +33,7 @@
 - Tkinter スライダで focus_pct/band を対話調整（headless では本ファイルのファイル保存にフォールバック）。
 
 実行: uv run python lectures/27_depth_pose_flow/use_case.py
-出力: outputs/27_depth_pose_flow/use_case_*.png / use_case_bokeh.json
+出力: lectures/27_depth_pose_flow/outputs/use_case_*.png / use_case_bokeh.json
 """
 
 from __future__ import annotations

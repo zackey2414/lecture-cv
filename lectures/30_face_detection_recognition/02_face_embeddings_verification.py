@@ -14,7 +14,7 @@
 
 実行:
   uv run python lectures/30_face_detection_recognition/02_face_embeddings_verification.py
-初回は ResNet18 重みを DL（以後キャッシュ）。結果は outputs/30_.../ に保存。
+初回は ResNet18 重みを DL（以後キャッシュ）。結果は lectures/30_.../outputs/ に保存。
 """
 
 from __future__ import annotations
@@ -149,7 +149,7 @@ def main() -> None:
     print("\n[1:N 識別 identification]")
     identification_demo(emb, labels)
 
-    print(f"\n完了。outputs/{fl.MODULE_ID}/02_*.png（分布/ROC/CMC）を確認してください。")
+    print(f"\n完了。lectures/{fl.MODULE_ID}/outputs/02_*.png（分布/ROC/CMC）を確認してください。")
 
 
 if __name__ == "__main__":

@@ -218,7 +218,7 @@ uv run python lectures/28_tracking/04_mot_metrics.py
 
 ```bash
 uv run python lectures/28_tracking/mini_project.py
-# → MOTA≈0.85 / IDF1≈0.78 / HOTA≈0.82、追跡動画とモンタージュを outputs/28_tracking/ に保存
+# → MOTA≈0.85 / IDF1≈0.78 / HOTA≈0.82、追跡動画とモンタージュを lectures/28_tracking/outputs/ に保存
 ```
 
 **発展課題**: `detect_blobs` を torchvision の検出器（`fasterrcnn_resnet50_fpn` 等）に差し替える、
@@ -321,7 +321,7 @@ ID ごとの軌跡にアプリ固有のルールを当てる**」というもの
 ```bash
 uv run python lectures/28_tracking/use_case.py
 # → 合成 or data/28_tracking/ の動画で通過数を方向別に集計し、
-#   モンタージュ/時系列グラフ/カウント JSON を outputs/28_tracking/ に保存
+#   モンタージュ/時系列グラフ/カウント JSON を lectures/28_tracking/outputs/ に保存
 ```
 
 - **data 配置**: `data/28_tracking/` に**動画**（`*.mp4` / `*.avi` / `*.mov` / `*.mkv`）か
@@ -374,7 +374,7 @@ uv run python lectures/28_tracking/exercises.py
 uv run python lectures/28_tracking/exercises_solutions.py
 ```
 
-出力（可視化・動画）は `outputs/28_tracking/` に保存されます。すべて CPU・合成データで完結し、
+出力（可視化・動画）は `lectures/28_tracking/outputs/` に保存されます。すべて CPU・合成データで完結し、
 ネット接続もモデル重みも不要です（OpenCV トラッカに重みファイルは不要）。
 
 ---

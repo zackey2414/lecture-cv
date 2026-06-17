@@ -8,7 +8,7 @@
   - 姿勢: OKS（物体スケールと per-keypoint 定数で正規化した類似度）と PCK@0.2。
 
 実行: uv run python lectures/27_depth_pose_flow/04_depth_flow_pose_metrics.py
-出力: outputs/27_depth_pose_flow/04_metrics.json / 04_metrics_table.png
+出力: lectures/27_depth_pose_flow/outputs/04_metrics.json / 04_metrics_table.png
 """
 
 from __future__ import annotations

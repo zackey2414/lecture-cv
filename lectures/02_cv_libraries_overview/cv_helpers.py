@@ -5,7 +5,7 @@
 そのため、このヘルパには次の3つの責務だけを置きます。
 
   1. サンプル画像の用意（data/ にあればそれを読む。無ければ合成画像を作る）
-  2. 出力先 outputs/02_cv_libraries_overview/ の場所を返す
+  2. 出力先 lectures/02_cv_libraries_overview/outputs/ の場所を返す
   3. 任意ライブラリ（scikit-image / albumentations / torchvision / kornia / imageio / av）の
      「入っていれば使う・無ければ案内してスキップ」を一手に引き受ける probe()
 
@@ -39,7 +39,6 @@ import numpy as np
 _HERE = pathlib.Path(__file__).resolve()
 PROJECT_ROOT = _HERE.parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
-OUTPUT_ROOT = PROJECT_ROOT / "outputs"
 MODULE_ID = "02_cv_libraries_overview"
 
 
@@ -49,7 +48,7 @@ def output_dir() -> pathlib.Path:
     headless 環境では「画面に出す」代わりに「ファイルに保存して後で見る」のが基本。
     その保存先をここで一元管理する。存在しなければ自動で作成する。
     """
-    d = OUTPUT_ROOT / MODULE_ID
+    d = _HERE.parent / "outputs"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

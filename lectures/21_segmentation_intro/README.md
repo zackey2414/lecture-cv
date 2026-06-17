@@ -196,7 +196,7 @@ global_miou = miou_from_global_confusion_matrix(gt, pred)  # 0.7157
 
 ## 11. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から「動かす → 別実装で広げる → 評価する」と理解が積み上がります。すべて `outputs/21_segmentation_intro/` に図と json を保存し、画面表示には依存しません。合成画像・パレット・モデルロード・決定的 GT/予測といった共通処理は `seg_helpers.py` にまとめてあります。
+各スクリプトは単一責務で、上から「動かす → 別実装で広げる → 評価する」と理解が積み上がります。すべて `lectures/21_segmentation_intro/outputs/` に図と json を保存し、画面表示には依存しません。合成画像・パレット・モデルロード・決定的 GT/予測といった共通処理は `seg_helpers.py` にまとめてあります。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -219,7 +219,7 @@ global_miou = miou_from_global_confusion_matrix(gt, pred)  # 0.7157
 # 依存グループをインストール（初回のみ）
 uv sync --group dl --group hf --group metrics
 
-# 各スクリプトを実行（結果は outputs/21_segmentation_intro/ に保存される）
+# 各スクリプトを実行（結果は lectures/21_segmentation_intro/outputs/ に保存される）
 uv run python lectures/21_segmentation_intro/seg_helpers.py          # 道具箱のスモークテスト
 uv run python lectures/21_segmentation_intro/01_torchvision_semseg.py
 uv run python lectures/21_segmentation_intro/02_segformer_pipeline.py
@@ -241,7 +241,7 @@ uv run python lectures/21_segmentation_intro/exercises_solutions.py
 # （任意）実画像で試す: data/21_segmentation_intro/ に .png/.jpg を置くと自動で使われる
 ```
 
-実行後は `outputs/21_segmentation_intro/` の図を解説と照らし合わせてください。とくに `02_segformer_pipeline.png`（ADE20K の多彩なラベル）と `03_confusion_iou.png`（混同行列と per-class IoU、灰色のバーが NaN＝除外クラス）を見ると、本章の2大テーマ（推論パイプライン・評価指標）が視覚的に腑に落ちます。`deeplabv3` の重み（約160MB）の初回DLに時間がかかる場合は、`01` の `MODEL_NAMES` を `["lraspp"]` に絞ると軽くなります。
+実行後は `lectures/21_segmentation_intro/outputs/` の図を解説と照らし合わせてください。とくに `02_segformer_pipeline.png`（ADE20K の多彩なラベル）と `03_confusion_iou.png`（混同行列と per-class IoU、灰色のバーが NaN＝除外クラス）を見ると、本章の2大テーマ（推論パイプライン・評価指標）が視覚的に腑に落ちます。`deeplabv3` の重み（約160MB）の初回DLに時間がかかる場合は、`01` の `MODEL_NAMES` を `["lraspp"]` に絞ると軽くなります。
 
 ## 13. よくあるエラーと対処（チェックリスト）
 
@@ -271,7 +271,7 @@ uv run python lectures/21_segmentation_intro/exercises_solutions.py
 
 ## 15. 🛠 章末ミニプロジェクト — 評価ベンチマークを一枚にまとめる
 
-ここまでの「推論パイプライン（01/02）」と「評価指標（03）」を一つに束ねた総合課題が `mini_project.py` です。単発の1枚評価ではなく、**6枚の合成データセットを “global 集計” で評価する**実務寄りの構成にしてあり、本編には無い3つのマスター要素を足しています。実行すると `outputs/21_segmentation_intro/mini_project_dashboard.png`（6パネルのダッシュボード）と `mini_project.json`（レポート）が出ます。
+ここまでの「推論パイプライン（01/02）」と「評価指標（03）」を一つに束ねた総合課題が `mini_project.py` です。単発の1枚評価ではなく、**6枚の合成データセットを “global 集計” で評価する**実務寄りの構成にしてあり、本編には無い3つのマスター要素を足しています。実行すると `lectures/21_segmentation_intro/outputs/mini_project_dashboard.png`（6パネルのダッシュボード）と `mini_project.json`（レポート）が出ます。
 
 <figure class="lec-fig"><svg viewBox="0 0 660 330" role="img" aria-label="ミニプロジェクト: 6枚の合成データセットを入口に、global集計・accuracyの罠・しきい値最適化の3分析へ分岐し、1枚のダッシュボードとjsonへ合流する" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="330" y="28" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">ミニプロジェクト — 6 枚を global 集計し 1 枚に束ねる</text><rect x="24" y="141" width="130" height="64" rx="8" fill="#f4f4f5" stroke="#52525b" stroke-width="2"/><text x="89" y="169" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">6 枚の合成</text><text x="89" y="189" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">データセット</text><line x1="154" y1="173" x2="190" y2="173" stroke="#52525b" stroke-width="2"/><line x1="190" y1="83" x2="190" y2="263" stroke="#52525b" stroke-width="2"/><rect x="250" y="58" width="190" height="50" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/><rect x="250" y="118" width="190" height="50" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/><rect x="250" y="178" width="190" height="50" rx="8" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/><rect x="250" y="238" width="190" height="50" rx="8" fill="#fafafa" stroke="#71717a" stroke-width="1.8" stroke-dasharray="5 3"/><text x="345" y="80" text-anchor="middle" font-size="14" font-weight="700" fill="#c2410c">(1) global 集計</text><text x="345" y="98" text-anchor="middle" font-size="11" fill="#71717a">mIoU/IoU/Dice/FWIoU</text><text x="345" y="140" text-anchor="middle" font-size="14" font-weight="700" fill="#c2410c">(2) accuracy の罠</text><text x="345" y="158" text-anchor="middle" font-size="11" fill="#71717a">クラス不均衡を実証</text><text x="345" y="200" text-anchor="middle" font-size="14" font-weight="700" fill="#c2410c">(3) しきい値最適化</text><text x="345" y="218" text-anchor="middle" font-size="11" fill="#71717a">car マスクの2値評価</text><text x="345" y="260" text-anchor="middle" font-size="14" font-weight="700" fill="#52525b">(任意) LR-ASPP 推論</text><text x="345" y="278" text-anchor="middle" font-size="11" fill="#71717a">重みDL失敗ならスキップ</text><line x1="190" y1="83" x2="244" y2="83" stroke="#52525b" stroke-width="1.8"/><polygon points="250,83 240,78 240,88" fill="#52525b"/><line x1="190" y1="143" x2="244" y2="143" stroke="#52525b" stroke-width="1.8"/><polygon points="250,143 240,138 240,148" fill="#52525b"/><line x1="190" y1="203" x2="244" y2="203" stroke="#52525b" stroke-width="1.8"/><polygon points="250,203 240,198 240,208" fill="#52525b"/><line x1="190" y1="263" x2="244" y2="263" stroke="#52525b" stroke-width="1.8"/><polygon points="250,263 240,258 240,268" fill="#52525b"/><line x1="440" y1="83" x2="494" y2="83" stroke="#52525b" stroke-width="1.8"/><line x1="440" y1="143" x2="494" y2="143" stroke="#52525b" stroke-width="1.8"/><line x1="440" y1="203" x2="494" y2="203" stroke="#52525b" stroke-width="1.8"/><line x1="440" y1="263" x2="494" y2="263" stroke="#52525b" stroke-width="1.8"/><line x1="494" y1="83" x2="494" y2="263" stroke="#52525b" stroke-width="2"/><line x1="494" y1="173" x2="524" y2="173" stroke="#52525b" stroke-width="2"/><polygon points="530,173 520,168 520,178" fill="#52525b"/><rect x="530" y="137" width="110" height="72" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/><text x="585" y="167" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1d4ed8">ダッシュボード</text><text x="585" y="187" text-anchor="middle" font-size="11.5" fill="#3f3f46">6 パネル + json</text></svg><figcaption><b>章末ミニプロジェクト</b>（<code>mini_project.py</code>）は <b>6 枚の合成データセット</b>を入口に、<b>(1) global 集計</b>（全画素を1つの混同行列へ積み mIoU/IoU/Dice/FWIoU を出し <code>torchmetrics</code> と検算）、<b>(2) accuracy の罠</b>（クラス不均衡で pixel acc は高いのに mIoU は低い）、<b>(3) しきい値最適化</b>（car の2値 IoU/Dice が最大の閾値）の3分析へ<b>分岐</b>し、結果を<b>1 枚のダッシュボード（6 パネル）と <code>mini_project.json</code></b> へ<b>合流</b>させます。末尾の <b>LR-ASPP 実推論</b>は任意で、重みDLに失敗してもスキップして必ず <code>exit 0</code> です。</figcaption></figure>
 
@@ -351,9 +351,9 @@ uv run python lectures/21_segmentation_intro/exercises_solutions.py
 ```bash
 # 実行（CPU・初回のみ SegFormer 重みをDL。以降はキャッシュから即起動）
 uv run python lectures/21_segmentation_intro/use_case.py
-# 出力: outputs/21_segmentation_intro/use_case_sky_replace.png（入力/空アルファ/色置換/画像置換）
-#       outputs/21_segmentation_intro/use_case_cutout.png（前景のみ・空は透明な RGBA PNG）
-#       outputs/21_segmentation_intro/use_case_sky_replace.json（対象クラス・占有率・使用した空）
+# 出力: lectures/21_segmentation_intro/outputs/use_case_sky_replace.png（入力/空アルファ/色置換/画像置換）
+#       lectures/21_segmentation_intro/outputs/use_case_cutout.png（前景のみ・空は透明な RGBA PNG）
+#       lectures/21_segmentation_intro/outputs/use_case_sky_replace.json（対象クラス・占有率・使用した空）
 ```
 
 **`data/21_segmentation_intro/` の配置法**：

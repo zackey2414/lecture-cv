@@ -141,7 +141,7 @@ def main() -> None:
     print("  - ただしクロスモーダルを“素朴に混ぜて”束ねるとモダリティで割れる（モダリティギャップ）。")
     print("    検索（相対順位）は無事だが、クラスタリング（絶対位置）はギャップに弱い。")
     print("  - 対策はモダリティごとの centering 等。顔クラスタリング(30)も埋め込みが変わるだけの同じ話。")
-    print(f"\n完了。outputs/{cl.MODULE_ID}/04_modality_gap.png を確認してください。")
+    print(f"\n完了。lectures/{cl.MODULE_ID}/outputs/04_modality_gap.png を確認してください。")
 
 
 if __name__ == "__main__":

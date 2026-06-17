@@ -195,7 +195,7 @@ pipe(image=invoice, question="What is the total?")   # → [{"answer": "980 usd"
 
 ```bash
 uv run python lectures/26_ocr_document/mini_project.py
-# → outputs/26_ocr_document/mini_summary.png（総合スコア）, mini_recognition.png（行ごとの GT/予測/CER）, mini_report.json
+# → lectures/26_ocr_document/outputs/mini_summary.png（総合スコア）, mini_recognition.png（行ごとの GT/予測/CER）, mini_report.json
 ```
 
 この統合課題を自分の手で動かし、**「認識精度（CER）」と「理解精度（ANLS）」を別々に評価できる**こと、そして**両者をどう組み合わせて1つの文書処理パイプラインにするか**を体得することが、本章のゴールです。余力があれば、ステージA の TrOCR を Tesseract/EasyOCR（導入時）に差し替えて CER を比べる、ステージB の質問を増やす、といった拡張に挑戦してください。
@@ -270,7 +270,7 @@ uv sync --group dl --group hf --group metrics
 # 道具箱の自己点検（モデル不要・純計算）＋合成データの確認図
 uv run python lectures/26_ocr_document/ocr_helpers.py
 
-# 各スクリプト（結果は outputs/26_ocr_document/ に保存）
+# 各スクリプト（結果は lectures/26_ocr_document/outputs/ に保存）
 uv run python lectures/26_ocr_document/01_tesseract_easyocr.py   # 古典/深層 OCR（座標付き。未導入なら案内のみ）
 uv run python lectures/26_ocr_document/02_trocr.py               # TrOCR で印字行を読み CER 算出
 uv run python lectures/26_ocr_document/03_donut_docvqa.py        # Donut/DocVQA で帳票 QA（exact-match/ANLS）
@@ -288,7 +288,7 @@ uv run python lectures/26_ocr_document/exercises_solutions.py
 # （任意）別モデルに差し替え: TROCR_MODEL=... / DONUT_MODEL=... を環境変数で指定
 ```
 
-実行後は `outputs/26_ocr_document/` の図と json を解説と照合してください。とくに `02_trocr_lines.png`（行ごとの GT/予測/CER）、`04_engine_cer.png`（エンジン別コーパス CER）、`03_docvqa_annotated.png`（請求書への回答）、`mini_summary.png`（認識×理解の総合スコア）の4枚を見ると、本章の要点が視覚的に腑に落ちます。図中の文字は CJK フォントの豆腐（□）を避けるため ASCII にしてあります。
+実行後は `lectures/26_ocr_document/outputs/` の図と json を解説と照合してください。とくに `02_trocr_lines.png`（行ごとの GT/予測/CER）、`04_engine_cer.png`（エンジン別コーパス CER）、`03_docvqa_annotated.png`（請求書への回答）、`mini_summary.png`（認識×理解の総合スコア）の4枚を見ると、本章の要点が視覚的に腑に落ちます。図中の文字は CJK フォントの豆腐（□）を避けるため ASCII にしてあります。
 
 ## このモジュールの構成（スクリプト一覧）
 
@@ -322,7 +322,7 @@ uv run python lectures/26_ocr_document/exercises_solutions.py
 
 ```bash
 uv run python lectures/26_ocr_document/use_case.py
-# → outputs/26_ocr_document/use_case_receipt.png（行検出の可視化）, use_case_receipt.json（構造化レコード）
+# → lectures/26_ocr_document/outputs/use_case_receipt.png（行検出の可視化）, use_case_receipt.json（構造化レコード）
 
 # 実データで動かす: data/26_ocr_document/ にレシート/帳票画像（.png/.jpg/.jpeg/.bmp/.tif）を置くと
 # その最初の1枚を自動で読み取る（置かなければ合成レシートで必ず完走＝exit 0）

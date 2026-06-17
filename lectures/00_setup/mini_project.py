@@ -2,7 +2,7 @@
 
 この回で学んだ要素を 1 本に統合し、「本講座を走らせる環境が整っているか」を
 自動で総点検する完成形。各チェックは PASS/FAIL を返し、最後に総合判定・
-JSON レポート・サマリ図を outputs/00_setup/ に出力する。
+JSON レポート・サマリ図を lectures/00_setup/outputs/ に出力する。
 
 検証する 6 項目:
   (1) 必須ライブラリの導入と版（numpy/cv2/PIL/matplotlib）
@@ -14,7 +14,7 @@ JSON レポート・サマリ図を outputs/00_setup/ に出力する。
 
 実行:
     uv run python lectures/00_setup/mini_project.py
-成果物（JSON・PNG）は outputs/00_setup/ に保存される。CPUのみ・合成データ・ネット不要。
+成果物（JSON・PNG）は lectures/00_setup/outputs/ に保存される。CPUのみ・合成データ・ネット不要。
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from device import configure_threads, hf_home, pick_device, summary  # noqa: E40
 
 
 def _output_dir() -> pathlib.Path:
-    d = pathlib.Path(__file__).resolve().parents[2] / "outputs" / "00_setup"
+    d = pathlib.Path(__file__).resolve().parent / "outputs"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

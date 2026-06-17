@@ -20,7 +20,7 @@
 
 ここで大切なのは、各操作が「画像という `(H, W)` あるいは `(H, W, 3)` の `uint8` 配列」に対する変換にすぎない、という第1回からの視点を保ち続けることです。フィルタは近傍の重み付き平均、エッジは微分、二値化はしきい値での 0/255 振り分け、モルフォロジーは集合演算、ワーピングは座標の写像 —— どれも、ある配列を別の配列へ移しているだけにすぎません。この視点を持っていれば、関数の戻り値の `shape` と `dtype` を見ただけで「何が起きたか」を推測でき、デバッグが一気に速くなります。
 
-なお、本章のスクリプトはすべて、結果を画面に出さず `outputs/04_filtering_edges_morphology/` に保存します。`cv2.imshow` は GUI バックエンドを必要とし、Docker・SSH・CI などディスプレイの無い環境ではプロセスごと落ちることがあるため、headless 前提の本講座では使いません。比較結果は1枚のグリッド画像にまとめて保存するので、実行後にそれを開き、解説と照らし合わせてください。
+なお、本章のスクリプトはすべて、結果を画面に出さず `lectures/04_filtering_edges_morphology/outputs/` に保存します。`cv2.imshow` は GUI バックエンドを必要とし、Docker・SSH・CI などディスプレイの無い環境ではプロセスごと落ちることがあるため、headless 前提の本講座では使いません。比較結果は1枚のグリッド画像にまとめて保存するので、実行後にそれを開き、解説と照らし合わせてください。
 
 ## 2. 平滑化フィルタ — どのノイズにどれが効くか（`01_smoothing.py`）
 
@@ -145,7 +145,7 @@ out = cv2.cvtColor(cv2.merge([h_, s_, clahe.apply(v_)]), cv2.COLOR_HSV2BGR)
 
 ## 9. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から順に読めば「フィルタ → エッジ → 閾値・モルフォロジー → 輪郭・ワーピング → コントラスト補正」と理解が積み上がるよう並べてあります。いずれも結果を `outputs/04_filtering_edges_morphology/` に保存し、画面表示には依存しません。サンプル画像は各スクリプト内で `numpy`/`cv2` により合成生成するため、`data/` に何も無くても動きます（外部モジュールからの import もありません＝自己完結）。
+各スクリプトは単一責務で、上から順に読めば「フィルタ → エッジ → 閾値・モルフォロジー → 輪郭・ワーピング → コントラスト補正」と理解が積み上がるよう並べてあります。いずれも結果を `lectures/04_filtering_edges_morphology/outputs/` に保存し、画面表示には依存しません。サンプル画像は各スクリプト内で `numpy`/`cv2` により合成生成するため、`data/` に何も無くても動きます（外部モジュールからの import もありません＝自己完結）。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -158,7 +158,7 @@ out = cv2.cvtColor(cv2.merge([h_, s_, clahe.apply(v_)]), cv2.COLOR_HSV2BGR)
 | `exercises.py` | TODO 形式の演習**10問**（自己採点ランナー付き。`SHOW_SOLUTION=1` で模範解答）|
 | `exercises_solutions.py` | 全演習の模範解答（実行で全 PASS を確認できる）|
 
-表の通り、`04_contours_warp.py` が deliverable の中核（書類補正）であり、`01`〜`03` と `05` は「フィルタ/エッジ/閾値の効果を並べて保存する比較ツール」群に対応します。まずは 01 から順に動かし、各 `outputs/04_*.png` を開きながら本文を読み返すと、理解が定着します。そして、これら全要素を1本に束ねたのが `mini_project.py` です。
+表の通り、`04_contours_warp.py` が deliverable の中核（書類補正）であり、`01`〜`03` と `05` は「フィルタ/エッジ/閾値の効果を並べて保存する比較ツール」群に対応します。まずは 01 から順に動かし、各 `lectures/04_filtering_edges_morphology/outputs/04_*.png` を開きながら本文を読み返すと、理解が定着します。そして、これら全要素を1本に束ねたのが `mini_project.py` です。
 
 ---
 
@@ -178,7 +178,7 @@ out = cv2.cvtColor(cv2.merge([h_, s_, clahe.apply(v_)]), cv2.COLOR_HSV2BGR)
 6. **コントラスト補正**（`createCLAHE`）— 正面化した紙面の局所コントラストを引き上げ、薄い文字を立たせる。
 7. **二値スキャン化**（`adaptiveThreshold` → `morphologyEx(OPEN)`）— 残った照明ムラに強い適応的閾値で「黒文字・白地」にし、オープニングで地の粒ノイズを掃除して完成。
 
-実行すると `outputs/04_filtering_edges_morphology/` に4つの成果物が出ます。**`mini_project_pipeline.png`**（7工程を並べたグリッド）、**`mini_project_scan.png`**（最終スキャン単体）、**`mini_project_hist.png`**（CLAHE 前後の輝度ヒストグラム）、そして **`mini_project_report.json`**（四隅座標・最大輪郭面積・正面化サイズ・CLAHE 前後のコントラスト std・インク比率などの定量指標）の4点です。なかでもレポート JSON は、「検出した四隅が入力の傾きと一致しているか」「CLAHE でコントラスト std が広がったか」を数値で振り返るのに使えます。
+実行すると `lectures/04_filtering_edges_morphology/outputs/` に4つの成果物が出ます。**`mini_project_pipeline.png`**（7工程を並べたグリッド）、**`mini_project_scan.png`**（最終スキャン単体）、**`mini_project_hist.png`**（CLAHE 前後の輝度ヒストグラム）、そして **`mini_project_report.json`**（四隅座標・最大輪郭面積・正面化サイズ・CLAHE 前後のコントラスト std・インク比率などの定量指標）の4点です。なかでもレポート JSON は、「検出した四隅が入力の傾きと一致しているか」「CLAHE でコントラスト std が広がったか」を数値で振り返るのに使えます。
 
 ```bash
 uv run python lectures/04_filtering_edges_morphology/mini_project.py
@@ -275,7 +275,7 @@ uv run python lectures/04_filtering_edges_morphology/mini_project.py
 # 依存をインストール（初回のみ）
 uv sync
 
-# 各スクリプトを実行（結果は outputs/04_filtering_edges_morphology/ に保存される）
+# 各スクリプトを実行（結果は lectures/04_filtering_edges_morphology/outputs/ に保存される）
 uv run python lectures/04_filtering_edges_morphology/01_smoothing.py
 uv run python lectures/04_filtering_edges_morphology/02_edges_canny.py
 uv run python lectures/04_filtering_edges_morphology/03_threshold_morphology.py
@@ -292,7 +292,7 @@ SHOW_SOLUTION=1 uv run python lectures/04_filtering_edges_morphology/exercises.p
 uv run python lectures/04_filtering_edges_morphology/exercises_solutions.py
 ```
 
-実行後は `outputs/04_filtering_edges_morphology/` に生成された PNG を画像ビューアで開いてください。とくに `mini_project_pipeline.png`（書類スキャナの全工程）、`04_document_pipeline.png`（書類補正の全工程）、`02_sobel_dtype_pitfall.png`（`CV_8U` で片側のエッジが消える様子）、`03_threshold_compare.png`（適応的閾値の頑健さ）、`03_morphology.png`（open/close の効果）を解説と照らし合わせると、各操作の役割が腑に落ちます。
+実行後は `lectures/04_filtering_edges_morphology/outputs/` に生成された PNG を画像ビューアで開いてください。とくに `mini_project_pipeline.png`（書類スキャナの全工程）、`04_document_pipeline.png`（書類補正の全工程）、`02_sobel_dtype_pitfall.png`（`CV_8U` で片側のエッジが消える様子）、`03_threshold_compare.png`（適応的閾値の頑健さ）、`03_morphology.png`（open/close の効果）を解説と照らし合わせると、各操作の役割が腑に落ちます。
 
 ## 11. よくあるエラーと対処（クイック表）
 
@@ -320,4 +320,4 @@ uv run python lectures/04_filtering_edges_morphology/exercises_solutions.py
 
 > 本教材で参照・検証したライブラリとバージョン（2026-06 時点の安定版で動作確認）:
 > Python 3.12 ／ numpy 2.4（2.4.6）／ opencv-python-headless 4.13（`cv2` 4.13.0）／ Pillow 12.2（12.2.0、本章では未使用）／ matplotlib 3.10（3.10.9）。本章は torch を使いませんが、講座全体の深層パートでは torch 2.12+cpu を前提とします。
-> すべて CPU のみ・ネット非依存で動作します（`cv2.imshow` は使わず、結果は `outputs/04_filtering_edges_morphology/` に保存）。
+> すべて CPU のみ・ネット非依存で動作します（`cv2.imshow` は使わず、結果は `lectures/04_filtering_edges_morphology/outputs/` に保存）。

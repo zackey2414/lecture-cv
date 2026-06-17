@@ -13,7 +13,7 @@ torchmetrics は「学習ループの途中でバッチごとに指標を貯め�
   - 完全CPU。preds と target は同じ device に揃える（ここでは両方 cpu）だけ。
 
 実行: uv run python lectures/14_eval_classification/03_torchmetrics_vs_manual.py
-結果（三者比較の JSON・棒グラフ）は outputs/14_eval_classification/ に保存される。
+結果（三者比較の JSON・棒グラフ）は lectures/14_eval_classification/outputs/ に保存される。
 """
 
 from __future__ import annotations

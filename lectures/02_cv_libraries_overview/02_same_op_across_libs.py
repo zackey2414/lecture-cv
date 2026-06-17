@@ -12,7 +12,7 @@ scikit-image は任意ライブラリ。未導入でも OpenCV と Pillow の 2 
 
 実行:
   uv run python lectures/02_cv_libraries_overview/02_same_op_across_libs.py
-結果は outputs/02_cv_libraries_overview/ に保存される（画面表示はしない）。
+結果は lectures/02_cv_libraries_overview/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations

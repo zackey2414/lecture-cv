@@ -10,7 +10,7 @@ CLIP は画像とテキストを同じ空間に埋め込むので、その場で
 だから "a red circle" でも "a traffic sign" でも、候補に入れさえすれば分類対象になる。
 
 実行: uv run python lectures/16_clip_zeroshot_retrieval/01_zeroshot_pipeline.py
-出力: outputs/16_clip_zeroshot_retrieval/01_*.png / 01_zeroshot_results.json
+出力: lectures/16_clip_zeroshot_retrieval/outputs/01_*.png / 01_zeroshot_results.json
 """
 
 from __future__ import annotations

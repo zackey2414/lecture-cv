@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/03_image_transforms/02_drawing.py
-結果は outputs/03_image_transforms/ に保存される（画面表示はしない）。
+結果は lectures/03_image_transforms/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -95,7 +95,7 @@ def main() -> None:
     cv2.imwrite(str(out / "02_detections.png"), scene)
     print("[4] バウンディングボックス＋ラベルの可視化を保存（検出可視化の定番）")
 
-    print("\n完了。outputs/03_image_transforms/ を確認してください。")
+    print("\n完了。lectures/03_image_transforms/outputs/ を確認してください。")
 
 
 if __name__ == "__main__":

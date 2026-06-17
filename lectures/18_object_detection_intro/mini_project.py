@@ -20,7 +20,7 @@
   自己完結させ、共通部品だけ detection_helpers から借りる。
 
 実行: uv run python lectures/18_object_detection_intro/mini_project.py
-出力: outputs/18_object_detection_intro/
+出力: lectures/18_object_detection_intro/outputs/
   - mini_detection_overlay.png  予測（と合成時は pseudo-GT）のオーバレイ
   - mini_pr_curve.png           controlled シナリオの PR 曲線（全点補間 AP を陰影）
   - mini_project.json           検出・自作 mAP・torchmetrics・両者の比較

@@ -13,7 +13,7 @@
 
 実行:
   uv run python lectures/38_knowledge_distillation/05_distill_token_deit.py
-結果は outputs/38_knowledge_distillation/ に保存される。
+結果は lectures/38_knowledge_distillation/outputs/ に保存される。
 """
 
 from __future__ import annotations

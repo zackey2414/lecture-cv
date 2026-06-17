@@ -79,9 +79,8 @@ def configure_backend(num_threads: int = 4) -> str:
 
 
 def ensure_output_dir() -> Path:
-    """結果(図・JSON)の保存先 outputs/35_quantization_pruning/ を作って返す。"""
-    root = Path(__file__).resolve().parents[2]
-    out = root / "outputs" / MODULE_ID
+    """結果(図・JSON)の保存先 lectures/35_quantization_pruning/outputs/ を作って返す。"""
+    out = Path(__file__).resolve().parent / "outputs"
     out.mkdir(parents=True, exist_ok=True)
     return out
 

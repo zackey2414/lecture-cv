@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/05_classical_features_matching/03_hough_lines_circles.py
-結果は outputs/05_classical_features_matching/ に保存される（画面表示はしない）。
+結果は lectures/05_classical_features_matching/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -108,7 +108,7 @@ def main() -> None:
     fig.savefig(str(out / "03_summary.png"), dpi=110)
     plt.close(fig)
 
-    print("\n完了。outputs/05_classical_features_matching/ の 03_*.png（特に 03_summary.png）を確認。")
+    print("\n完了。lectures/05_classical_features_matching/outputs/ の 03_*.png（特に 03_summary.png）を確認。")
 
 
 if __name__ == "__main__":

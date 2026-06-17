@@ -18,7 +18,7 @@ digit 始まりのスクリプト(01〜04)は import できないため、各ア
 
 実行:
     uv run python lectures/10_classical_video_motion/mini_project.py
-結果（動画・画像・JSON）は outputs/10_classical_video_motion/ に保存される（画面表示はしない）。
+結果（動画・画像・JSON）は lectures/10_classical_video_motion/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations

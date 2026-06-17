@@ -13,7 +13,7 @@
       → 拡張がデータの多様性を増やす様子を std/range で数値化（03 の評価ポイント）。
   (4) 「課題 → まず選ぶライブラリ」の意思決定表が自己整合かを点検する。
 
-出力（すべて outputs/02_cv_libraries_overview/ へ。画面表示なし・ネット不要・CPU 完結）:
+出力（すべて lectures/02_cv_libraries_overview/outputs/ へ。画面表示なし・ネット不要・CPU 完結）:
   - mini_project_report.json   … 機械可読な集計（時間/MAD/往復/分布/環境）
   - mini_project_summary.png   … タイミング棒グラフ ＋ 明るさ分布ヒストグラム
 
@@ -329,7 +329,7 @@ def main() -> None:
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print("  保存:", json_path.name)
 
-    print("\n完了。outputs/02_cv_libraries_overview/ の "
+    print("\n完了。lectures/02_cv_libraries_overview/outputs/ の "
           "mini_project_summary.png と mini_project_report.json を確認してください。")
 
 

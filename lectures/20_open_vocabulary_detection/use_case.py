@@ -36,7 +36,7 @@
   # 検出のしきい値を上書き（小さいほど拾う・過検出も増える）
   OVD_THRESHOLD=0.15 ...
 
-【出力（すべて outputs/20_open_vocabulary_detection/ に保存）】
+【出力（すべて lectures/20_open_vocabulary_detection/outputs/ に保存）】
   use_case_finder.png    検出ボックス（クエリ名＋スコア付き）を重ねた注釈画像
   use_case_finder.json   クエリごとの「見つかった/件数/最高スコア/box」一覧
 

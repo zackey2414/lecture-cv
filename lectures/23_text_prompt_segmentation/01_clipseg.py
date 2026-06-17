@@ -11,7 +11,7 @@
   5. 「シーンに無い概念（a yellow star）」も投げ、確率が低く保たれる＝閾値で消える様子を見る。
 
 実行: uv run python lectures/23_text_prompt_segmentation/01_clipseg.py
-出力: outputs/23_text_prompt_segmentation/01_*.png / 01_clipseg_metrics.json
+出力: lectures/23_text_prompt_segmentation/outputs/01_*.png / 01_clipseg_metrics.json
 """
 
 from __future__ import annotations

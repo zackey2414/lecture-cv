@@ -14,7 +14,7 @@
   - AP_S/M/L・AR（面積別 AP / Average Recall）は pycocotools の summarize から読む（概念紹介）。
 
 実行: uv run python lectures/19_detection_map_from_scratch/03_map_vs_pycocotools.py
-結果（一致レポートの図・JSON）は outputs/19_detection_map_from_scratch/ に保存。
+結果（一致レポートの図・JSON）は lectures/19_detection_map_from_scratch/outputs/ に保存。
 初回は pycocotools のインデックス作成ログが出るが、ネット接続もモデルDLも不要。
 """
 

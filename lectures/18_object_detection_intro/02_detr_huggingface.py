@@ -18,7 +18,7 @@ transformers v5 の正準フロー:
   誤った (W,H) を両方描いて、歪みを目で確認できるようにする。
 
 実行: uv run python lectures/18_object_detection_intro/02_detr_huggingface.py
-出力: outputs/18_object_detection_intro/02_*.png / 02_detr_results.json
+出力: lectures/18_object_detection_intro/outputs/02_*.png / 02_detr_results.json
 """
 
 from __future__ import annotations

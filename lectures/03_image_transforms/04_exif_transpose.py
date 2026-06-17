@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/03_image_transforms/04_exif_transpose.py
-結果は outputs/03_image_transforms/ に保存される（画面表示はしない）。
+結果は lectures/03_image_transforms/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -92,7 +92,7 @@ def main() -> None:
     print("\n[5] cv2→PIL→numpy→cv2 のラウンドトリップ一致:",
           bool(np.array_equal(bgr, back_bgr)))
 
-    print("\n完了。outputs/03_image_transforms/ を確認してください。")
+    print("\n完了。lectures/03_image_transforms/outputs/ を確認してください。")
     print("  04_exif_naive.png（横倒し）と 04_exif_fixed.png（正しい向き）を見比べてください。")
 
 

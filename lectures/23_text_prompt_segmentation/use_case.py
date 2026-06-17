@@ -36,7 +36,7 @@
   - 動画の各フレームへ適用し、「文で指定した対象だけモザイク」の動画を作る。
 
 実行: uv run python lectures/23_text_prompt_segmentation/use_case.py
-出力: outputs/23_text_prompt_segmentation/use_case_blur.png / use_case_removed.png /
+出力: lectures/23_text_prompt_segmentation/outputs/use_case_blur.png / use_case_removed.png /
       use_case_cutout.png（透過PNG）/ use_case_panel.png / use_case_report.json
 """
 

@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/03_image_transforms/01_colorspace_hsv_mask.py
-結果は outputs/03_image_transforms/ に保存される（画面表示はしない）。
+結果は lectures/03_image_transforms/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ def main() -> None:
     print("\n[7] split/merge: b/g/r 各 shape =", b.shape,
           " merge 復元一致 =", bool(np.array_equal(bgr, merged)))
 
-    print("\n完了。outputs/03_image_transforms/ を確認してください。")
+    print("\n完了。lectures/03_image_transforms/outputs/ を確認してください。")
 
 
 if __name__ == "__main__":

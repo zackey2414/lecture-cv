@@ -16,7 +16,7 @@ VQA の難しさは「正解が1つに決まらない」こと。同じ画像・
   3. 実モデル(ViLT)の予測でベンチマークを採点（モデルが無ければ固定予測で代用）
 
 実行: uv run python lectures/25_vqa_vlm/03_vqa_accuracy.py
-出力: outputs/25_vqa_vlm/03_*.png / 03_vqa_accuracy.json
+出力: lectures/25_vqa_vlm/outputs/03_*.png / 03_vqa_accuracy.json
 """
 
 from __future__ import annotations

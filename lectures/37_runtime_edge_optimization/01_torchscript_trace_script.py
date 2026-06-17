@@ -14,7 +14,7 @@ TorchScript は PyTorch モデルを「Python 非依存で配布・実行でき�
 
 実行:
   uv run python lectures/37_runtime_edge_optimization/01_torchscript_trace_script.py
-結果は outputs/37_runtime_edge_optimization/ に保存される。
+結果は lectures/37_runtime_edge_optimization/outputs/ に保存される。
 """
 
 from __future__ import annotations

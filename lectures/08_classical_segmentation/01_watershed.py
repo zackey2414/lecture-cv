@@ -17,12 +17,13 @@
 
 実行:
   uv run python lectures/08_classical_segmentation/01_watershed.py
-結果は outputs/08_classical_segmentation/ に保存される（画面表示はしない）。
+結果は lectures/08_classical_segmentation/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
 
 import os
+import pathlib
 
 import cv2
 import numpy as np
@@ -35,7 +36,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 MODULE_ID = "08_classical_segmentation"
-OUT_DIR = os.path.join("outputs", MODULE_ID)
+OUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 
 
 # =====================================================================
@@ -185,7 +186,7 @@ def main() -> None:
     print(f"  単純 connectedComponents: {naive_count}  ← 接触ペアが融合して少なくなる")
     print(f"  watershed の領域数      : {ws_count}  ← 距離変換のマーカで分離できた")
     print(f"  sure_fg の連結成分(種)  : {n_seeds - 1}")
-    print("\n完了。outputs/08_classical_segmentation/ の 01_*.png を確認してください。")
+    print("\n完了。lectures/08_classical_segmentation/outputs/ の 01_*.png を確認してください。")
     print("  01_watershed_pipeline.png に 6 工程、01_distance_transform.png に距離のヒートマップ。")
 
 

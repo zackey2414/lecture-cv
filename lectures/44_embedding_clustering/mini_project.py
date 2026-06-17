@@ -13,7 +13,7 @@
 
 実行:
   uv run python lectures/44_embedding_clustering/mini_project.py
-出力: outputs/44_embedding_clustering/mini_project_summary.png, mini_project_report.json
+出力: lectures/44_embedding_clustering/outputs/mini_project_summary.png, mini_project_report.json
 """
 
 from __future__ import annotations
@@ -137,7 +137,7 @@ def main() -> None:
           f"Agglomerative でも NMI={ag_rep['nmi']:.2f}（k 不要で同等以上）。")
     print(f"  テキスト: 同じ枠組みで NMI={txt_rep['nmi']:.2f}（境界が曖昧な分だけ画像より低い）。")
     print("  顔(30)・他の埋め込みも“同じパイプライン”で束ねられる、が本章の到達点。")
-    print(f"\n完了。outputs/{cl.MODULE_ID}/mini_project_summary.png と "
+    print(f"\n完了。lectures/{cl.MODULE_ID}/outputs/mini_project_summary.png と "
           "mini_project_report.json を確認してください。")
 
 

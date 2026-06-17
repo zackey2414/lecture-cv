@@ -13,7 +13,7 @@
   4) PR 機構を「運用」に落とす: strong 検出器について confidence しきい値を掃引し、
      F1 を最大化するしきい値を選ぶ（PR 曲線は評価だけでなく閾値決定の道具でもある）。
 
-成果物（outputs/19_detection_map_from_scratch/ に保存）:
+成果物（lectures/19_detection_map_from_scratch/outputs/ に保存）:
   - mini_detector_report.png : 4枚パネル（PR比較 / mAP-IoU曲線 / カテゴリ別AP50 / F1掃引）
   - mini_project_report.json : 両検出器の全指標・pycocotools 一致差分・推奨しきい値
 

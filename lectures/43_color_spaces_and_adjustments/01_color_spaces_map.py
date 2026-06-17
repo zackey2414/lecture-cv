@@ -12,7 +12,7 @@
 
 実行:
   uv run python lectures/43_color_spaces_and_adjustments/01_color_spaces_map.py
-結果は outputs/43_color_spaces_and_adjustments/ に保存される（画面表示はしない）。
+結果は lectures/43_color_spaces_and_adjustments/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -153,7 +153,7 @@ def main() -> None:
     save_channel_montages(scene, out)
     save_bgr_rgb_caveat(scene, out)
 
-    print("\n完了。outputs/43_color_spaces_and_adjustments/ の 01_*.png を確認してください。")
+    print("\n完了。lectures/43_color_spaces_and_adjustments/outputs/ の 01_*.png を確認してください。")
 
 
 if __name__ == "__main__":

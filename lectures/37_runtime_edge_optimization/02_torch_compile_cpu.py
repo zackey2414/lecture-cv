@@ -15,7 +15,7 @@ CPU でも効くが、現実には次の注意がある:
 
 実行:
   uv run python lectures/37_runtime_edge_optimization/02_torch_compile_cpu.py
-結果は outputs/37_runtime_edge_optimization/ に保存される(コンパイル不可環境では概念のみ)。
+結果は lectures/37_runtime_edge_optimization/outputs/ に保存される(コンパイル不可環境では概念のみ)。
 """
 
 from __future__ import annotations

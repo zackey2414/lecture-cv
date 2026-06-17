@@ -21,7 +21,7 @@ P/R/F1 の閾値スイープ）を一つに統合し、本講座の 01〜03 に�
   - 完全 CPU・合成シーン・十数秒で完走。matplotlib は Agg、図のタイトルは ASCII。
 
 実行: uv run python lectures/20_open_vocabulary_detection/mini_project.py
-結果（ダッシュボード画像・レポート JSON）は outputs/20_open_vocabulary_detection/ に保存される。
+結果（ダッシュボード画像・レポート JSON）は lectures/20_open_vocabulary_detection/outputs/ に保存される。
 """
 
 from __future__ import annotations
@@ -387,7 +387,7 @@ def main() -> None:
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     print("\n完了。mini_project_dashboard.png と mini_project_report.json を "
-          "outputs/20_open_vocabulary_detection/ に保存しました。")
+          "lectures/20_open_vocabulary_detection/outputs/ に保存しました。")
 
 
 if __name__ == "__main__":

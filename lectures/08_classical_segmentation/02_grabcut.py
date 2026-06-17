@@ -21,12 +21,13 @@
 
 実行:
   uv run python lectures/08_classical_segmentation/02_grabcut.py
-結果は outputs/08_classical_segmentation/ に保存される（画面表示はしない）。
+結果は lectures/08_classical_segmentation/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
 
 import os
+import pathlib
 
 import cv2
 import numpy as np
@@ -37,7 +38,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 MODULE_ID = "08_classical_segmentation"
-OUT_DIR = os.path.join("outputs", MODULE_ID)
+OUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 
 
 def panel(img: np.ndarray, title: str, size: tuple[int, int] = (340, 270)) -> np.ndarray:
@@ -217,7 +218,7 @@ def main() -> None:
     print(f"  loose          : IoU={iou_l:.3f}  Dice={dice_l:.3f}  ← 同色のおとりを拾い FP↑")
     print(f"  clip           : IoU={iou_c:.3f}  Dice={dice_c:.3f}  ← 物体を矩形で切り FN↑")
     print(f"  loose+scribble : IoU={iou_r:.3f}  Dice={dice_r:.3f}  ← なすり書きで対話的に改善")
-    print("\n完了。outputs/08_classical_segmentation/ の 02_*.png を確認してください。")
+    print("\n完了。lectures/08_classical_segmentation/outputs/ の 02_*.png を確認してください。")
     print("  02_grabcut_pipeline.png に工程、02_grabcut_scores.png に IoU/Dice の比較。")
 
 

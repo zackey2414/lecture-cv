@@ -210,7 +210,7 @@ lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=80,
 # 依存をインストール（初回のみ）
 uv sync
 
-# 各スクリプトを実行（結果は outputs/05_classical_features_matching/ に保存される）
+# 各スクリプトを実行（結果は lectures/05_classical_features_matching/outputs/ に保存される）
 uv run python lectures/05_classical_features_matching/01_sift_orb_match.py
 uv run python lectures/05_classical_features_matching/02_template_matching.py
 uv run python lectures/05_classical_features_matching/03_hough_lines_circles.py
@@ -226,7 +226,7 @@ SHOW_SOLUTION=1 uv run python lectures/05_classical_features_matching/exercises.
 uv run python lectures/05_classical_features_matching/exercises_solutions.py
 ```
 
-実行後は `outputs/05_classical_features_matching/` に生成された画像を確認してください。特に `01_sift_matches.png` / `01_orb_matches.png`（インライア対応を緑線で結んだ図）を見比べると、両手法の対応の張られ方の違いが一目で分かります。`02_found_multiscale.png` では拡大シーン上で正しい大きさの枠が当たる様子を、`03_summary.png` では Canny エッジと直線・円の検出結果を 4 枚並べて確認できます。なお本講座は headless 版 OpenCV のため `cv2.imshow` は使わず、結果はすべてファイル保存で確認します。
+実行後は `lectures/05_classical_features_matching/outputs/` に生成された画像を確認してください。特に `01_sift_matches.png` / `01_orb_matches.png`（インライア対応を緑線で結んだ図）を見比べると、両手法の対応の張られ方の違いが一目で分かります。`02_found_multiscale.png` では拡大シーン上で正しい大きさの枠が当たる様子を、`03_summary.png` では Canny エッジと直線・円の検出結果を 4 枚並べて確認できます。なお本講座は headless 版 OpenCV のため `cv2.imshow` は使わず、結果はすべてファイル保存で確認します。
 
 ## 12. よくあるエラーと対処（チェックリスト）
 
@@ -268,7 +268,7 @@ uv run python lectures/05_classical_features_matching/exercises_solutions.py
 
 この課題は「平面物体を散らかった画像から頑健に見つける」という、看板・書影・商品パッケージ検出や AR マーカ認識の最小核です。`object` を実物の画像に、`scene` をカメラ画像に差し替えれば、そのまま実運用のひな形になります。
 
-**到達の目安**: ORB・SIFT のいずれもコーナー誤差が概ね数 px 以内に収まり、インライア率が高い一方で、テンプレートマッチングのベストスコアは低く張り付くこと。出力は `outputs/05_classical_features_matching/` に以下が保存されます。
+**到達の目安**: ORB・SIFT のいずれもコーナー誤差が概ね数 px 以内に収まり、インライア率が高い一方で、テンプレートマッチングのベストスコアは低く張り付くこと。出力は `lectures/05_classical_features_matching/outputs/` に以下が保存されます。
 
 | 生成物 | 内容 |
 | --- | --- |
@@ -279,7 +279,7 @@ uv run python lectures/05_classical_features_matching/exercises_solutions.py
 
 ```bash
 uv run python lectures/05_classical_features_matching/mini_project.py
-cat outputs/05_classical_features_matching/mini_project_metrics.json
+cat lectures/05_classical_features_matching/outputs/mini_project_metrics.json
 ```
 
 ## ✅ 到達チェックリスト

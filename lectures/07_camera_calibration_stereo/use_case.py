@@ -37,7 +37,7 @@
 
   実行:
     uv run python lectures/07_camera_calibration_stereo/use_case.py
-  出力（画面表示はしない・headless 安全）は outputs/07_camera_calibration_stereo/ に保存。
+  出力（画面表示はしない・headless 安全）は lectures/07_camera_calibration_stereo/outputs/ に保存。
 """
 
 from __future__ import annotations
@@ -88,7 +88,7 @@ def load_or_calibrate_camera() -> tuple[np.ndarray | None, np.ndarray | None, st
     """歪み補正・距離推定に使う K, dist を用意する。
 
     実運用では「一度カメラを校正 → 何度も計測に使い回す」流れ。ここでは
-      (a) CALIB_NPZ もしくは outputs/.../calib.npz（01_calibrate_camera.py の保存物）があれば読む。
+      (a) CALIB_NPZ もしくは lectures/07_camera_calibration_stereo/outputs/calib.npz（01_calibrate_camera.py の保存物）があれば読む。
       (b) 無ければ合成チェスボードを多視点で撮って calibrateCamera で即席に校正する。
     どちらも失敗したら (None, None) を返し、mm 計測はホモグラフィのみで続行する。
     """

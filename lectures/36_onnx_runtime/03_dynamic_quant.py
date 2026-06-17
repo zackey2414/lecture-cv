@@ -13,7 +13,7 @@
 
 実行:
   uv run python lectures/36_onnx_runtime/03_dynamic_quant.py
-結果（図）は outputs/36_onnx_runtime/ に保存される。
+結果（図）は lectures/36_onnx_runtime/outputs/ に保存される。
 """
 
 from __future__ import annotations

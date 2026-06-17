@@ -41,7 +41,7 @@ mini_project.py との違い（役割分担）
 実行:
     uv run python lectures/10_classical_video_motion/use_case.py
 
-出力（outputs/10_classical_video_motion/ に保存）:
+出力（lectures/10_classical_video_motion/outputs/ に保存）:
     use_case_event{k}.mp4         : 動きのあった区間ごとに切り出したクリップ（mp4v）
                                     ※VideoWriter が開けない環境では連番モンタージュ PNG に退避
     use_case_event_montage.png    : 各イベントの代表フレーム（最初/ピーク/最後）を並べた一覧

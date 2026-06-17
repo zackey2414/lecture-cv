@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/06_homography_panorama/01_homography_ransac.py
-結果は outputs/06_homography_panorama/ に保存される（画面表示はしない）。
+結果は lectures/06_homography_panorama/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -186,7 +186,7 @@ def main() -> None:
     demo_failure_modes(out)
     demo_perspective_corners(out)
     demo_planar_object(out)
-    print("\n完了。outputs/06_homography_panorama/ の 01_*.png を確認してください。")
+    print("\n完了。lectures/06_homography_panorama/outputs/ の 01_*.png を確認してください。")
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ PASCAL VOC 2007 の 11点・VOC2010+ の全点・COCO の 101点で少しずつ�
   - 「confidence 降順ソートを忘れる」と AP が壊れることを、わざと再現して確かめる。
 
 実行: uv run python lectures/19_detection_map_from_scratch/02_pr_ap_interpolation.py
-結果（PR 曲線の図・AP の JSON）は outputs/19_detection_map_from_scratch/ に保存。
+結果（PR 曲線の図・AP の JSON）は lectures/19_detection_map_from_scratch/outputs/ に保存。
 """
 
 from __future__ import annotations

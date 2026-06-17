@@ -38,7 +38,7 @@ from matplotlib.patches import Rectangle  # noqa: E402
 MODULE_ID = "20_open_vocabulary_detection"
 _THIS = pathlib.Path(__file__).resolve()
 _ROOT = _THIS.parents[2]  # lectures/20_.../ovd_helpers.py → リポジトリルート
-OUT_DIR = _ROOT / "outputs" / MODULE_ID
+OUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 DATA_DIR = _ROOT / "data" / MODULE_ID
 
 # --- モデル ID（CPU で現実的な小型を既定にする）------------------------------
@@ -53,7 +53,7 @@ def pick_device() -> torch.device:
 
 
 def ensure_output_dir() -> pathlib.Path:
-    """出力先 outputs/20_.../ を作って返す（無ければ作成、あってもエラーにしない）。"""
+    """出力先 lectures/20_open_vocabulary_detection/outputs/ を作って返す（無ければ作成、あってもエラーにしない）。"""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     return OUT_DIR
 

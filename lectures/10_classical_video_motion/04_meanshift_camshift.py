@@ -9,7 +9,7 @@
 
 実行:
   uv run python lectures/10_classical_video_motion/04_meanshift_camshift.py
-結果は outputs/10_classical_video_motion/ に保存される（画面表示はしない）。
+結果は lectures/10_classical_video_motion/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations
@@ -122,7 +122,7 @@ def main() -> None:
     print("\n[3] フロー追跡との違い")
     print("  - 02/03 のフロー: 連続フレーム間の『動き』から追う（色が同じでも動けば追える）。")
     print("  - meanshift/camshift: 『色（見た目）』で追う。似た色が背景にあると引っ張られる。")
-    print("\n完了。outputs/10_classical_video_motion/ の 04_*.png を確認してください。")
+    print("\n完了。lectures/10_classical_video_motion/outputs/ の 04_*.png を確認してください。")
 
 
 if __name__ == "__main__":

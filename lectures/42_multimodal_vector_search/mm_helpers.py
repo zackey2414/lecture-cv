@@ -40,10 +40,10 @@ matplotlib.use("Agg")  # headless（GUI なし）でも savefig が動くバッ�
 import matplotlib.pyplot as plt  # noqa: E402
 
 # ---------------------------------------------------------------------------
-# 0. 定数・パス（プロジェクト規約に合わせて outputs/<module_id>/ に集約）
+# 0. 定数・パス（プロジェクト規約に合わせて lectures/<module_id>/outputs/ に集約）
 # ---------------------------------------------------------------------------
 MODULE_ID = "42_multimodal_vector_search"
-OUTPUT_DIR = pathlib.Path("outputs") / MODULE_ID
+OUTPUT_DIR = pathlib.Path(__file__).resolve().parent / "outputs"
 DATA_DIR = pathlib.Path("data") / MODULE_ID
 
 # CPU でも現実的な「最速の定番」。large / patch16 は CPU では重い。
@@ -73,7 +73,7 @@ def pick_device() -> torch.device:
 
 
 def ensure_output_dir() -> pathlib.Path:
-    """outputs/<module_id>/ を作って返す（既存でもエラーにしない）。"""
+    """lectures/<module_id>/outputs/ を作って返す（既存でもエラーにしない）。"""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     return OUTPUT_DIR
 

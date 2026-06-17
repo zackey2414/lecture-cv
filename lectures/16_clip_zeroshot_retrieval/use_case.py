@@ -25,7 +25,7 @@
   # 自分の検索語を渡す（複数可・自然文OK）
   uv run python lectures/16_clip_zeroshot_retrieval/use_case.py "a red car" "a blue square"
 
-【出力（すべて outputs/16_clip_zeroshot_retrieval/ に保存）】
+【出力（すべて lectures/16_clip_zeroshot_retrieval/outputs/ に保存）】
   use_case_results.png    クエリごとの上位ヒットを並べた検索結果パネル
   use_case_results.json   ランキング（caption・cos・該当なし判定）の数値
   use_case_index.npz      画像埋め込みのキャッシュ（2回目以降の検索を高速化）

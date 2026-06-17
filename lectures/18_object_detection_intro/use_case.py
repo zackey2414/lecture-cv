@@ -43,7 +43,7 @@ mini_project.py との違い（役割を取り違えないこと）
   - 集計の充実: クラス別カウントを棒グラフ化、複数フォルダ（日付別）で推移比較、CSV エクスポート。
 
 実行: uv run python lectures/18_object_detection_intro/use_case.py
-出力: outputs/18_object_detection_intro/
+出力: lectures/18_object_detection_intro/outputs/
   - use_case_count_<n>.png   … 入力ごとの注記画像（箱＋カウントのバナー）
   - use_case_overview.png     … 全入力を並べたサムネイル（注記入り）
   - use_case_counts.json      … 入力別カウントと、フォルダ全体の合計

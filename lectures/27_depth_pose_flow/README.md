@@ -201,7 +201,7 @@ OKS の per-keypoint 定数 σ は**小さい関節（目・鼻）ほど厳し�
   ```bash
   uv run python lectures/27_depth_pose_flow/use_case.py
   ```
-  `data/27_depth_pose_flow/` に画像（`*.png/*.jpg`）を置くと先頭を自動使用（**人物が手前のポートレート推奨**）。無ければ合成室内シーンで動作（重み DL 失敗時も GT/ランプ深度でフォールバックし必ず exit 0）。出力は `outputs/27_depth_pose_flow/use_case_bokeh.png`（成果物）と `use_case_montage.png` / `use_case_bokeh.json`。**拡張**: `focus_pct` で焦点面を手前/奥に移動、`band` で被写界深度の薄さを調整、円盤カーネルで玉ボケ、ボケ量を多段量子化したレイヤ DoF、`data/` 全画像のバッチ加工 CLI 化、Tkinter スライダ対話（headless はファイル保存にフォールバック）。
+  `data/27_depth_pose_flow/` に画像（`*.png/*.jpg`）を置くと先頭を自動使用（**人物が手前のポートレート推奨**）。無ければ合成室内シーンで動作（重み DL 失敗時も GT/ランプ深度でフォールバックし必ず exit 0）。出力は `lectures/27_depth_pose_flow/outputs/use_case_bokeh.png`（成果物）と `use_case_montage.png` / `use_case_bokeh.json`。**拡張**: `focus_pct` で焦点面を手前/奥に移動、`band` で被写界深度の薄さを調整、円盤カーネルで玉ボケ、ボケ量を多段量子化したレイヤ DoF、`data/` 全画像のバッチ加工 CLI 化、Tkinter スライダ対話（headless はファイル保存にフォールバック）。
 
 ### 2. 転倒・姿勢アラート（pose ベースの見守り）
 
@@ -248,7 +248,7 @@ uv run python lectures/27_depth_pose_flow/exercises.py
 uv run python lectures/27_depth_pose_flow/exercises_solutions.py
 ```
 
-出力はすべて `outputs/27_depth_pose_flow/` に保存されます（`*.png` 可視化と `*.json` メトリクス）。実画像で試すときは `data/27_depth_pose_flow/` に画像を置くと自動で優先されます。なお `dpf_helpers.py` は合成データ生成・可視化・評価指標の共有ヘルパで、上記の各スクリプトが `import dpf_helpers as H` で利用します（単体実行はしません）。
+出力はすべて `lectures/27_depth_pose_flow/outputs/` に保存されます（`*.png` 可視化と `*.json` メトリクス）。実画像で試すときは `data/27_depth_pose_flow/` に画像を置くと自動で優先されます。なお `dpf_helpers.py` は合成データ生成・可視化・評価指標の共有ヘルパで、上記の各スクリプトが `import dpf_helpers as H` で利用します（単体実行はしません）。
 
 ---
 

@@ -20,7 +20,7 @@ Webカメラ/動画/RTSP/ライブ配信に差し替えれば、同じ骨格（�
 
 実行:
     uv run python lectures/11_realtime_stream/mini_project.py
-結果（画像・JSON）は outputs/11_realtime_stream/ に保存される（画面表示はしない）。
+結果（画像・JSON）は lectures/11_realtime_stream/outputs/ に保存される（画面表示はしない）。
 """
 
 from __future__ import annotations

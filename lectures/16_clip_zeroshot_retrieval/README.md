@@ -190,7 +190,7 @@ feat = model.get_image_features(pixel_values=pv).pooler_output  # .pooler_output
 
 ## 11. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で、上から読むと「動かす → 分解する → 検索して測る」と理解が積み上がります。すべて `outputs/16_clip_zeroshot_retrieval/` に図と json を保存し、画面表示には依存しません。合成画像生成・device 判定・モデルロード・埋め込み取り出しといった共通処理は `clip_helpers.py` にまとめ、各スクリプトはそれを import します。
+各スクリプトは単一責務で、上から読むと「動かす → 分解する → 検索して測る」と理解が積み上がります。すべて `lectures/16_clip_zeroshot_retrieval/outputs/` に図と json を保存し、画面表示には依存しません。合成画像生成・device 判定・モデルロード・埋め込み取り出しといった共通処理は `clip_helpers.py` にまとめ、各スクリプトはそれを import します。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -207,7 +207,7 @@ feat = model.get_image_features(pixel_values=pv).pooler_output  # .pooler_output
 
 ## 🛠 章末ミニプロジェクト — ゼロショット検索＆タグ付けエンジン（棄却つき）
 
-ここまでの学び（埋め込み → 正規化 → コサイン → 確率解釈 → 評価）を**1本に統合**するのが `mini_project.py` です。合成コレクション（色×形の12枚）に対して、実運用の検索エンジンが踏む4ステージを通しで実行し、`outputs/16_clip_zeroshot_retrieval/mini_project_summary.png`（4パネル要約）と `mini_project_report.json`（全数値）を出力します。CPU で数十秒、ネットは初回のモデル重みDLのみです。
+ここまでの学び（埋め込み → 正規化 → コサイン → 確率解釈 → 評価）を**1本に統合**するのが `mini_project.py` です。合成コレクション（色×形の12枚）に対して、実運用の検索エンジンが踏む4ステージを通しで実行し、`lectures/16_clip_zeroshot_retrieval/outputs/mini_project_summary.png`（4パネル要約）と `mini_project_report.json`（全数値）を出力します。CPU で数十秒、ネットは初回のモデル重みDLのみです。
 
 <figure class="lec-fig"><svg viewBox="0 0 660 330" role="img" aria-label="ミニプロジェクトは4ステージを順に実行する。Aプロンプトアンサンブル、Btext画像検索と評価、C正規化アブレーション、D開集合の棄却。結果はsummary図とjsonに集約" font-family="ui-sans-serif, system-ui, 'Noto Sans JP', sans-serif"><text x="330" y="40" text-anchor="middle" font-size="14" font-weight="700" fill="#18181b">ミニプロジェクト: 4 ステージを 1 本に統合</text><rect x="20" y="72" width="140" height="96" fill="#ffffff" stroke="#c2410c" stroke-width="2"/><rect x="20" y="72" width="140" height="26" fill="#ea580c"/><text x="90" y="90" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">Stage A</text><text x="90" y="122" text-anchor="middle" font-size="12.5" fill="#3f3f46">プロンプト</text><text x="90" y="140" text-anchor="middle" font-size="12.5" fill="#3f3f46">アンサンブル</text><text x="90" y="161" text-anchor="middle" font-size="12.5" font-weight="700" fill="#c2410c">acc 0.92</text><line x1="160" y1="120" x2="170" y2="120" stroke="#71717a" stroke-width="2"/><polygon points="180,120 170,115 170,125" fill="#71717a"/><rect x="180" y="72" width="140" height="96" fill="#ffffff" stroke="#2563eb" stroke-width="2"/><rect x="180" y="72" width="140" height="26" fill="#2563eb"/><text x="250" y="90" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">Stage B</text><text x="250" y="122" text-anchor="middle" font-size="12.5" fill="#3f3f46">text → image</text><text x="250" y="140" text-anchor="middle" font-size="12.5" fill="#3f3f46">検索＋評価</text><text x="250" y="161" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1d4ed8">mAP 0.96</text><line x1="320" y1="120" x2="330" y2="120" stroke="#71717a" stroke-width="2"/><polygon points="340,120 330,115 330,125" fill="#71717a"/><rect x="340" y="72" width="140" height="96" fill="#ffffff" stroke="#c2410c" stroke-width="2"/><rect x="340" y="72" width="140" height="26" fill="#c2410c"/><text x="410" y="90" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">Stage C</text><text x="410" y="122" text-anchor="middle" font-size="12.5" fill="#3f3f46">正規化</text><text x="410" y="140" text-anchor="middle" font-size="12.5" fill="#3f3f46">アブレーション</text><text x="410" y="161" text-anchor="middle" font-size="12.5" font-weight="700" fill="#c2410c">0.96 vs 0.53</text><line x1="480" y1="120" x2="490" y2="120" stroke="#71717a" stroke-width="2"/><polygon points="500,120 490,115 490,125" fill="#71717a"/><rect x="500" y="72" width="140" height="96" fill="#ffffff" stroke="#16a34a" stroke-width="2"/><rect x="500" y="72" width="140" height="26" fill="#16a34a"/><text x="570" y="90" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">Stage D</text><text x="570" y="122" text-anchor="middle" font-size="12.5" fill="#3f3f46">開集合の棄却</text><text x="570" y="140" text-anchor="middle" font-size="12.5" fill="#3f3f46">CLIP / SigLIP</text><text x="570" y="161" text-anchor="middle" font-size="12.5" font-weight="700" fill="#15803d">gap 0.043</text><line x1="90" y1="168" x2="90" y2="188" stroke="#71717a" stroke-width="1.6"/><line x1="250" y1="168" x2="250" y2="188" stroke="#71717a" stroke-width="1.6"/><line x1="410" y1="168" x2="410" y2="188" stroke="#71717a" stroke-width="1.6"/><line x1="570" y1="168" x2="570" y2="188" stroke="#71717a" stroke-width="1.6"/><line x1="90" y1="188" x2="570" y2="188" stroke="#71717a" stroke-width="1.6"/><line x1="330" y1="188" x2="330" y2="222" stroke="#71717a" stroke-width="2"/><polygon points="330,232 324,221 336,221" fill="#71717a"/><rect x="180" y="236" width="300" height="60" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/><text x="330" y="262" text-anchor="middle" font-size="13" font-weight="700" fill="#1d4ed8">4 ステージの結果を集約</text><text x="330" y="284" text-anchor="middle" font-size="12" fill="#3f3f46">summary.png ＋ report.json</text></svg><figcaption><b>ミニプロジェクト</b>は本章の学びを 1 本に統合し、4 ステージを順に通します。<b>Stage A</b> プロンプト・アンサンブル（§2/§3）→ <b>Stage B</b> <code>text→image</code> 検索と評価（§6/§7）→ <b>Stage C</b> 正規化アブレーション（§4/§8、コサイン <b>mAP 0.96</b> 対 生内積 <b>0.53</b>）→ <b>Stage D</b> 開集合の棄却（§5、CLIP コサイン閾値 / SigLIP sigmoid、分離 <b>gap 0.043</b>）。4 ステージの結果は <code>mini_project_summary.png</code> と <code>mini_project_report.json</code> に集約されます。</figcaption></figure>
 
@@ -218,7 +218,7 @@ feat = model.get_image_features(pixel_values=pv).pooler_output  # .pooler_output
 
 ```bash
 uv run python lectures/16_clip_zeroshot_retrieval/mini_project.py
-# → outputs/16_clip_zeroshot_retrieval/mini_project_summary.png, mini_project_report.json
+# → lectures/16_clip_zeroshot_retrieval/outputs/mini_project_summary.png, mini_project_report.json
 ```
 
 このミニプロジェクトを自分の手で読み解き、4つの数字（margin・mAP・mAP崩壊・棄却の分離 gap）が**何を測っているか**を説明できれば、本章のゴールに到達しています。
@@ -295,7 +295,7 @@ uv run python lectures/16_clip_zeroshot_retrieval/mini_project.py
 uv run python lectures/16_clip_zeroshot_retrieval/use_case.py
 # 自分の検索語（自然文・複数可）を渡す
 uv run python lectures/16_clip_zeroshot_retrieval/use_case.py "a red car" "a blue square"
-# → outputs/16_clip_zeroshot_retrieval/use_case_results.png / .json / use_case_index.npz
+# → lectures/16_clip_zeroshot_retrieval/outputs/use_case_results.png / .json / use_case_index.npz
 ```
 
 **自分のデータで実運用にするには**: `data/16_clip_zeroshot_retrieval/` を作って自分の `.png`/`.jpg` を置くだけで、合成データの代わりにそのフォルダが検索対象になります（フォルダが空／無いときは合成 12 枚に自動フォールバック）。**練習（拡張）アイデア**: (a) クエリを画像にして `image→image`（似た写真で探す）を追加、(b) `"a photo of a {x}"` などテンプレ平均でクエリを頑健化（ミニプロジェクト Stage A）、(c) SigLIP の sigmoid または較正済み閾値で「該当なし」を厳密化、(d) 撮影日・タグなどメタデータを JSON で併せ持ち結果に添える、(e) Flask/Streamlit で検索ボックス付き Web UI に載せる。
@@ -320,7 +320,7 @@ uv run python lectures/16_clip_zeroshot_retrieval/use_case.py "a red car" "a blu
 # 依存グループをインストール（初回のみ）
 uv sync --group dl --group hf --group metrics
 
-# 各スクリプトを実行（結果は outputs/16_clip_zeroshot_retrieval/ に保存される）
+# 各スクリプトを実行（結果は lectures/16_clip_zeroshot_retrieval/outputs/ に保存される）
 uv run python lectures/16_clip_zeroshot_retrieval/clip_helpers.py            # 道具箱のスモークテスト＋コレクション図
 uv run python lectures/16_clip_zeroshot_retrieval/01_zeroshot_pipeline.py
 uv run python lectures/16_clip_zeroshot_retrieval/02_clip_siglip_manual.py
@@ -342,7 +342,7 @@ uv run python lectures/16_clip_zeroshot_retrieval/exercises_solutions.py   # 全
 # （任意）実画像で試す: data/16_clip_zeroshot_retrieval/ に .png/.jpg を置くと自動で使われる
 ```
 
-実行後は `outputs/16_clip_zeroshot_retrieval/` の図を解説と照らし合わせてください。とくに `02_softmax_vs_sigmoid_nomatch.png`（CLIP は無理に分配、SigLIP は全部低い）と `03_text_to_image.png`（クエリ文の上位3枚）を見ると、本章の2大テーマ（確率解釈の違い・検索の仕組み）が視覚的に腑に落ちます。図中の文字は CJK フォントの豆腐（□）を避けるため ASCII にしてあります。なお、色が反転して見える場合は、合成画像を RGB のまま扱っているか（cv2 経由で BGR が混ざっていないか）を確認してください。
+実行後は `lectures/16_clip_zeroshot_retrieval/outputs/` の図を解説と照らし合わせてください。とくに `02_softmax_vs_sigmoid_nomatch.png`（CLIP は無理に分配、SigLIP は全部低い）と `03_text_to_image.png`（クエリ文の上位3枚）を見ると、本章の2大テーマ（確率解釈の違い・検索の仕組み）が視覚的に腑に落ちます。図中の文字は CJK フォントの豆腐（□）を避けるため ASCII にしてあります。なお、色が反転して見える場合は、合成画像を RGB のまま扱っているか（cv2 経由で BGR が混ざっていないか）を確認してください。
 
 ## 13. よくあるエラーと対処（チェックリスト）
 

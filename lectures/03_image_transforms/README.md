@@ -164,7 +164,7 @@ assert np.array_equal(bgr, back)              # 1周して一致 = 変換が正�
 
 ## 10. このモジュールの構成（スクリプト一覧）
 
-各スクリプトは単一責務で書かれており、上から順に読めば理解が積み上がるよう並んでいます。いずれも結果を `outputs/03_image_transforms/` に保存し、画面表示には依存しません（headless 安全）。共通処理（合成画像生成・日本語パス対応 I/O・出力先管理）は `cv_helpers.py` に、本章の成果物である再利用前処理関数は `preprocess.py` にまとめてあり、各スクリプトはそれらを import して使います。
+各スクリプトは単一責務で書かれており、上から順に読めば理解が積み上がるよう並んでいます。いずれも結果を `lectures/03_image_transforms/outputs/` に保存し、画面表示には依存しません（headless 安全）。共通処理（合成画像生成・日本語パス対応 I/O・出力先管理）は `cv_helpers.py` に、本章の成果物である再利用前処理関数は `preprocess.py` にまとめてあり、各スクリプトはそれらを import して使います。
 
 | ファイル | 役割（単一責務） |
 | --- | --- |
@@ -188,7 +188,7 @@ assert np.array_equal(bgr, back)              # 1周して一致 = 変換が正�
 # 依存をインストール（初回のみ）
 uv sync
 
-# 各スクリプトを実行（結果は outputs/03_image_transforms/ に保存される）
+# 各スクリプトを実行（結果は lectures/03_image_transforms/outputs/ に保存される）
 uv run python lectures/03_image_transforms/01_colorspace_hsv_mask.py
 uv run python lectures/03_image_transforms/02_drawing.py
 uv run python lectures/03_image_transforms/03_resize_crop_flip.py
@@ -205,7 +205,7 @@ SHOW_SOLUTION=1 uv run python lectures/03_image_transforms/exercises.py
 uv run python lectures/03_image_transforms/exercises_solutions.py
 ```
 
-実行を終えたら `outputs/03_image_transforms/` の画像を開き、解説と照らし合わせてください。とりわけ `01_mask_red.png`（赤の2区間抽出）、`03_interpolation_compare.png`（補間の差）、`03_square_letterbox.png` と `03_square_centercrop.png`（正方形整形の2方式）、`04_exif_naive.png` と `04_exif_fixed.png`（EXIF 向きの違い）を見比べると、本章の要点が一目で腑に落ちます。
+実行を終えたら `lectures/03_image_transforms/outputs/` の画像を開き、解説と照らし合わせてください。とりわけ `01_mask_red.png`（赤の2区間抽出）、`03_interpolation_compare.png`（補間の差）、`03_square_letterbox.png` と `03_square_centercrop.png`（正方形整形の2方式）、`04_exif_naive.png` と `04_exif_fixed.png`（EXIF 向きの違い）を見比べると、本章の要点が一目で腑に落ちます。
 
 ## 12. よくあるエラーと対処（チェックリスト）
 
@@ -234,7 +234,7 @@ uv run python lectures/03_image_transforms/exercises_solutions.py
 
 ## 🛠 章末ミニプロジェクト — 色で物体を検出して「可視化 → モデル入力前処理」まで一気通貫
 
-ここまで、各部品はバラバラに学んできました。最後に、それらを**1 本のパイプライン**へ束ね、この章の技能が「単独で使える」だけでなく「つながって動く」ことを体感します。題材は **HSV 色域による簡易物体検出**です。これは、後段の検出・分類の章でそのまま雛形になる「前処理 ＋ 結果の可視化」の最小完成形にあたります。実装は `mini_project.py` にあり、実行すると図と総合レポート（JSON）が `outputs/03_image_transforms/` に出力されます。
+ここまで、各部品はバラバラに学んできました。最後に、それらを**1 本のパイプライン**へ束ね、この章の技能が「単独で使える」だけでなく「つながって動く」ことを体感します。題材は **HSV 色域による簡易物体検出**です。これは、後段の検出・分類の章でそのまま雛形になる「前処理 ＋ 結果の可視化」の最小完成形にあたります。実装は `mini_project.py` にあり、実行すると図と総合レポート（JSON）が `lectures/03_image_transforms/outputs/` に出力されます。
 
 パイプラインは次の6段からなり、この章で扱った要素を順に踏んでいきます。**(1) 色で抜く**——`preprocess.extract_color` で赤・黄・緑・青それぞれの HSV マスクを作る（赤は `0/179` の2区間合成）。**(2) bbox を取る**——マスクの白画素に `np.where` をかけ、`(ys, xs)` の**軸順 `[y, x]`** から外接矩形 `(x0, y0, x1, y1)` を求める。**(3) 可視化する**——`draw_label_box` で「枠＋ラベル帯＋白文字」を重ねる（座標は `(x, y)`、色は BGR）。**(4) 整形する**——各検出物体を切り出し（スライス `[y0:y1, x0:x1]`）、`resize_to_square` で歪ませずに正方形のモデル入力へ整える。**(5) EXIF 検証**——`Orientation=6` を付けた JPEG を作り、`exif_transpose` で `(W,H)` が入れ替わり向きタグが消えることを確認する。**(6) 相互変換**——`cv2(BGR) → PIL(RGB) → numpy → cv2(BGR)` のラウンドトリップ一致を確認する。
 

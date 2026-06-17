@@ -23,7 +23,7 @@
   uv run python lectures/15_image_embeddings_metric_learning/mini_project.py
 初回はモデル重みを HuggingFace / timm からダウンロード（以後キャッシュ）。
 学習は小次元ベクトル上の数百反復 × 数次元なので CPU でも数十秒で完走する。
-結果は outputs/15_image_embeddings_metric_learning/ に保存（画面表示はしない）。
+結果は lectures/15_image_embeddings_metric_learning/outputs/ に保存（画面表示はしない）。
 """
 
 from __future__ import annotations
