@@ -1,6 +1,6 @@
-# 大容量データ（volumes でマウントするため不要）
+# 大容量データ・実行結果（volumes でマウントするため不要）
 data/
-outputs/
+lectures/*/outputs/
 
 # Git
 .git/

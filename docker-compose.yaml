@@ -4,10 +4,10 @@ services:
     build: .
     container_name: lecture-cv
     volumes:
-      # 教材・データ・成果物をホストと同期（編集→即実行できるように）
+      # 教材・データをホストと同期（編集→即実行できるように）。
+      # 実行結果は各回内 lectures/<id>/outputs/ に出るので ./lectures マウントで一緒に同期される。
       - ./lectures:/app/lectures
       - ./data:/app/data
-      - ./outputs:/app/outputs
       - ./docs:/app/docs
       # 依存定義も同期
       - ./pyproject.toml:/app/pyproject.toml
