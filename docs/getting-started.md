@@ -1,24 +1,42 @@
 # はじめ方 — clone してから、どこに書いて進めるか
 
-> この 1 ページで、**手元の PC に取得して動かす**ところから、**どのディレクトリ／ファイルを読み・書き換え・自分で書くのか**、そして**各回の進め方**までを通しで案内します。GPU は不要です（CPU のみで全 46 回を完走できます）。**環境で迷う人・Mac で深層トラックに進む人は Docker が確実**です（どのデバイスでも全回動く。理由と手順は §6 と末尾の付録）。
+> この 1 ページで、**手元の PC に取得して動かす**ところから、**どのディレクトリ／ファイルを読み・書き換え・自分で書くのか**、そして**各回の進め方**までを通しで案内します。GPU は不要です（CPU のみで全 46 回を完走できます）。**環境で迷う人・Mac で深層トラックに進む人は Docker が確実**です（どのデバイスでも全回動く。手順は §1 の A、理由は末尾の付録、詰まったときの切り分けは §6）。
 >
 > git / GitHub の使い方そのものは説明しません（clone・branch・commit は分かっている前提）。focus は **「clone した後、何をどこに書けば学習が進むのか」** です。
 
 ## 1. 取得して、最初の一歩まで
 
+まず clone します。ここから先は **A) Docker** か **B) ローカル（uv）** のどちらかを選びます。**環境で迷う人・Mac で深層トラック（12 以降）に進む人は A) Docker が確実**です（コンテナは Linux なので、母艦が Intel Mac・Apple Silicon・Windows・Linux のどれでも全 46 回が動く）。手早く基礎（00〜11）だけ触るなら B) のネイティブ実行が軽量です。
+
 ```bash
 git clone https://github.com/zackey2414/lecture-cv.git
 cd lecture-cv
+```
 
+### A) Docker（推奨 — どのデバイスでも全 46 回が確実に動く）
+
+Docker さえ入っていれば、深層トラックの依存（dl/hf/vector/metrics/aug）も**イメージのビルド時にまとめて入る**ので、この 3 コマンドで 00〜45 のどれも実行できる状態になります。
+
+```bash
+docker compose up -d --build                  # CPU 既定。GPU は docker-compose.yaml のコメント参照
+docker compose exec lecture-cv uv run python lectures/00_setup/check_env.py        # 環境スモークテスト
+docker compose exec lecture-cv uv run python lectures/01_image_basics/01_imread_imwrite.py
+```
+
+以降、各回のスクリプトは `docker compose exec lecture-cv uv run python lectures/<id>/...` の形で実行します（コンテナは `sleep infinity` で起こしたまま使う運用。理由と仕組みは末尾の付録）。
+
+### B) ローカル（uv — 軽量に基礎から始めたい人向け）
+
+```bash
 # uv 未導入なら: curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync                                          # main 依存（numpy / opencv / pillow / matplotlib）
 uv run python lectures/00_setup/check_env.py     # 環境スモークテスト（device 判定など）
 uv run python lectures/01_image_basics/01_imread_imwrite.py
 ```
 
-これだけで最初のトラック（00〜11）は動きます。以降は **`uv run` を頭に付ける**だけ（`.venv` の有効化は不要）。
+これだけで最初のトラック（00〜11）は動きます。以降は **`uv run` を頭に付ける**だけ（`.venv` の有効化は不要）。深層トラック（12 以降）に進むときは、各回ページの「依存グループ」欄に従って `uv sync --group <name>` を足します（§4）。
 
-> 🐳 **環境で迷ったら／Mac で深層トラック（12 以降）に進むなら Docker が確実です。** 母艦が **Intel Mac・Apple Silicon・Windows・Linux のどれでも**、コンテナは Linux なので **全 46 回が確実に動きます**。とくに **Intel Mac は深層トラックの PyTorch をネイティブに入れられません**（PyTorch が torch 2.3 以降の Intel Mac 向け配布を終了したため）。その場合は下の「付録: Docker で始める」へ。詰まったときの切り分けは §6。
+> ⚠️ **Intel Mac（x86_64）はローカル（B）の深層トラックが動きません。** `uv sync --group dl` が「torch … doesn't have … wheel for … macosx … x86_64」で失敗します（PyTorch が torch 2.3 以降の Intel Mac 向け wheel を廃止したため）。深層トラックは **A) Docker** を使ってください（基礎トラック 00〜11 だけならローカルでも動きます）。詳しい切り分けは §6。
 
 ## 2. ディレクトリの地図 — どこを「読み」、どこに「書く」か
 
@@ -97,24 +115,20 @@ uv sync --group vector --group metrics    # FAISS + 評価指標
 ## 6. つまずいたら
 
 - **ImportError（依存が無い）**: その回の「依存グループ」を `uv sync --group <name>` で足したか確認。
-- **`torch ... doesn't have ... wheel for ... macosx ... x86_64`（`uv sync --group dl` が失敗）**: あなたは **Intel Mac**。PyTorch は torch 2.3 以降 Intel Mac 向け wheel を出していないため、ネイティブでは深層トラックの torch が入りません（世界的にどのプロジェクトでも同じ制約）。→ **「付録: Docker で始める」を使ってください**（全 46 回が確実に動きます）。基礎トラック(00〜11)だけなら `uv sync`（`--group dl` なし）でネイティブでも動きます。／**Apple Silicon Mac なのにこの x86_64 エラーが出る**場合は uv・Python が Rosetta(x86_64) で動いています。素の arm64 ターミナル（`uname -m` が `arm64`）で `curl -LsSf https://astral.sh/uv/install.sh | sh` → `file "$(command -v uv)"` が arm64 になったら `rm -rf .venv && uv sync --group dl`。
+- **`torch ... doesn't have ... wheel for ... macosx ... x86_64`（`uv sync --group dl` が失敗）**: あなたは **Intel Mac**。PyTorch は torch 2.3 以降 Intel Mac 向け wheel を出していないため、ネイティブでは深層トラックの torch が入りません（世界的にどのプロジェクトでも同じ制約）。→ **§1 の A) Docker を使ってください**（全 46 回が確実に動きます）。基礎トラック(00〜11)だけなら `uv sync`（`--group dl` なし）でネイティブでも動きます。／**Apple Silicon Mac なのにこの x86_64 エラーが出る**場合は uv・Python が Rosetta(x86_64) で動いています。素の arm64 ターミナル（`uname -m` が `arm64`）で `curl -LsSf https://astral.sh/uv/install.sh | sh` → `file "$(command -v uv)"` が arm64 になったら `rm -rf .venv && uv sync --group dl`。
 - **画面に何も出ない**: 既定は headless。`lectures/<id>/outputs/` に保存された画像を見る。`cv2.imshow` を使いたい時だけ `opencv-python-headless` を `opencv-python`（GUI 版）に差し替え（両者は排他）。
 - **モデルDLで止まる**: 深層トラックは初回に HuggingFace からモデルを取得。ネットワークと `~/.cache/huggingface` の容量を確認。
 - **遅い**: CPU 前提の設計。中級以降で解像度低減・フレームスキップ・量子化などの **CPU 最適化**を扱います。
 
 ---
 
-## 付録: Docker で始める / サイトを手元でプレビュー
+## 付録: なぜ Docker が確実なのか / サイトを手元でプレビュー
 
-**Docker はどのデバイスでも全 46 回が確実に動く道**です（コンテナは Linux なので、母艦が Intel Mac・Apple Silicon・Windows・Linux のいずれでも PyTorch の CPU 版がそのまま動きます）。深層トラックの依存（dl/hf/vector/metrics/aug）はイメージのビルド時に導入されるので、起動後はそのまま 12 以降も実行できます。
+**§1 の A) Docker がどのデバイスでも全 46 回を動かせる**のは、コンテナの中身が Linux だからです。母艦が Intel Mac・Apple Silicon・Windows・Linux のいずれでも、コンテナ内では PyTorch の CPU 版がそのまま動きます。とくに **Intel Mac はネイティブに深層トラックの PyTorch を入れられません**（PyTorch が torch 2.3 以降の Intel Mac 向け配布を終了したため）が、Docker ならこの制約を回避できます。深層トラックの依存（dl/hf/vector/metrics/aug）は `Dockerfile` の `uv sync --group ...` でイメージのビルド時に入るので、`docker compose up -d --build` のあとはそのまま 12 以降も実行できます。**GPU を使う場合**は `docker-compose.yaml` の `deploy.resources`（nvidia）と `Dockerfile` の CUDA 化コメントを外します（要 nvidia-container-toolkit）。
+
+この「はじめ方」を含む教材サイトを手元でビルドして読むこともできます（生成物 `site/` はコミットしません）。
 
 ```bash
-# Docker（CPU 既定。GPU は docker-compose.yaml のコメント参照）
-docker compose up -d --build
-docker compose exec lecture-cv uv run python lectures/00_setup/check_env.py
-docker compose exec lecture-cv uv run python lectures/01_image_basics/01_imread_imwrite.py
-
-# この「はじめ方」を含む教材サイトを手元でビルド（生成物 site/ はコミットしない）
 uv run --group site python tools/build_site.py   # 生成後 site/index.html を開く
 ```
 
