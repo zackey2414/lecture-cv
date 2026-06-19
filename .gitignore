@@ -8,7 +8,7 @@ wheels/
 
 # ===== 仮想環境 / uv =====
 .venv/
-.python-version
+# .python-version は Docker ビルド(COPY)・再現性のため追跡する（uv の Python 固定）
 
 # ===== Jupyter =====
 .ipynb_checkpoints/
