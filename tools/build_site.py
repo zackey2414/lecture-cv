@@ -269,6 +269,7 @@ def page(title: str, body: str, *, rel: str = "") -> str:
   </a>
   <nav class="topnav">
     <a href="{rel}getting-started.html">はじめ方</a>
+    <a href="{rel}docker-basics.html">Docker入門</a>
     <a href="{rel}graph.html">学習順序グラフ</a>
     <a href="{rel}roadmap.html">ロードマップ</a>
   </nav>
@@ -399,6 +400,16 @@ for _mid in modmap:
     )
 gs_body = lay(f'<article class="content">{blockify(gs_html)}</article>', left=sidebar_left(None))
 (SITE / "getting-started.html").write_text(page("はじめ方 — lecture-cv", gs_body))
+
+# ----------------------------------------------------------------------------- docker-basics page
+db_html, _ = md_to_html((ROOT / "docs" / "docker-basics.md").read_text())
+# 本文中の各モジュールID（`<code>00_setup</code>` 等）を各ページへのリンクにする
+for _mid in modmap:
+    db_html = db_html.replace(
+        f"<code>{_mid}</code>", f'<a class="rm-link" href="{_mid}.html"><code>{_mid}</code></a>'
+    )
+db_body = lay(f'<article class="content">{blockify(db_html)}</article>', left=sidebar_left(None))
+(SITE / "docker-basics.html").write_text(page("Docker 入門 — lecture-cv", db_body))
 
 # ----------------------------------------------------------------------------- roadmap page
 roadmap_html, _ = md_to_html((ROOT / "docs" / "roadmap.md").read_text())

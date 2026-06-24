@@ -1,6 +1,6 @@
 # はじめ方 — clone してから、どこに書いて進めるか
 
-> この 1 ページで、**手元の PC に取得して動かす**ところから、**どのディレクトリ／ファイルを読み・書き換え・自分で書くのか**、そして**各回の進め方**までを通しで案内します。GPU は不要です（CPU のみで全 46 回を完走できます）。**環境で迷う人・Mac で深層トラックに進む人は Docker が確実**です（どのデバイスでも全回動く。手順は §1 の A、理由は末尾の付録、詰まったときの切り分けは §6）。
+> この 1 ページで、**手元の PC に取得して動かす**ところから、**どのディレクトリ／ファイルを読み・書き換え・自分で書くのか**、そして**各回の進め方**までを通しで案内します。GPU は不要です（CPU のみで全 46 回を完走できます）。**環境で迷う人・Mac で深層トラックに進む人は Docker が確実**です（どのデバイスでも全回動く。手順は §1 の A、考え方は [Docker 入門](docker-basics.html)、詰まったときの切り分けは §6）。
 >
 > git / GitHub の使い方そのものは説明しません（clone・branch・commit は分かっている前提）。focus は **「clone した後、何をどこに書けば学習が進むのか」** です。
 
@@ -15,15 +15,23 @@ cd lecture-cv
 
 ### A) Docker（推奨 — どのデバイスでも全 46 回が確実に動く）
 
-Docker さえ入っていれば、深層トラックの依存（dl/hf/vector/metrics/aug）も**イメージのビルド時にまとめて入る**ので、この 3 コマンドで 00〜45 のどれも実行できる状態になります。
+Docker は「箱（OS＋ライブラリ＋Python＋uv）」を用意するだけで、**依存はコンテナに入ってから `uv` で整えます**。つまり **`docker compose exec lecture-cv bash` でコンテナの中に入り、その中で `uv sync` / `uv run` を使う**のが基本です（Docker と uv の役割分担は **[Docker 入門](docker-basics.html)** を参照）。
 
 ```bash
-docker compose up -d --build                  # CPU 既定。GPU は docker-compose.yaml のコメント参照
-docker compose exec lecture-cv uv run python lectures/00_setup/check_env.py        # 環境スモークテスト
-docker compose exec lecture-cv uv run python lectures/01_image_basics/01_imread_imwrite.py
+# ① ホストで：箱をビルドして起動し、コンテナに入る（初回だけ --build）
+docker compose up -d --build
+docker compose exec lecture-cv bash
 ```
 
-以降、各回のスクリプトは `docker compose exec lecture-cv uv run python lectures/<id>/...` の形で実行します（コンテナは `sleep infinity` で起こしたまま使う運用。理由と仕組みは末尾の付録）。
+```bash
+# ② コンテナの中で：uv で環境を整えて実行する（プロンプト例: root@xxxx:/app#）
+uv sync                                          # 画像基礎(00〜11)の依存をそろえる
+uv run python lectures/00_setup/check_env.py     # 環境スモークテスト
+uv run python lectures/01_image_basics/01_imread_imwrite.py
+exit                                             # 出る（コンテナは起動したまま。次回は exec から）
+```
+
+深層トラック(12 以降)に進むときは、コンテナの中で必要なグループを足します（例: `uv sync --group dl --group hf`）。**各回ページの「▶ 動かし方」の `uv ...` コマンドは、コンテナに入った後そのまま打てば OK** です。仕組みと早見表は [Docker 入門](docker-basics.html)、詰まったら §6。
 
 ### B) ローカル（uv — 軽量に基礎から始めたい人向け）
 
@@ -124,7 +132,7 @@ uv sync --group vector --group metrics    # FAISS + 評価指標
 
 ## 付録: なぜ Docker が確実なのか / サイトを手元でプレビュー
 
-**§1 の A) Docker がどのデバイスでも全 46 回を動かせる**のは、コンテナの中身が Linux だからです。母艦が Intel Mac・Apple Silicon・Windows・Linux のいずれでも、コンテナ内では PyTorch の CPU 版がそのまま動きます。とくに **Intel Mac はネイティブに深層トラックの PyTorch を入れられません**（PyTorch が torch 2.3 以降の Intel Mac 向け配布を終了したため）が、Docker ならこの制約を回避できます。深層トラックの依存（dl/hf/vector/metrics/aug）は `Dockerfile` の `uv sync --group ...` でイメージのビルド時に入るので、`docker compose up -d --build` のあとはそのまま 12 以降も実行できます。**GPU を使う場合**は `docker-compose.yaml` の `deploy.resources`（nvidia）と `Dockerfile` の CUDA 化コメントを外します（要 nvidia-container-toolkit）。
+**§1 の A) Docker がどのデバイスでも全 46 回を動かせる**のは、コンテナの中身が Linux だからです。母艦が Intel Mac・Apple Silicon・Windows・Linux のいずれでも、コンテナ内では PyTorch の CPU 版がそのまま動きます。とくに **Intel Mac はネイティブに深層トラックの PyTorch を入れられません**（PyTorch が torch 2.3 以降の Intel Mac 向け配布を終了したため）が、Docker ならこの制約を回避できます。本講座の Docker は**依存を焼き込まず、コンテナに入ってから `uv sync` / `uv sync --group ...` で整える**方式です（uv のダウンロードキャッシュをボリューム化しているので 2 回目以降の sync は速い）。Docker と uv の役割分担・イメージ/コンテナ/ボリュームの考え方は **[Docker 入門](docker-basics.html)** にまとめています。**GPU を使う場合**は `docker-compose.yaml` の `deploy.resources`（nvidia）と `Dockerfile` の CUDA 化コメントを外します（要 nvidia-container-toolkit）。
 
 この「はじめ方」を含む教材サイトを手元でビルドして読むこともできます（生成物 `site/` はコミットしません）。
 
@@ -133,3 +141,7 @@ uv run --group site python tools/build_site.py   # 生成後 site/index.html を
 ```
 
 準備ができたら、**[トップ（全回の一覧）](index.html)** から最初の回を開いて始めましょう。
+
+---
+
+> 参照: uv 0.10 系 / Python 3.12 / Docker Compose v2（CPU 前提・headless OpenCV・Linux は CPU ホイール明示、Docker は「箱だけ作りコンテナ内で uv sync」方式） — 2026-06

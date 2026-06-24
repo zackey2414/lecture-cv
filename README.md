@@ -33,16 +33,27 @@ uv run --group site python tools/build_site.py
 
 ## クイックスタート
 
-> 🐳 **迷ったら Docker。** 母艦が **Intel Mac・Apple Silicon Mac・Windows・Linux のどれでも**、コンテナは Linux なので **全 46 回が確実に動きます**。とくに深層トラック（12 以降）は PyTorch を使い、**Intel Mac ではネイティブに torch を入れられない**（PyTorch が torch 2.3 以降の Intel Mac 向け配布を終了）ため、Docker が唯一確実な道です。手早く基礎だけ触るなら uv のネイティブ実行が軽量です。
+> 🐳 **迷ったら Docker。** 母艦が **Intel Mac・Apple Silicon Mac・Windows・Linux のどれでも**、コンテナは Linux なので **全 46 回が確実に動きます**。とくに深層トラック（12 以降）は PyTorch を使い、**Intel Mac ではネイティブに torch を入れられない**（PyTorch が torch 2.3 以降の Intel Mac 向け配布を終了）ため、Docker が唯一確実な道です。手早く基礎だけ触るなら uv のネイティブ実行が軽量です。Docker と uv の役割分担（箱は Docker・中身は uv）は [docs/docker-basics.md](docs/docker-basics.md) を参照。
 
 ### A) Docker（推奨 — どのデバイスでも全回が動く）
 
+Docker は「箱（OS＋ライブラリ＋Python＋uv）」を用意するだけ。**コンテナに入って、その中で `uv` で環境を整えて実行**します（Docker と uv の役割分担・ファイル関係は [docs/docker-basics.md](docs/docker-basics.md)）。
+
 ```bash
-docker compose up -d --build              # CPU 既定。GPU は docker-compose.yaml のコメント参照
-docker compose exec lecture-cv uv run python lectures/00_setup/check_env.py        # 環境スモークテスト
-docker compose exec lecture-cv uv run python lectures/01_image_basics/01_imread_imwrite.py
-# 深層トラックの依存（dl/hf/vector/metrics/aug）はイメージビルド時に導入済み。12 以降もそのまま実行できる。
+# ① ホストで：起動してコンテナに入る（初回だけ --build）
+docker compose up -d --build
+docker compose exec lecture-cv bash
 ```
+
+```bash
+# ② コンテナの中で：uv で整えて実行（プロンプトが container 内に変わる）
+uv sync                                   # 画像基礎(00〜11)の依存をそろえる
+uv run python lectures/00_setup/check_env.py
+uv run python lectures/01_image_basics/01_imread_imwrite.py
+uv sync --group dl --group hf             # 深層トラック(12 以降)に進むとき必要なグループを足す
+```
+
+> 各回ページの「動かし方」の `uv ...` コマンドは、Docker の場合①でコンテナに入った後そのまま実行できます。詳細は [docs/docker-basics.md](docs/docker-basics.md)。
 
 ### B) ローカル（uv — 軽量に基礎から始めたい人向け）
 
@@ -83,6 +94,7 @@ lecture-cv/
 ├── site/                     # 教材閲覧サイト（生成物・gitignore。CIでビルドし Pages へ配信）
 ├── tools/build_site.py       # 閲覧サイトのビルダー（Markdown→HTML）
 ├── docs/getting-started.md   # はじめ方ガイド（clone 後の進め方・どこに書くか。サイトの「はじめ方」）
+├── docs/docker-basics.md     # Docker 入門（Docker と uv の責務・ファイル関係・コンテナで uv 運用）
 ├── docs/roadmap.md           # 全 46 モジュールのロードマップ（必読）
 ├── docs/curriculum.json      # 全モジュールのメタ情報（サイト生成・教材作成に使用）
 ├── data/                     # 入力データ（各自で配置。.gitkeep のみ追跡）
