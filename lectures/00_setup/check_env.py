@@ -3,7 +3,7 @@
 使い方:
     uv run python lectures/00_setup/check_env.py
 
-「画像の基礎トラック(00〜09)」は numpy / opencv / pillow / matplotlib だけで動く。
+「画像の基礎トラック(00〜11)」は numpy / opencv / pillow / matplotlib だけで動く。
 深層・各タスクのトラックに進むときは `uv sync --group dl --group hf ...` で任意依存を足す。
 """
 
@@ -27,7 +27,7 @@ def main() -> None:
     print(f"Python  : {sys.version.split()[0]}")
     print(f"Platform: {platform.platform()}")
 
-    print("\n=== 必須（画像の基礎トラック 00-09）===")
+    print("\n=== 必須（画像の基礎トラック 00-11）===")
     for name in ("numpy", "cv2", "PIL", "matplotlib"):
         print(f"  {name:12}: {_ver(name)}")
 
