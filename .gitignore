@@ -43,5 +43,9 @@ Thumbs.db
 # ===== 生成物（CIでビルドして配信。コミットしない） =====
 /site/
 
+# ===== LaTeX 資料ビルド（tools/build_latex.py の生成物）と取得したツール =====
+/build/
+/.tools/
+
 # 私的なローカル指示（公開しない）
 CLAUDE.md
