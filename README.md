@@ -31,6 +31,23 @@ uv run --group site python tools/build_site.py
 # 生成後、site/index.html をブラウザで開く（macOS: open site/index.html）
 ```
 
+### PDF（LaTeX）で全教材を 1 冊に通読する
+
+全 46 回＋docs を 1 つの LaTeX/PDF（約 600 ページ）にまとめて読めます。各 README に埋め込んだインライン SVG 図は PDF 化して `\includegraphics` で取り込み、日本語は `xelatex` + IPA フォントで組みます。生成物 `build/` とツール `.tools/` は**コミットしません**（手元で再生成）。
+
+前提: `xelatex`（TeX Live）と日本語フォント（Debian/Ubuntu は `texlive-xetex texlive-lang-japanese fonts-ipafont`）、`pandoc`、`cairosvg`。
+
+```bash
+# pandoc 静的バイナリを取得（初回のみ。Linux 例。mac は `brew install pandoc` 等）
+mkdir -p .tools && curl -sL https://github.com/jgm/pandoc/releases/download/3.10/pandoc-3.10-linux-amd64.tar.gz | tar xz -C .tools
+
+# 全教材を 1 つの PDF/LaTeX にビルド（cairosvg は uv の一時環境で供給）
+uv run --with cairosvg python tools/build_latex.py
+# 出力: build/latex/lecture-cv.pdf（と lecture-cv.tex）
+```
+
+1 章だけ試すなら `--only 00_setup`、PDF を作らず `.tex` だけなら `--no-pdf`。
+
 ## クイックスタート
 
 > 🐳 **迷ったら Docker。** 母艦が **Intel Mac・Apple Silicon Mac・Windows・Linux のどれでも**、コンテナは Linux なので **全 46 回が確実に動きます**。とくに深層トラック（12 以降）は PyTorch を使い、**Intel Mac ではネイティブに torch を入れられない**（PyTorch が torch 2.3 以降の Intel Mac 向け配布を終了）ため、Docker が唯一確実な道です。手早く基礎だけ触るなら uv のネイティブ実行が軽量です。Docker と uv の役割分担（箱は Docker・中身は uv）は [docs/docker-basics.md](docs/docker-basics.md) を参照。
