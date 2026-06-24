@@ -55,7 +55,7 @@ def main() -> None:
     print("=== 1. [project.dependencies]（uv sync で常に入る本体）===")
     for dep in data["project"]["dependencies"]:
         print(f"  - {dep}")
-    print("  → 画像の基礎トラック(00〜09)はこの本体だけで CPU 完走できる。")
+    print("  → 画像の基礎トラック(00〜11)はこの本体だけで CPU 完走できる。")
 
     # --- 2. 任意の依存グループ ----------------------------------------
     print("\n=== 2. [dependency-groups]（uv sync --group <name> で足す）===")

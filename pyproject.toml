@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Computer Vision を血肉にするためのハンズオン講座（OpenCV/Pillow/HuggingFace/FAISS/検出・セグメ・キャプション・評価・モデル圧縮ほか）"
 readme = "README.md"
 requires-python = ">=3.12"
-# 画像基礎トラック（00〜09）はこの main 依存だけで CPU 完走できる。
+# 画像基礎トラック（00〜11）はこの main 依存だけで CPU 完走できる。
 # 深層・各タスクのトラックは下の dependency-groups を `uv sync --group <name>` で足す。
 dependencies = [
     "numpy>=2.2",
