@@ -9,13 +9,17 @@ services:
       - ./lectures:/app/lectures
       - ./data:/app/data
       - ./docs:/app/docs
-      # 依存定義も同期
+      # 依存定義（コンテナ内の uv sync が読む）
       - ./pyproject.toml:/app/pyproject.toml
       - ./uv.lock:/app/uv.lock
-      # HuggingFace キャッシュを永続化（再ダウンロード回避）
+      - ./.python-version:/app/.python-version
+      # uv のダウンロードキャッシュを永続化（コンテナを作り直しても再 sync が速い）
+      - ./.cache/uv:/app/.cache/uv
+      # HuggingFace のモデルキャッシュを永続化（再ダウンロード回避）
       - ./.cache/huggingface:/app/.cache/huggingface
     working_dir: /app
-    # 学習中は起こしておき、`docker compose exec lecture-cv uv run python ...` で実行する
+    # 学習中は起こしておき、`docker compose exec lecture-cv bash` で入って
+    # `uv sync` → `uv run python ...` する運用（依存はコンテナ内で整える）。
     command: ["sleep", "infinity"]
 
     # ===== GPU を使う場合は以下のコメントを外す（要 nvidia-container-toolkit） =====
